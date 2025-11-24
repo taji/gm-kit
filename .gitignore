@@ -116,3 +116,5 @@ Thumbs.db
 # Project specific
 spec-kit/
 temp-resources/
+.codex/
+.opencode/
