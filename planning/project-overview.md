@@ -19,7 +19,7 @@ Arcane Library one-page beats are the canonical schema:
 
 All new tooling, prompts, and scripts must target these artifacts so the GM never has to juggle incompatible schemas.
 
-## Current Epics (from `planning/TODOS.md`)
+## Current Epics
 1. **Repository Setup**: initialize README/.gitignore (ignore `temp-resources/` and `spec-kit/`), document the lifecycle (todos → prompts → specs → plans → tasks → implement), validate repo layout with AI, design MCP unit/integration test strategy, and figure out symlink strategy so multiple AI agents can share the repo.
 2. **Development Environment & Walking Skeleton**: author startup scripts (`uv run/test` helpers), optionally integrate the knowledge-graph MCP for comparison, build a walking-skeleton MCP with tests, wire fast update loops with the Obsidian vault, and ship installation flows for Codex and OpenCode. The first post-init feature must be the PDF-to-Markdown converter.
 3. **Spec-Kit Architecture Analysis**: study the upstream repo in detail (constitution → gates/checklists → command phases), answer open questions about where the gates originate, and produce a knowledge write-up that explains how Spec-Kit’s MCP logic works and what guardrails GM-Kit inherits.

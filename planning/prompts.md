@@ -1,6 +1,6 @@
 # GM-Kit Feature Prompts (Arcane Library Edition)
 
-Use these `/speckit.specify` prompts to translate the active epics in `planning/TODOS.md` into executable specs. Prompts are grouped and ordered by those epics so the workflow remains: todos → prompts → specs → plans → tasks → implementation. Replace references to legacy combat/social/exploration artifacts; Arcane Library schemas are the new source of truth.
+Use these `/speckit.specify` prompts to translate the active epics in `planning/project-overview.md` into executable specs. Prompts are grouped and ordered by those epics so the workflow remains: prompts → specs → plans → tasks → implementation. Replace references to legacy combat/social/exploration artifacts; Arcane Library schemas are the new source of truth.
 
 ---
 
@@ -8,9 +8,9 @@ Use these `/speckit.specify` prompts to translate the active epics in `planning/
 
 ### 1) Repo Bootstrap (README + .gitignore + Structure Audit)
 Feature description:
-Create a feature that scaffolds a minimal README describing GM-Kit’s Arcane Library mission, adds a `.gitignore` that excludes `temp-resources/` and `spec-kit/`, and runs an automated structure audit (AI summary + checklist) confirming folders match expectations. Include instructions for keeping the README synced with planning docs.
+Scaffold a minimal README describing GM-Kit’s Arcane Library mission, add a `.gitignore` that excludes `temp-resources/` and `spec-kit/`, and then audit the folder structure and included files to verify the project is ready to push to gihtub. Include instructions for keeping the README synced with planning docs.
 
-Success looks like: a repo that is ready for PRs, ignores transient analysis folders, and ships with a documented layout check.
+Success looks like: a repo that is ready for PRs, ignores transient analysis folders and is ready for python development.
 
 ### 2) Development Lifecycle Documentation
 Feature description:
@@ -23,14 +23,6 @@ Feature description:
 Define how to unit or integration test the MCP. Cover minimal walking tests (CLI dry runs, mock agents) and outline where automated scripts live. Specify pass/fail gates that block shipping (e.g., failing CLI smoke test).
 
 Success looks like: a practical testing rubric the team can run locally before each PR.
-
-### 4) Multi-Agent Symlink Plan
-Feature description:
-Design a symlink strategy so Codex, OpenCode, Gemini, etc., can mount the same repo while keeping agent-specific folders (commands, credentials) isolated or gitignored. Document the steps to regenerate links per platform.
-
-Success looks like: repeatable instructions that keep vendor-specific agents in sync without polluting git history.
-
----
 
 ## Epic 2 — Development Environment & Walking Skeleton
 

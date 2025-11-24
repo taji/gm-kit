@@ -45,3 +45,91 @@ Also, what is the goal of project:
 A few more things to keep in mind:;
 
 * The GM should not have to read an entire module to begin the translation. Ideally they read the background details, previous events and the synopsis (if available, if not: have the AI generate a synopsis).  Then the AI should generate the clue-flow-diagram to ensure they know how the original story is arranged.  At that point (and as a first pass),  he can restructure the plot, fix any clue-flow blockages as he needs.  Then on the second pass, start drilling down into specifics (so translating or creating elements).
+
+**11-24-2025 README Baseline Audit (pre-feature)**
+
+Snapshot (`ls -a` at repo root):
+
+```
+.
+..
+AGENTS.md
+.codex
+.git
+.gitignore
+justfile
+.opencode
+planning
+pyproject.toml
+.python-version
+README.md
+scripts
+setup_dev.sh
+.specify
+spec-kit
+specs
+src
+startcode.sh
+temp-resources
+uv.lock
+.venv
+```
+
+Checklist status prior to edits:
+- [x] planning/
+- [x] spec-kit/ (ignored)
+- [x] src/
+- [x] temp-resources/ (ignored)
+- [x] README.md
+- [x] justfile
+- [x] pyproject.toml
+- [x] uv.lock
+- [x] .python-version
+- [x] specs/
+
+Notes:
+- README currently references a “todos → prompts” workflow and lacks dedicated sections for contributor lifecycle or detailed audit instructions.
+- `.gitignore` already contains Python defaults plus `spec-kit/` and `temp-resources/`; creating temporary files under those folders confirmed they remain ignored (`git status` stayed clean). Temporary markers removed after the check.
+
+**11-24-2025 README + Audit Updates (post-feature)**
+
+Snapshot (`ls -a` at repo root after README changes):
+
+```
+.
+..
+AGENTS.md
+.codex
+.git
+.gitignore
+justfile
+.opencode
+planning
+pyproject.toml
+.python-version
+README.md
+scripts
+setup_dev.sh
+.specify
+spec-kit
+specs
+src
+startcode.sh
+temp-resources
+uv.lock
+.venv
+```
+
+Checklist verification:
+- [x] planning/
+- [x] spec-kit/ (ignored)
+- [x] src/
+- [x] temp-resources/ (ignored)
+- [x] README.md (now includes mission, workflow, audit, lifecycle sections)
+- [x] justfile
+- [x] pyproject.toml
+- [x] uv.lock
+- [x] .python-version
+- [x] specs/ (includes updated feature artifacts)
+
+README now documents the prompt-driven workflow, “Add a Feature” steps, manual audit process, and contributor lifecycle; `.gitignore` entries for `spec-kit/` and `temp-resources/` confirmed via temporary file test.
