@@ -5,4 +5,3 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 # Sanity check that the development environment is set up correctly.
 hello-python:
     uv run --python "$(cat .python-version)" -- python -c "print('hello from justfile')"
-

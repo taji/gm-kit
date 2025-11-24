@@ -31,3 +31,10 @@
 - Commit messages should be clear and scoped; update `CHANGELOG.md` when altering user-facing behavior.
 - PRs should describe intent, testing performed, and impacted templates/scripts; link related issues and screenshots/logs when relevant.
 - Document any AI assistance in the PR (per `CONTRIBUTING.md`), ensure docs (`README.md`, `spec-driven.md`, `docs/*.md`) stay in sync, and avoid committing secrets (tokens like `GH_TOKEN` are for local use only).
+
+## Active Technologies
+- Python 3.11 (per project standard) + None beyond git + Markdown editing (001-readme-audit)
+- N/A (documentation + repo metadata) (001-readme-audit)
+
+## Recent Changes
+- 001-readme-audit: Added Python 3.11 (per project standard) + None beyond git + Markdown editing
