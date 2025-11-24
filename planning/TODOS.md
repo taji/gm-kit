@@ -1,0 +1,92 @@
+
+- Setup your github repo
+    - Add a README file.
+    - Add a .gitignore
+        temp-resources/ folder
+        spec-kit/ folder (only used to analyze spec-kit)
+    - Have ai analyze the folder structurer verify your flow is correct.
+    - Also, document the development process (todos --as epics-- -> prompts -> specs -> plans -> tasks -> implement )
+    - Determine how to unit or integration test the MCP. 
+    - Determine how to use symbolic links so you can test in codex/opencode/gemini/etc.
+- Get your development environment setup with startup scripts, uv run/test/etc integration, etc.  
+  - OPTIONAL: Add the knowledge-graph mcp and see if it improves on the adhoc implementations from opencode/gemini/codex/copilot.  A universal session distiller is more preferred than trying to blend/use the ones provided by each different vendor.
+  - Do a walking skeleton/hello world mcp as a start.
+    - Ensure testing is in place.  
+  - Then make sure you can quickly update the mcp as you make changes in your obsidian folder.   
+  - Start with a simple installation into codex and opencode.  
+  - Your first feature (after your installation code) is converting a pdf to markdown (see below). 
+
+- Spec-kit Architecture Analysis
+    - Download the spec-kit repo  
+    - In Codex/OpenCode, open the repo and start asking questions regarding how it is designed.  
+    - As you walk through the phases for a feature in gm-kit (/specify, /clarify, /plan, etc) look at the output information, ask questions about every detail of the generated artifacts, specifically about the checklists, why they are there, how they were decided on, and how they can be modified or refined.  
+    - For example these checklists:  
+    - \#\#\# Phase \-1: Pre-Implementation Gates  
+    - \#\#\#\# Simplicity Gate (Article VII)  
+    - \- \[ \] Using ≤3 projects?  
+    - \- \[ \] No future-proofing?  
+    - \#\#\#\# Anti-Abstraction Gate (Article VIII)  
+    - \- \[ \] Using framework directly?  
+    - \- \[ \] Single model representation?  
+    - QUESTIONS:  
+        - The Articles have to come from the constitution, but I haven’t reviewed it to verify that assumption.  
+        - How did they come up with the gates?  
+        - Something like “No future proofing”:  does that mean avoid over designing the feature by trying to avoid unlikely future scenario?  I think it does but you have to understand all of this innately.  
+    - Understand the spec-kit and MCP logic cold.  This is your ticket to a better job.--  Find out how to implement an MCP and work with AI to generate your own MCP for DnD.  See what is out there in the landscape and take the good elements of it to suit your own philosophy.  
+    - Create a writeup similar to the one above that explains the MCP, how it is designed and how to use it.  
+    - When you implement your gm-assist or gm-kit MCP, here are some things to consider:  
+    - What’s the easiest way to cross platform capability?  So for example:  
+        - If you need command line tools to complete some of the work (so splitting a large pdf file into smaller chunks, converting to markdown, etc): What command line tools are needed?  How hard is it to install those tools on windows?  (I’m assuming mac and linux should be straight forward).  Instead of command line tools, we make it all python libraries? That way it’s portable across platforms.  
+    - Additionally what guardrails need to be in place to make this work effectively?  
+- Research the Pdf to markdown approach
+    Convert pdf to markdown.
+        - For testing:
+            - Use the ubiquitous dmsguild format as an initial test.
+            - Also test against call of cthulhu, W5 etc. 
+        - Lets do research on two different approaches, useing three different input scenario modules:
+            - DnD two column standard format 
+            - Call of Cthulhu - chaosium format
+            - W5 Apocalypse - format (extract only the pages you need).
+        - The two approaches:
+            - AI performs the conversion (more exact -- I think) and less errors, but eats a lot of context and usage.
+            - AI analyzes the PDF and then creates and runs a command line for a CLI conversion utility to perform the conversion, then cleans up the output mardown as needed.
+        Questions: 
+            - How do we ensure the tools work together?  Would it be better to write a python script?
+            - Can the AI present different title snippets (as text) from the pdf and verify the H# level?  Can it evaluate the pdf and see if there is distinct font informatoin for each section?
+            - How do you deal with box text?  Should these use the > symbol as a call out in the MD?
+    - AI and User will double check the order and hiearchy of the titles, paragraphs and sections.
+    - Expected output:  markdown file that follows the structure of the original and has properly nested all elements of the pdf. 
+    - Version 2:  Extract the imgages and embed image links into the document at the same location as the PDF.
+- Revise or create a new prompt list and create epics:
+    - Revise the pdf to markdown prompts based on your findings.
+    - DONE: Review Kelsey Dionne’s scenario structure  
+    - Make new prompts for spec kit
+        - Gut the social/combat/exploration/challenge prompts.
+        - Integrate the scenario distillation to the Arcane Library structure as a new set of prompts.
+    - Spec the MVP with spec-kit.  
+    - Convert both Skyhorn Lighthouse scenarios and the Temple of the Basilisk Cult scenarios to markdown.
+    - Have AI analyze your findings for the schemas.
+    - Create your kelsey dionne schemas from this list:   
+        - Synopsis 
+        - Background  
+        - Word to the GM (boilerplate, should basically be the same every time).  
+        - Pacing/Transitions (boilerplate)  
+        - Intro page  
+            - Title  
+            - Plot hooks  
+            - Character Cards for relevant plot hooks.  
+            - Transition   
+        - 1 page Encounter.  Revise as needed.  
+            - Title  
+            - Approaching location  
+            - Developments  
+            - Dramatic Question  
+            - Challenge/Social  
+            - Character Cards (as links)  
+            - GM Guidance (as links \-- for now).  
+            - Transition  
+  - For v2
+    - Revise the mechanism to include dungeon rooms as one page elements. Convert a dungeon map and key a markdown outline with each room as it's own page, with hyperlinks on the map to the specific page.  Each room has bullet points with room descriptions, reduced npc/monster stat blocks, quick room descriptions, areas of exploration, events etc.  See if obsidian already has some kind of plugin and format for this.
+    - Using the same schema have the AI analyze, make recommended revisions and complete the revisions to the distilled doc via the schemas.  
+        - Develop a quick prompt approach to this process, particularly the clue-route diagram and the flow.
+
