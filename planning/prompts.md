@@ -4,21 +4,21 @@ Use these `/speckit.specify` prompts to translate the active epics in `planning/
 
 ---
 
-## Epic 1 — Repository Setup & Governance
+## ✅ Epic 1 — Repository Setup & Governance (completed)
 
-### 1) Repo Bootstrap (README + .gitignore + Structure Audit)
+### ✅ 1) Repo Bootstrap (README + .gitignore + Structure Audit)
 Feature description:
 Scaffold a minimal README describing GM-Kit’s Arcane Library mission, add a `.gitignore` that excludes `temp-resources/` and `spec-kit/`, and then audit the folder structure and included files to verify the project is ready to push to gihtub. Include instructions for keeping the README synced with planning docs.
 
 Success looks like: a repo that is ready for PRs, ignores transient analysis folders and is ready for python development.
 
-### 2) Development Lifecycle Documentation
+### ✅ 2) Development Lifecycle Documentation
 Feature description:
 Add contributor documentation that explains the enforced workflow: todos (as epics) → prompts → specs → /plan → tasks → implementation → validation. Highlight how prompts are stored, how specs reference planning artifacts, and where status lives. Include guidance for capturing decisions in Obsidian and syncing back.
 
 Success looks like: anyone can trace a shipped change back to the originating todo epic.
 
-### 3) MCP Testing Strategy
+### ⚠️ 3) Testing Strategy (deferred)
 Feature description:
 Define how to unit or integration test the MCP. Cover minimal walking tests (CLI dry runs, mock agents) and outline where automated scripts live. Specify pass/fail gates that block shipping (e.g., failing CLI smoke test).
 
@@ -26,17 +26,13 @@ Success looks like: a practical testing rubric the team can run locally before e
 
 ## Epic 2 — Development Environment & Walking Skeleton
 
-### 5) Startup Scripts & UV Automation
-Feature description:
-Create scripts (bash + PowerShell) that bootstrap the environment: run `uv sync`, expose `uv run/test` shortcuts, and launch any watchers needed to mirror Obsidian updates. Include logging so failures are obvious and add notes about optional knowledge-graph MCP integration.
-
-Success looks like: `./setup_dev.sh` (or PowerShell twin) prepares the workspace in one step.
-
 ### 6) Knowledge-Graph MCP Experiment (Optional)
 Feature description:
 Spec an experiment that wires a knowledge-graph MCP into the workflow to compare against vendor-provided session distillers. Outline evaluation metrics and fallback plans if the integration adds friction.
 
 Success looks like: documented learnings on whether the knowledge graph improves Arcane Library outputs.
+
+NOTE: The developer will install the mcp and configure it. Use the context at this link in both codex and opencode to ensure it's working correctly: https://github.com/modelcontextprotocol/servers/tree/main/src/memory (See SYSTEM PROMPT section in the readme, note we are using Cheezy's recommended knowledge graph mcp rather than the Memory mcp)
 
 ### 7) Walking Skeleton MCP + Tests
 Feature description:
