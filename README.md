@@ -1,6 +1,6 @@
 # GM-Kit
 
-GM-Kit reshapes tabletop prep into Kelsey Dionne’s Arcane Library format using Spec-Kit workflows. Every change in this repo flows through a prompt-driven lifecycle (prompts → specs → plans → tasks → implementation → validation) documented in `planning/`, keeping the CLI, templates, and docs synchronized.
+GM-Kit lets a GM reshape the contents of a long-form published scenario PDF into a bullet-pointed outline inspired by Kelsey Dionne’s Arcane Library format, using Spec-Kit workflows (CLI scaffolding + agent-executed commands/templates). It adds value by reliably turning long scenario prose (backstory, hooks, encounters, transitions, character beats, GM guidance) into crisp Arcane Library–style outlines and checklists that preserve critical links and clues while reducing cognitive load at the table. It keeps story flow intact by mapping those details into one-page encounter outlines with clear transitions between encounters.
 
 ## Mission Snapshot
 - **Arcane Library output:** Scenario ingest, distillation, and authoring target Synopsis, Background, Word to the GM, Pacing/Transitions, Intro Page, and the one-page encounter schema (Approach → Developments → Dramatic Question → Challenge/Social → Character Cards → GM Guidance → Transition).

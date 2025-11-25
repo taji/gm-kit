@@ -160,17 +160,23 @@ Create a process where AI analyzes converted scenarios, highlights schema gaps, 
 
 Success looks like: evolving schemas grounded in real module conversions.
 
+### 26) MVP Beta Readiness & CI/CD
+Feature description:
+Prepare GM-Kit for the first MVP beta release. Stand up a CI/CD pipeline that runs lint/format/type-check (or equivalent quality gates), a minimal smoke conversion (sample PDF → Markdown → Arcane Library outline), and packaging/uv build. Define release/versioning, tagging, and changelog steps; lock prompts/templates used by `/speckit.*`; refresh README to reflect the beta state (what works, known gaps, supported agents, quickstart). Include a release checklist (artifacts, docs, sample outputs, manual QA) and how beta feedback is collected.
+
+Success looks like: a passing pipeline, a repeatable beta release recipe (tag + artifacts + docs), and updated README/prompts ready for beta testers.
+
 ---
 
 ## Epic 6 — Version 2 Dungeon & Flow Extensions
 
-### 26) V2 Dungeon Room Workflow
+### 27) V2 Dungeon Room Workflow
 Feature description:
 Extend the schema to treat each dungeon room as its own encounter page, link map pins to room files, and prompt AI to suggest transitions and clue-routing adjustments. Mention potential Obsidian plugins if relevant.
 
 Success looks like: a ready-to-spec plan for dungeon-heavy adventures once v1 ships.
 
-### 27) Clue-Route Diagram Enhancements
+### 28) Clue-Route Diagram Enhancements
 Feature description:
 Develop a prompt that guides AI through analyzing the clue-route diagram, recommending revisions, and updating the distilled document to reflect those changes using the Arcane Library schema.
 
