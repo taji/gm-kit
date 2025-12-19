@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "gm-kit"
 version = "0.1.0"
 description = "Starter package for the GM Kit workspace."
-readme = "README.JTG.md"
+readme = "README.md"
 requires-python = ">=3.11"
 authors = [{ name = "Your Name" }]
 dependencies = []
@@ -16,6 +16,8 @@ dev = [
     "ruff",
     "pytest",
     "black",
+    "isort",
+    "mypy",
 ]
 
 [tool.pytest.ini_options]

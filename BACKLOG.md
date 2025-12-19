@@ -38,23 +38,17 @@ Success looks like: documented learnings on whether the knowledge graph improves
 
 NOTE: The developer will install the mcp and configure it. Use the context at this link in both codex and opencode to ensure it's working correctly: https://github.com/modelcontextprotocol/servers/tree/main/src/memory (See SYSTEM PROMPT section in the readme, note we are using Cheezy's recommended knowledge graph mcp rather than the Memory mcp)
 
-### E2-02. Multi-Agent Installation Flow
+### E2-02. Installation and Walking Skeleton
 Feature description:
-Deliver a Python/uv installer that registers the slash-command prompts for all supported agents (copilot, claude, gemini, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, roo, q/Amazon Q, amp), drops bash/PowerShell scripts, and installs/verifies `qpdf` (preferred) or `pdftk` via system package managers (brew/apt/choco/winget). If no package manager is available, allow bundling a vetted qpdf binary when licensing permits. No Python splitter fallback for MVP.
+Deliver a Python/uv installer that installs GM-Kit and its basic dependencies. Implement the gm-kit-templates subfolder containing agent-specific prompts and cross-platform script templates. The "gmkit init" command (invoked from terminal) takes three inputs: 1) required path to temp folder for writing scripts/prompts, 2) optional coding agent type (copilot, claude, gemini, cursor-agent, qwen, opencode, codex, windsurf, kilicode, auggie, codebuddy, roo, q/Amazon Q, amp), 3) optional target OS (windows for PowerShell or macos/linux for bash). If optional parameters are not provided, the Python script prompts the user to select them, then copies bash/PowerShell scripts and agent prompts from gm-kit-templates for the /hello-gmkit slash command to the temp workspace. Include a minimal test harness that proves code/test/watch loops work, with automated tests invoking "gmkit init" using command line parameters and verifying script/prompt files are written to the specified temp workspace.
 
-Success looks like: contributors can install once with uv, have prompts available across agents, and have a verified `qpdf`/`pdftk` ready for downstream commands, proven by a test that runs `gmkit init` in a temp workspace, asserts prompts/scripts and config are written, and confirms `qpdf`/`pdftk` is detected with exit code 0.
+Success looks like: contributors can install once with uv, run "gmkit init" from terminal (with required temp path and optional agent/OS params), have scripts/prompts copied to temp workspace for /hello-gmkit, proven by tests verifying files in temp workspace, plus documentation on extending the skeleton.
 
-### E2-03. Slash Command Walking Skeleton
+### E2-03. PDF→Markdown Feature (First Post-Init Command)
 Feature description:
-Build a “hello world” slash command `/hello-gmkit` wired like spec-kit: prompts dispatch to bash/PowerShell scripts for each supported AI CLI (copilot, claude, gemini, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, roo, q/Amazon Q, amp). Include a minimal test harness and prove code/test/watch loops work. This skeleton becomes the template for later commands, including the PDF chunk/convert/merge flow.
+Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (copilot, claude, gemini, cursor-agent, qwen, opencode, codex, windsurf, kilicode, auggie, codebuddy, roo, q/Amazon Q, amp). The flow: (1) split large PDFs into chunk PDFs via `qpdf` (preferred) or `pdftk` using bash/PowerShell scripts; (2) convert each chunk to Markdown; (3) merge chunk Markdown into a single file. The installer installs and verifies `qpdf` (preferred) or `pdftk` via system package managers (brew/apt/choco/winget). If no package manager is available, allow bundling a vetted qpdf binary when licensing permits. No Python splitter fallback for MVP. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work.
 
-Success looks like: a passing test plus documentation on how to extend the skeleton for new features and agents.
-
-### E2-04. PDF→Markdown Feature (First Post-Init Command)
-Feature description:
-Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (copilot, claude, gemini, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, roo, q/Amazon Q, amp). The flow: (1) split large PDFs into chunk PDFs via `qpdf` (preferred) or `pdftk` using bash/PowerShell scripts laid down by the installer; (2) convert each chunk to Markdown; (3) merge chunk Markdown into a single file. Depend on the installer to provide `qpdf`/`pdftk`; no Python splitter fallback in MVP. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work.
-
-Success looks like: a locked-in scope for the converter with chunk/convert/merge implemented via CLI tools and agent-accessible prompts.
+Success looks like: a locked-in scope for the converter with chunk/convert/merge implemented via CLI tools, agent-accessible prompts, and verified PDF processing tools.
 
 ---
 

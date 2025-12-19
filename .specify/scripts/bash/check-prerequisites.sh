@@ -12,6 +12,7 @@
 #   --require-tasks     Require tasks.md to exist (for implementation phase)
 #   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
 #   --paths-only        Only output path variables (no validation)
+#   --constitution-check  Validate spec.md against constitution.md principles
 #   --help, -h          Show help message
 #
 # OUTPUTS:
@@ -26,6 +27,7 @@ JSON_MODE=false
 REQUIRE_TASKS=false
 INCLUDE_TASKS=false
 PATHS_ONLY=false
+CONSTITUTION_CHECK=false
 
 for arg in "$@"; do
     case "$arg" in
@@ -41,6 +43,9 @@ for arg in "$@"; do
         --paths-only)
             PATHS_ONLY=true
             ;;
+        --constitution-check)
+            CONSTITUTION_CHECK=true
+            ;;
         --help|-h)
             cat << 'EOF'
 Usage: check-prerequisites.sh [OPTIONS]
@@ -52,17 +57,21 @@ OPTIONS:
   --require-tasks     Require tasks.md to exist (for implementation phase)
   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
   --paths-only        Only output path variables (no prerequisite validation)
+  --constitution-check  Validate spec.md against constitution.md principles
   --help, -h          Show this help message
 
 EXAMPLES:
   # Check task prerequisites (plan.md required)
   ./check-prerequisites.sh --json
-  
+
   # Check implementation prerequisites (plan.md + tasks.md required)
   ./check-prerequisites.sh --json --require-tasks --include-tasks
-  
+
   # Get feature paths only (no validation)
   ./check-prerequisites.sh --paths-only
+
+  # Validate spec against constitution
+  ./check-prerequisites.sh --constitution-check
   
 EOF
             exit 0
@@ -99,6 +108,45 @@ if $PATHS_ONLY; then
     exit 0
 fi
 
+# Function to check constitution compliance
+check_constitution() {
+    local spec_file="$1"
+    local errors=()
+
+    # Check for AI agent support (Principle VI)
+    if ! grep -q "FR-006" "$spec_file"; then
+        errors+=("Missing FR-006: Agent support requirement not found")
+    fi
+
+    # Check for testing approach (Principle VII)
+    if ! grep -q "pexpect" "$spec_file" && ! grep -q "interactive.*test" "$spec_file"; then
+        errors+=("Missing interactive testing approach (pexpect or equivalent)")
+    fi
+
+    # Check for UV installation (Principle VIII)
+    if ! grep -q "uv.*install" "$spec_file"; then
+        errors+=("Missing UV installation requirement")
+    fi
+
+    # Check for test-first (Principle III)
+    if ! grep -q "test.*first\|TDD\|unit test" "$spec_file"; then
+        errors+=("Missing test-first development requirement")
+    fi
+
+    # Report errors
+    if [[ ${#errors[@]} -gt 0 ]]; then
+        echo "ERROR: Constitution compliance check failed:" >&2
+        for error in "${errors[@]}"; do
+            echo "  - $error" >&2
+        done
+        echo "Refer to .specify/memory/constitution.md for required principles." >&2
+        return 1
+    fi
+
+    echo "✓ Constitution compliance check passed"
+    return 0
+}
+
 # Validate required directories and files
 if [[ ! -d "$FEATURE_DIR" ]]; then
     echo "ERROR: Feature directory not found: $FEATURE_DIR" >&2
@@ -110,6 +158,11 @@ if [[ ! -f "$IMPL_PLAN" ]]; then
     echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.plan first to create the implementation plan." >&2
     exit 1
+fi
+
+# Run constitution check if requested
+if $CONSTITUTION_CHECK; then
+    check_constitution "$FEATURE_SPEC" || exit 1
 fi
 
 # Check for tasks.md if required
