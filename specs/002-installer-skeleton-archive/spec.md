@@ -14,6 +14,9 @@ Success looks like: contributors can install once with uv, run \"gmkit init\" fr
 - Q: How should the system handle network failures during template download? → A: Retry automatically with exponential backoff; after max retries, show error and exit
 - Q: What are the key technical constraints for gm-kit? → A: Minimum Python 3.8, uv for installation
 - Q: How should the system handle unsupported agent types? → A: Show error with list of supported agents
+- Q: Should gmkit init create the temp folder if it doesn't exist? → A: Yes, create temp folder and .gmkit/scripts/, .gmkit/templates/, and .gmkit/memory/ subfolders inside it; generate constitution.md in .gmkit/memory/
+- Q: What does the /hello-gmkit slash command do? → A: Calls hello-gmkit script that processes hello-gmkit.md template, fills in basic greeting, writes to greeting/ folder; placeholder for future GM artifact commands
+- Q: What are the differences between bash and PowerShell scripts? → A: Only language syntax variations; inputs/outputs and functionality must be identical
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -27,15 +30,19 @@ A contributor installs GM-Kit once using uv, then runs "gmkit init" from the ter
 
 **Acceptance Scenarios**:
 
-1. **Given** a fresh environment, **When** contributor runs uv install for GM-Kit, **Then** GM-Kit is installed with basic dependencies
-2. **Given** installed GM-Kit, **When** contributor runs `gmkit init /path/to/temp --agent claude --os linux`, **Then** bash scripts and claude prompts for /hello-gmkit are written to /path/to/temp
-3. **Given** installed GM-Kit, **When** contributor runs `gmkit init /path/to/temp` (no optional params), **Then** user is prompted for agent and OS, then scripts/prompts are written
+1. **Given** a fresh environment with uv installed, **When** contributor runs `uv tool install gm-kit`, **Then** GM-Kit is installed to uv's default tool directory (~/.local/bin on Unix-like systems, %LOCALAPPDATA%\uv\bin on Windows) with no additional runtime dependencies (package installs cleanly per pyproject.toml)
+2. **Given** installed GM-Kit, **When** contributor runs `gmkit init /path/to/temp --agent claude --os linux`, **Then** bash script (hello-gmkit.sh in .gmkit/scripts/bash/) and claude prompt (hello-gmkit-claude.md in .gmkit/templates/) for /hello-gmkit are written to /path/to/temp
+3. **Given** installed GM-Kit, **When** contributor runs `gmkit init /path/to/temp` (no optional params), **Then** user is prompted interactively with radio button interfaces: first for OS/script type (Linux/MacOS (Bash) or Windows (Powershell)), then for agent (copilot, claude, gemini, cursor-agent, qwen, opencode, codex-cli, windsurf, q/Amazon Q), allowing only one selection each, then scripts/prompts are written to the appropriate subfolders based on selections
+4. **Given** generated scripts and prompts, **When** contributor invokes /hello-gmkit from agent, **Then** greeting/hello-gmkit.md file is written with basic greeting
+5. **Given** uv not installed, **When** attempting installation, **Then** clear error message directs user to install uv first
+
+**Prerequisites**: uv must be pre-installed.
 
 ---
 
 ### User Story 2 - Automated Testing with CLI Parameters (Priority: P2)
 
-Automated tests invoke "gmkit init" using command line parameters to prefill choices, populate the specified temp workspace, and verify that script/prompt files are correctly written.
+Automated tests invoke "gmkit init" using command line parameters to prefill choices, populate the specified temp workspace with .gmkit/scripts/, .gmkit/templates/, and .gmkit/memory/ subfolders, and verify that script/prompt files are correctly written for all supported agent/OS combinations.
 
 **Why this priority**: Ensures the feature works reliably through automated testing.
 
@@ -43,9 +50,9 @@ Automated tests invoke "gmkit init" using command line parameters to prefill cho
 
 **Acceptance Scenarios**:
 
-1. **Given** test environment, **When** test runs `gmkit init /temp --agent codex --os windows`, **Then** PowerShell scripts and codex prompts are written and verified
-2. **Given** test environment, **When** test runs `gmkit init /temp` (no params), **Then** prompts are simulated and scripts/prompts are written
-3. **Given** test environment, **When** test checks file contents, **Then** all expected scripts and prompts match specifications
+1. **Given** test environment, **When** test runs `gmkit init /temp --agent codex --os windows`, **Then** PowerShell script (hello-gmkit.ps1 in .gmkit/scripts/powershell/), codex prompt (hello-gmkit-codex.md in .gmkit/templates/), and constitution.md in .gmkit/memory/ are written and verified
+2. **Given** test environment, **When** test runs `gmkit init /temp` (no params), **Then** prompts are simulated and scripts/prompts are written to the appropriate subfolders for the selected combination
+3. **Given** test environment, **When** test checks file contents for all agent/OS combinations, **Then** expected scripts (hello-gmkit.sh in .gmkit/scripts/bash/ or .ps1 in .gmkit/scripts/powershell/), agent prompts (hello-gmkit-{agent}.md in .gmkit/templates/), and constitution.md in .gmkit/memory/ match specifications
 
 ---
 
@@ -78,9 +85,9 @@ The feature includes documentation explaining how the /hello-gmkit skeleton can 
 ### Functional Requirements
 
 - **FR-001**: System MUST provide a Python/uv installer that installs GM-Kit and its basic dependencies
-- **FR-002**: System MUST accept "gmkit init" command with required temp folder path and optional agent/OS parameters
+- **FR-002**: System MUST accept "gmkit init" command with required temp folder path and optional agent/OS parameters; MUST create temp folder if it doesn't exist; MUST create .gmkit/scripts/bash/ (for Linux/MacOS) or .gmkit/scripts/powershell/ (for Windows), .gmkit/templates/, and .gmkit/memory/ subfolders inside temp folder; MUST generate constitution.md in .gmkit/memory/
 - **FR-003**: System MUST prompt user for agent and OS selections if optional parameters are not provided
-- **FR-004**: System MUST write appropriate bash/PowerShell scripts based on selected OS
+- **FR-004**: System MUST write appropriate bash/PowerShell scripts to the corresponding .gmkit/scripts/bash/ or .gmkit/scripts/powershell/ subfolder, with identical inputs/outputs and functionality (only language syntax differences)
 - **FR-005**: System MUST write agent-specific prompts for the /hello-gmkit slash command
 - **FR-006**: System MUST support all listed agents (copilot, claude, gemini, cursor-agent, qwen, opencode, codex-cli, windsurf, q/Amazon Q)
 - **FR-007**: System MUST support Windows (PowerShell) and MacOS/Linux (bash) script generation
@@ -100,14 +107,14 @@ The feature includes documentation explaining how the /hello-gmkit skeleton can 
 - **Prompt File**: Agent-specific text file containing slash command prompts
 
 ### Technical Constraints
-- Minimum Python version: 3.8
+- Minimum Python version: 3.11+ (see plan.md for full dependency details)
 - Installation method: uv
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Contributors can install GM-Kit with uv in under 5 minutes
+- **SC-001**: Contributors can install GM-Kit with `uv tool install gm-kit` in under 5 minutes; can invoke "gmkit init" from terminal and /hello-gmkit from inside agents, performing their described tasks
 - **SC-002**: gmkit init command completes script/prompt generation in under 30 seconds
 - **SC-003**: Automated tests pass for all supported agent/OS combinations
 - **SC-004**: 100% of test runs correctly write expected files to temp workspace

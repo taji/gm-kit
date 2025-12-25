@@ -231,8 +231,13 @@ Add feature X to module Y, including tests and updated CLI handler
 
 # 🏁 Completion Requirements for All AI Tasks
 
-A task is “complete” only when:
+Completion requirements vary by task type:
 
+**Spec/Documentation Mode** (e.g., editing specs, plans, checklists):
+- Documentation accurately reflects requirements and changes
+- No code quality checks required
+
+**Build/Implementation Mode** (e.g., writing/modifying code, tests):
 - All tests pass  
 - Code coverage meets or exceeds requirements  
 - Linting and formatting pass  

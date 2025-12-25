@@ -7,7 +7,7 @@
 
 ## Summary
 
-Build a Python CLI tool installed via uv that provides a "gmkit init" command. The command takes a required temp folder path and optional agent/OS parameters, prompts for missing values interactively, and generates platform-appropriate scripts and agent prompts for the /hello-gmkit slash command. Include automated testing using pexpect to simulate interactive prompts.
+Build a Python CLI tool installed via uv that provides a "gmkit init" command. The command takes a required temp folder path and optional agent/OS parameters, creates the temp folder if it doesn't exist, creates .gmkit/scripts/bash/ (for Linux/MacOS) or .gmkit/scripts/powershell/ (for Windows), .gmkit/templates/, and .gmkit/memory/ subfolders, generates constitution.md in .gmkit/memory/, prompts for missing values interactively, and generates platform-appropriate scripts and agent prompts for the /hello-gmkit slash command. The /hello-gmkit command calls the hello-gmkit script, which processes a hello-gmkit.md template to fill in a basic greeting and writes it to a greeting/ folder (placeholder for future GM artifact generation). Include automated testing using pexpect for CLI interactions and subprocess for script execution verification.
 
 ## Technical Context
 
@@ -18,8 +18,8 @@ Build a Python CLI tool installed via uv that provides a "gmkit init" command. T
 **Target Platform**: Cross-platform (Windows PowerShell, macOS/Linux bash)  
 **Project Type**: CLI application  
 **Performance Goals**: Command completion in under 30 seconds  
-**Constraints**: Minimum Python 3.11, uv installation method  
-**Scale/Scope**: Single command with agent/OS variations
+**Constraints**: Minimum Python 3.11, installation via `uv tool install gm-kit`  
+**Scale/Scope**: Single command with agent/OS variations, generates .gmkit folder structure with constitution, includes hello-gmkit script for basic greeting generation
 
 ## Constitution Check
 
