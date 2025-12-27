@@ -19,7 +19,7 @@ Focus areas requiring integration tests: New library contract tests, Contract ch
 Text I/O ensures debuggability; Structured logging required; MAJOR.MINOR.BUILD format; Start simple, YAGNI principles.
 
 ### VI. AI Agent Integration
-Support prioritized AI coding agents (copilot, claude, gemini, cursor-agent, qwen, opencode, codex-cli, windsurf, q/Amazon Q) with dedicated templates from a dedicated GitHub repo (gm-kit/templates). Agent-specific prompts must be generated for /hello-gmkit commands, with fallback for discontinued tools.
+Support prioritized AI coding agents (claude, gemini, qwen, codex-cli) with dedicated templates from local repo folders (templates/, templates/commands/, scripts/, memory/). Agent-specific prompts must be generated for /gmkit commands, with fallback for discontinued tools.
 
 ### VII. Interactive CLI Testing
 Use pexpect for testing interactive prompts in `gmkit init`; all tests must simulate user input/output to validate edge cases like unsupported agents or network failures.
@@ -39,4 +39,4 @@ Quality Gates: Run just test, just lint, just typecheck, bandit, uv audit before
 
 Constitution supersedes all other practices; amendments require documentation, approval, migration plan. All PRs/reviews must verify compliance; complexity must be justified; use AGENTS.md for runtime development guidance.
 
-**Version**: 1.0 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-19
+**Version**: 1.2 | **Ratified**: 2025-12-19 | **Last Amended**: 2025-12-26

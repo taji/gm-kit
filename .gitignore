@@ -120,3 +120,4 @@ temp-resources/
 .opencode/
 resume-chat.sh
 .aim/
+speckit-projects-by-agents #  I stood up all of the different coding agent installs for spec-kit here to ensure I understood how spec-kit integrates each agent. ou should be able to remove this later.

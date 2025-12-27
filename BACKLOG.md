@@ -38,9 +38,8 @@ Success looks like: documented learnings on whether the knowledge graph improves
 
 NOTE: The developer will install the mcp and configure it. Use the context at this link in both codex and opencode to ensure it's working correctly: https://github.com/modelcontextprotocol/servers/tree/main/src/memory (See SYSTEM PROMPT section in the readme, note we are using Cheezy's recommended knowledge graph mcp rather than the Memory mcp)
 
-### E2-02. Installation and Walking Skeleton
+### E2-02. Installation and Walking Skeleton **[FEATURE, NOT SPECCED]**
 Feature description:
-
 1) Deliver a Python/uv installer that installs the following three artifacts:
 
 For macOS/Linux (using $HOME):
@@ -61,15 +60,16 @@ For Windows, mirror the same artifacts in uv’s tool layout:
         "%LOCALAPPDATA%\uv\tools\gmkit-cli\Scripts\gmkit.exe" %*
         ```
 
-2) This allows the user to invoke the python "gmkit" command (from a terminal) along with a subcommand "init" which takes three inputs: a) required path to temp folder for writing scripts/prompts, b) optional coding agent type (copilot, claude, gemini, cursor-agent, qwen, opencode, codex-cli, windsurf, q/Amazon Q), c) optional target OS (windows for PowerShell or macos/linux for bash). If optional parameters are not provided, the Python script prompts the user to select them.
+2) This allows the user to invoke the python "gmkit" command (from a terminal) along with a subcommand "init" which takes three inputs: a) required path to temp folder for writing scripts/prompts, b) optional coding agent type (claude, codex-cli, gemini, qwen), c) optional target OS (windows for PowerShell or macos/linux for bash). If optional parameters are not provided, the Python script prompts the user to select them.
 
 This will install the following folders and logic into the project folder (based on the OS and coding agent selected):
 
     - <project folder>/<agent folder>/prompts/ (or commands/, or similar): 
         - each coding agent has a different location for the prompts:
-            - for opencode the location is ```<project folder>/.opencode/command```
-            - for codex the location is ```<project folder>/.codex/prompts```
-            - etc.
+            - for claude the location is ```<project folder>/.claude/command```
+            - for codex-cli the location is ```<project folder>/.codex-cli/prompts```
+            - for gemini the location is ```<project folder>/.gemini/command```
+            - for qwen the location is ```<project folder>/.qwen/prompts```
         - the prompt files: are the specific slash commands invoked inside the coding agent.  The first and only prompt markdown file installed by ```gmkit init``` for this feature is:
             - gmkit.hello-gmkit.md
     - <project folder>/.gmkit/memory/  (use `.gmkit` consistently across platforms)
@@ -110,11 +110,19 @@ Success looks like:
 - contributors can invoke /gmkit.hello-gmkit slash command from their coding agent choice of choice (selected during "gmkit init" command) and the "<project folder>/greetings/greetingXX.md" file will be written with the appropriate XX sequence number.
     - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written; optional: verify agent batch mode if supported. For Gemini CLI, use headless mode with a slash-prefixed prompt (e.g., `gemini --prompt "/gmkit.hello-gmkit Hello from Gemini!"`) rather than `gemini gmkit.hello-gmkit`.
 
-### E2-03. PDF→Markdown Feature (First Post-Init Command)
+### E2-03. CI/CD Pipeline for Walking Skeleton **[FEATURE, NOT SPECCED]**
 Feature description:
-Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (copilot, claude, gemini, cursor-agent, qwen, opencode, codex, windsurf, kilicode, auggie, codebuddy, roo, q/Amazon Q, amp). The flow: (1) split large PDFs into chunk PDFs via `qpdf` (preferred) or `pdftk` using bash/PowerShell scripts; (2) convert each chunk to Markdown; (3) merge chunk Markdown into a single file. The installer installs and verifies `qpdf` (preferred) or `pdftk` via system package managers (brew/apt/choco/winget). If no package manager is available, allow bundling a vetted qpdf binary when licensing permits. No Python splitter fallback for MVP. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work.
+Establish a CI/CD pipeline that validates the walking skeleton implementation (E2-02). The pipeline must run quality gates including lint/format/type-check, unit tests for installer functionality, and integration tests for the gmkit init and hello-gmkit workflows. Define release/versioning, tagging, and changelog steps for the walking skeleton. Include a release checklist (artifacts, docs, installation verification) and how feedback is collected.
 
-Success looks like: a locked-in scope for the converter with chunk/convert/merge implemented via CLI tools, agent-accessible prompts, and verified PDF processing tools.
+Requirements:
+- Unit tests covering installer components (folder creation, script generation, symlink creation)
+- Integration tests for `gmkit init` command across supported agents (claude, codex-cli, gemini, qwen)
+- Integration tests for `/gmkit.hello-gmkit` slash command execution and template rendering
+- Cross-platform testing (macOS/Linux/Windows) for installer artifacts
+- Pipeline runs on each PR to main branch
+- Automated artifact generation for releases
+
+Success looks like: a passing CI/CD pipeline that validates the walking skeleton functionality, provides repeatable release process, and ensures cross-platform compatibility of the installer and hello-gmkit workflow.
 
 ---
 
@@ -148,99 +156,103 @@ Success looks like: a list of guardrails ready to be codified into specs and tem
 
 ## Epic 4 — PDF → Markdown Research & Pipelines
 
-### 14) Research Plan Across Three Module Formats
+### E4-01. Research Plan Across Three Module Formats
 Feature description:
 Define the research matrix: DMsGuild two-column, Call of Cthulhu, and Werewolf 5E samples. Outline success criteria, manual review steps, and how findings will be recorded.
 
 Success looks like: a reproducible study plan for evaluating conversion quality across systems.
 
-### 15) AI-Only Conversion Approach
+### E4-02. AI-Only Conversion Approach
 Feature description:
 Prompt AI to perform direct conversion of PDFs into Markdown, describing how to manage context limits, heading detection, call-out handling (`>` for box text), and verification loops with the user.
 
 Success looks like: documented steps for when AI alone is sufficient and how to check results.
 
-### 16) CLI/Python Conversion Pipeline
+### E4-03. CLI/Python Conversion Pipeline
 Feature description:
 Design the hybrid workflow: CLI utilities (`pdfinfo`, `qpdf`, `pdftohtml`, `pandoc`, `pdfimages`, `ocrmypdf`) vs pure-Python alternatives. Include install guidance for Windows/macOS/Linux and show where AI should clean up the Markdown output.
 
 Success looks like: a spec-ready blueprint for automating conversions portably.
 
-### 17) Heading & Hierarchy Verification Tooling
+### E4-04. Heading & Hierarchy Verification Tooling
 Feature description:
 Create a command that surfaces title snippets from the PDF, allows the AI/user to assign heading levels, and validates whether the Markdown mirrors the PDF’s hierarchy.
 
 Success looks like: fewer mis-leveled headers and a repeatable QA checklist.
 
-### 18) Box Text & Callout Handling
+### E4-05. Box Text & Callout Handling
 Feature description:
 Define how boxed text should appear in Markdown (`>`), how to tag read-aloud vs GM-only notes, and how to preserve their placement relative to body copy.
 
 Success looks like: readable Markdown that keeps the intent of boxed callouts intact.
 
-### 19) Version 2 Image Extraction
+### E4-06. Version 2 Image Extraction
 Feature description:
 Plan the follow-up feature that extracts images, saves them to `images/`, and injects relative links into the Markdown at the correct positions. Include licensing cautions.
 
 Success looks like: a scoped V2 plan that can follow the initial converter work.
 
+### E4-07. PDF→Markdown Feature
+
+Feature description:
+
+Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (claude, codex-cli, gemini, qwen). The flow: (1) split large PDFs into chunk PDFs via `qpdf` (preferred) or `pdftk` using bash/PowerShell scripts; (2) convert each chunk to Markdown; (3) merge chunk Markdown into a single file. The installer installs and verifies `qpdf` (preferred) or `pdftk` via system package managers (brew/apt/choco/winget). If no package manager is available, allow bundling a vetted qpdf binary when licensing permits. No Python splitter fallback for MVP. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work.
+
+Success looks like: a locked-in scope for the converter with chunk/convert/merge implemented via CLI tools, agent-accessible prompts, and verified PDF processing tools.
+
 ---
 
 ## Epic 5 — Prompt & Schema Overhaul (Arcane Library)
 
-### 20) Arcane Library Schema Definition
+### E5-01. Arcane Library Schema Definition
 Feature description:
 Spec the authoritative schema for Synopsis, Background, Word to the GM, Pacing/Transitions, Intro Page (title, hooks, character cards, transition), and the one-page encounter layout (Approach, Developments, Dramatic Question, Challenge/Social, Character Card links, GM Guidance, Transition). Include guidance for Character Cards themselves.
 
 Success looks like: templates every command will target going forward.
 
-### 21) Prompt Refresh for Spec-Kit
+### E5-02. Prompt Refresh for Spec-Kit
 Feature description:
 Replace the legacy combat/social/exploration/challenge prompts with new prompts that create Arcane Library-friendly specs. Ensure each prompt ties back to the schema definition.
 
 Success looks like: `/speckit.specify` now seeds Arcane Library work instead of pillar encounters.
 
-### 22) PDF→Markdown Prompt Revisions
+### E5-03. PDF→Markdown Prompt Revisions
 Feature description:
 Revise the conversion prompts using findings from Epic 4 so they ask better research questions, cite the two approaches, and capture acceptance criteria for each module type.
 
 Success looks like: future specs bake in the lessons learned from the research phase.
 
-### 23) MVP Specification Sweep
+### E5-04. MVP Specification Sweep
 Feature description:
 Drive a spec that narrows the MVP scope (init scripts + PDF converter + Arcane Library template generation) and sequences work accordingly.
 
 Success looks like: a consensus MVP backlog ready for implementation.
 
-### 24) Scenario Conversion Targets
+### E5-05. Scenario Conversion Targets
 Feature description:
 Plan how to convert both Skyhorn Lighthouse scenarios and Temple of the Basilisk Cult to Markdown, including verification steps, schema mapping, and storage locations.
 
 Success looks like: a checklist the team can run for each conversion candidate.
 
-### 25) Schema Analysis & Refinement
+### E5-06. Schema Analysis & Refinement
 Feature description:
 Create a process where AI analyzes converted scenarios, highlights schema gaps, and proposes revisions to the Arcane Library templates. Include a feedback loop for the GM to accept or adjust.
 
 Success looks like: evolving schemas grounded in real module conversions.
 
-### 26) MVP Beta Readiness & CI/CD
-Feature description:
-Prepare GM-Kit for the first MVP beta release. Stand up a CI/CD pipeline that runs lint/format/type-check (or equivalent quality gates), a minimal smoke conversion (sample PDF → Markdown → Arcane Library outline), and packaging/uv build. Define release/versioning, tagging, and changelog steps; lock prompts/templates used by `/speckit.*`; refresh README to reflect the beta state (what works, known gaps, supported agents, quickstart). Include a release checklist (artifacts, docs, sample outputs, manual QA) and how beta feedback is collected.
 
-Success looks like: a passing pipeline, a repeatable beta release recipe (tag + artifacts + docs), and updated README/prompts ready for beta testers.
 
 ---
 
 ## Epic 6 — Version 2 Dungeon & Flow Extensions
 
-### 27) V2 Dungeon Room Workflow
+### E6-01. V2 Dungeon Room Workflow
 Feature description:
 Extend the schema to treat each dungeon room as its own encounter page, link map pins to room files, and prompt AI to suggest transitions and clue-routing adjustments. Mention potential Obsidian plugins if relevant.
 
 Success looks like: a ready-to-spec plan for dungeon-heavy adventures once v1 ships.
 
-### 28) Clue-Route Diagram Enhancements
+### E6-02. Clue-Route Diagram Enhancements
 Feature description:
 Develop a prompt that guides AI through analyzing the clue-route diagram, recommending revisions, and updating the distilled document to reflect those changes using the Arcane Library schema.
 

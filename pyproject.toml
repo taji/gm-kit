@@ -18,6 +18,7 @@ dev = [
     "black",
     "isort",
     "mypy",
+    "pytest-cov",
 ]
 
 [tool.pytest.ini_options]

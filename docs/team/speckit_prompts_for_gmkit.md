@@ -11,24 +11,16 @@ Replace bracketed placeholders before running `/speckit.specify`.
 Definitions:
 - **Agent folder**: The agent-specific directory where prompt files are installed.
 
-Agent folder mapping (extend over time):
+Agent folder mapping:
 | Agent | Prompt folder |
 | --- | --- |
-| opencode | `<project folder>/.opencode/command` |
-| codex-cli | `<project folder>/.codex/prompts` |
 | claude | `<project folder>/.claude/commands` |
+| codex-cli | `<project folder>/.codex/prompts` |
+
 | gemini | `<project folder>/.gemini/commands` |
-| copilot | `<project folder>/.github/agents` |
-| cursor-agent | `<project folder>/.cursor/commands` |
 | qwen | `<project folder>/.qwen/commands` |
-| windsurf | `<project folder>/.windsurf/workflows` |
-| kilocode | `<project folder>/.kilocode/rules` |
-| auggie | `<project folder>/.augment/rules` |
-| codebuddy | `<project folder>/.codebuddy/commands` |
-| roo | `<project folder>/.roo/rules` |
-| q/Amazon Q | `<project folder>/.amazonq/prompts` |
-| amp | `<project folder>/.agents/commands` |
-| shai | `<project folder>/.shai/commands` |
+
+**Note on subpath**: The `<subpath>` placeholder refers to the subdirectory within the agent folder where prompts are stored. For example, for opencode it's `command`, for codex it's `prompts`. The full prompt path is `<project folder>/<agent folder>/<subpath>/gmkit.[command].md`. Always check the table above for the correct subpath per agent.
 
 ---
 
@@ -38,7 +30,7 @@ Feature description:
 Deliver a new GM-Kit slash command `/gmkit.[command]` that creates a new folder and notes file for [artifact name]. The `gmkit init` command must install the following artifacts:
 
 1) Prompt file:
-   - Path: `<project folder>/<agent folder>/prompts/gmkit.[command].md`
+   - Path: `<project folder>/<agent folder>/<subpath>/gmkit.[command].md` (see agent folder mapping table for subpath)
 
 2) Script file:
    - Path: `<project folder>/.gmkit/scripts/<bash or ps>/[script_name].sh` (or `.ps1` on Windows)
@@ -61,7 +53,7 @@ Success looks like:
 
 Example (campaign):
 - Command: `/gmkit.campaign`
-- Prompt: `<project folder>/<agent folder>/prompts/gmkit.campaign.md`
+- Prompt: `<project folder>/<agent folder>/<subpath>/gmkit.campaign.md`
 - Script: `<project folder>/.gmkit/scripts/<bash or ps>/create_campaign.sh`
 - Template: `<project folder>/.gmkit/templates/campaign-template.md`
 - Output: `<project folder>/campaigns/<campaign_name>/campaign_notes.md`
@@ -73,8 +65,8 @@ Example (campaign):
 Feature description:
 Deliver a new GM-Kit slash command `/gmkit.[command]` that appends a new section to an existing notes file. The `gmkit init` command must install the following artifacts:
 
-1) Prompt file:
-   - Path: `<project folder>/<agent folder>/prompts/gmkit.[command].md`
+ 1) Prompt file:
+   - Path: `<project folder>/<agent folder>/<subpath>/gmkit.[command].md` (see agent folder mapping table for subpath)
 
 2) Script file:
    - Path: `<project folder>/.gmkit/scripts/<bash or ps>/[script_name].sh` (or `.ps1` on Windows)
@@ -97,7 +89,7 @@ Success looks like:
 
 Example (NPC section):
 - Command: `/gmkit.npc`
-- Prompt: `<project folder>/<agent folder>/prompts/gmkit.npc.md`
+- Prompt: `<project folder>/<agent folder>/<subpath>/gmkit.npc.md`
 - Script: `<project folder>/.gmkit/scripts/<bash or ps>/create_npc.sh`
 - Template: `<project folder>/.gmkit/templates/npc-template.md`
 - Target: `<project folder>/campaigns/<campaign_name>/scenarios/<scenario_name>/scenario_notes.md`
