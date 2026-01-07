@@ -132,7 +132,7 @@ Success looks like: a passing CI/CD pipeline that validates the walking skeleton
 Feature description:
 Download the upstream spec-kit repo and catalogue how commands, templates, and scripts are organized. Include notes on versioning, template prefixes, and how prompts feed specs.
 
-Success looks like: a concise reference document stored in `planning/` that captures the structural learnings.
+Success looks like: a concise reference document file stored as './docs/speckit_architecture_notes.md' that captures the structural learnings.
 
 ### E3-02. Constitution → Gate Mapping
 Feature description:
@@ -260,4 +260,4 @@ Success looks like: consistent transitions and dramatic questions across the ent
 
 ---
 
-These prompts keep planning, specs, and implementation aligned with the Arcane Library direction and the prioritized todo list. Copy the relevant prompt into `/speckit.specify`, attach `planning/project-overview.md`, and iterate through /clarify → /plan → /implement per Spec-Kit conventions.
+These prompts keep planning, specs, and implementation aligned with the Arcane Library direction and the prioritized todo list. Copy the relevant prompt into `/speckit.specify`, attach `docs/teams/project-overview.md`, and iterate through /clarify → /plan → /implement per Spec-Kit conventions.
