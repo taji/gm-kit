@@ -73,7 +73,7 @@ Success looks like:
 - contributors can run "gmkit init" from terminal (with required temp path and optional agent/OS params) have scripts/prompts copied to temp workspace for /gmkit.hello-gmkit
     - proven by tests verifying files in temp workspace, plus documentation on extending the skeleton.
 - contributors can invoke /gmkit.hello-gmkit slash command from their coding agent choice of choice (selected during "gmkit init" command) and the "<project folder>/greetings/greetingXX.md" file will be written with the appropriate XX sequence number.
-    - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written; optional: verify agent batch mode if supported. For Gemini CLI, use headless mode with a slash-prefixed prompt (e.g., `gemini --prompt "/gmkit.hello-gmkit Hello from Gemini!"`) rather than `gemini gmkit.hello-gmkit`."
+    - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written. Agent CLI batch mode is currently non-viable (codex-cli, gemini, opencode) for clean slash-command invocation; codex output is not reliable for automated tests.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -192,7 +192,7 @@ The success outcomes are validated through automated integration tests that veri
 ### Slash Command Tests
 - **Test**: Invoke say-hello.sh script directly with arguments (greeting message, sequence number), verify template filling and file writing.
 - **Verification**: Check that <project folder>/greetings/greetingXX.md is created with correct content and sequence numbering.
-- **Optional Agent Tests**: For supported agents with batch mode (e.g., Gemini CLI), run headless prompts like `gemini --prompt "/gmkit.hello-gmkit Hello from Gemini!"` and verify outputs.
+- **Optional Agent Tests**: Deferred. Agent CLI batch mode is currently non-viable (codex-cli, gemini, opencode) for clean slash-command invocation; codex output is not reliable for automated tests.
 
 ### Extension Documentation
 - Include guidance on extending the walking skeleton: how to add new slash commands by creating corresponding prompt/script/template files, with examples for /gmkit.campaign and /gmkit.scenario creation patterns.

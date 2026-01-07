@@ -107,8 +107,8 @@ Success looks like:
     - proven by integration tests that will 1) remove the gmkit-cli installation (if it's there) and then install it cleanly. The test will then verify the essential folders and files are present in the installation folder.
 - contributors can run "gmkit init" from terminal (with required temp path and optional agent/OS params) have scripts/prompts copied to temp workspace for /gmkit.hello-gmkit
     - proven by tests verifying files in temp workspace, plus documentation on extending the skeleton.
-- contributors can invoke /gmkit.hello-gmkit slash command from their coding agent choice of choice (selected during "gmkit init" command) and the "<project folder>/greetings/greetingXX.md" file will be written with the appropriate XX sequence number.
-    - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written; optional: verify agent batch mode if supported. For Gemini CLI, use headless mode with a slash-prefixed prompt (e.g., `gemini --prompt "/gmkit.hello-gmkit Hello from Gemini!"`) rather than `gemini gmkit.hello-gmkit`.
+- contributors can invoke /gmkit.hello-gmkit slash command from their coding agent of choice (selected during "gmkit init" command) and the "<project folder>/greetings/greetingXX.md" file will be written with the appropriate XX sequence number.
+    - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written. Agent CLI batch mode is currently non-viable (codex-cli, gemini, opencode) for clean slash-command invocation; codex output is not reliable for automated tests.
 
 ### E2-03. CI/CD Pipeline for Walking Skeleton **[FEATURE, NOT SPECCED]**
 Feature description:
