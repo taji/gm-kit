@@ -101,6 +101,7 @@ tests/
 │   └── test_toml_validation.py  # TOML generation and validation tests
 └── contract/                   # Contract tests for CLI interfaces
     └── test_cli_contracts.py
+
 ```
 
 **Structure Decision**: Single project CLI structure - builds on existing gm_kit package with new modules for installer/init functionality. Tests follow constitution requirements with pexpect for interactive testing. Agent-specific configurations reference the enhanced CLI contract specifications for exact folder paths and file formats.

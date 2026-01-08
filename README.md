@@ -25,6 +25,9 @@ GM-Kit lets a GM reshape the contents of a long-form published scenario PDF into
 3. **Planning**: Run `/speckit.plan` and `/speckit.tasks`; record decisions or clarifications in the journal/Obsidian, then commit the outputs.
 4. **Implementation**: Follow `/speckit.implement` tasks, keeping notes about audits, README updates, and ignore rules in `docs/team/Gm-Kit Development Journal.md`.
 
+## Testing Requirements
+- PowerShell (`pwsh`) is required on Linux to run bash vs PowerShell parity tests.
+
 ## Keep README & Planning In Sync
 1. Update `docs/team/project-overview.md` and `BACKLOG.md` whenever goals or prompts change.
 2. Reflect the changes here (mission, workflow, contributor lifecycle, audit instructions) so onboarding stays frictionless.

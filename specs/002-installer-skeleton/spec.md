@@ -89,9 +89,12 @@ Contributors install GM-Kit using uv and run "gmkit init" to set up scripts and 
 
 1. **Given** uv is installed, **When** contributor runs `uv tool install gmkit-cli`, **Then** GM-Kit is installed with the gmkit command available in PATH and no network dependencies required after installation.
 2. **Given** GM-Kit is installed, **When** contributor runs `gmkit init /path/to/temp --agent claude --os linux`, **Then** the temp folder is created with .gmkit/scripts/bash/, .gmkit/templates/, and .gmkit/memory/ subfolders, containing say-hello.sh script, hello-gmkit-template.md template, constitution.md, and claude prompts for /gmkit.hello-gmkit.
-3. **Given** GM-Kit is installed, **When** contributor runs `gmkit init /path/to/temp` without optional params, **Then** the system prompts for OS and agent selections and creates the appropriate files.
-4. **Given** initialized project, **When** contributor invokes /gmkit.hello-gmkit in their agent with a greeting, **Then** the greeting is written to greetings/greeting01.md (or next sequence number) with the template filled.
-5. **Given** gmkit init has been run, **When** contributor runs it again with the same path, **Then** no destructive overwrites occur and idempotent behavior is maintained.
+3. **Given** GM-Kit is installed, **When** contributor runs `gmkit init /path/to/temp --agent codex-cli --os linux`, **Then** the temp folder is created with .gmkit/scripts/bash/, .gmkit/templates/, and .gmkit/memory/ subfolders, containing say-hello.sh script, hello-gmkit-template.md template, constitution.md, and codex-cli prompts for /gmkit.hello-gmkit.
+4. **Given** GM-Kit is installed, **When** contributor runs `gmkit init /path/to/temp --agent gemini --os linux`, **Then** the temp folder is created with .gmkit/scripts/bash/, .gmkit/templates/, and .gmkit/memory/ subfolders, containing say-hello.sh script, hello-gmkit-template.md template, constitution.md, and gemini prompts for /gmkit.hello-gmkit.
+5. **Given** GM-Kit is installed, **When** contributor runs `gmkit init /path/to/temp --agent qwen --os linux`, **Then** the temp folder is created with .gmkit/scripts/bash/, .gmkit/templates/, and .gmkit/memory/ subfolders, containing say-hello.sh script, hello-gmkit-template.md template, constitution.md, and qwen prompts for /gmkit.hello-gmkit.
+6. **Given** GM-Kit is installed, **When** contributor runs `gmkit init /path/to/temp` without optional params, **Then** the system prompts for OS and agent selections and creates the appropriate files.
+7. **Given** initialized project, **When** contributor invokes /gmkit.hello-gmkit in their agent with a greeting, **Then** the greeting is written to greetings/greeting01.md (or next sequence number) with the template filled.
+8. **Given** gmkit init has been run, **When** contributor runs it again with the same path, **Then** no destructive overwrites occur and idempotent behavior is maintained.
 
 ---
 
@@ -183,15 +186,20 @@ The success outcomes are validated through automated integration tests that veri
 ### Installation Tests
 - **Test**: Remove existing gmkit-cli installation (if present), run `uv tool install gmkit-cli`, verify installation completes without errors.
 - **Verification**: Check that $HOME/.local/share/uv/tools/gmkit-cli/ (or Windows equivalent) contains the required subfolders and files, gmkit command is available in PATH, no network dependencies required post-install.
+- **Linux CI Test**: On `ubuntu-latest`, run `uv tool install gmkit-cli`, verify `$HOME/.local/share/uv/tools/gmkit-cli/` contains the required subfolders and `$HOME/.local/bin/gmkit` symlink points to the uv tool entrypoint.
 
 ### Initialization Tests
 - **Test**: Run `gmkit init /temp/path --agent claude --os linux` (and variations for all agent/OS combinations), verify temp workspace is created with correct subfolders.
 - **Verification**: Confirm .gmkit/scripts/bash/say-hello.sh, .gmkit/templates/hello-gmkit-template.md, .gmkit/memory/constitution.md, and agent-specific prompts are present and correctly formatted.
 - **Agent Validation Tests**: Run `gmkit init` with uninstalled agent (e.g., simulate missing qwen), verify error message with install link and graceful exit.
+- **Linux CI Test**: On `ubuntu-latest`, run `gmkit init /tmp/gmkit-test --agent claude --os linux`, verify .gmkit/scripts/bash/say-hello.sh, templates, memory, and agent-specific prompts are created.
 
 ### Slash Command Tests
 - **Test**: Invoke say-hello.sh script directly with arguments (greeting message, sequence number), verify template filling and file writing.
 - **Verification**: Check that <project folder>/greetings/greetingXX.md is created with correct content and sequence numbering.
+- **Linux CI Test**: Invoke say-hello.sh directly with arguments, verify template filling and greeting file creation.
+- **Linux Parity Test**: If `pwsh` is available, invoke say-hello.ps1 via PowerShell on Linux with the same inputs and compare outputs to the bash version.
+- **Testing Requirement**: PowerShell (`pwsh`) must be available on Linux to run parity tests; skip parity tests if `pwsh` is not installed.
 - **Optional Agent Tests**: Deferred. Agent CLI batch mode is currently non-viable (codex-cli, gemini, opencode) for clean slash-command invocation; codex output is not reliable for automated tests.
 
 ### Extension Documentation
