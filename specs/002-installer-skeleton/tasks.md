@@ -29,10 +29,10 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create template source files in `templates/commands/gmkit.hello-gmkit.md` and `templates/hello-gmkit-template.md`
-- [ ] T002 Create script templates in `scripts/bash/say-hello.sh` and `scripts/powershell/say-hello.ps1`
-- [ ] T003 Create constitution source in `memory/constitution.md`
-- [ ] T004 [P] Create test package skeletons with `__init__.py` in `tests/unit/`, `tests/integration/`, and `tests/contract/`
+- [X] T001 Create template source files in `src/gm_kit/assets/templates/commands/gmkit.hello-gmkit.md` and `src/gm_kit/assets/templates/hello-gmkit-template.md`
+- [X] T002 Create script templates in `src/gm_kit/assets/scripts/bash/say-hello.sh` and `src/gm_kit/assets/scripts/powershell/say-hello.ps1`
+- [X] T003 Create constitution source in `src/gm_kit/assets/memory/constitution.md`
+- [X] T004 [P] Create test package skeletons with `__init__.py` in `tests/unit/`, `tests/integration/`, and `tests/contract/`
 
 ---
 
@@ -42,11 +42,11 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T005 Implement agent configuration mapping in `src/gm_kit/agent_config.py`
-- [ ] T006 Implement path and OS validation helpers in `src/gm_kit/validator.py`
-- [ ] T007 Implement template manager scaffolding (single-source + tomllib validation) in `src/gm_kit/template_manager.py`
-- [ ] T008 Implement script generator scaffolding in `src/gm_kit/script_generator.py`
-- [ ] T009 Implement CLI app scaffolding and shared error handling in `src/gm_kit/cli.py`
+- [X] T005 Implement agent configuration mapping in `src/gm_kit/agent_config.py`
+- [X] T006 Implement path and OS validation helpers in `src/gm_kit/validator.py`
+- [X] T007 Implement template manager scaffolding (single-source + tomllib validation) in `src/gm_kit/template_manager.py`
+- [X] T008 Implement script generator scaffolding in `src/gm_kit/script_generator.py`
+- [X] T009 Implement CLI app scaffolding and shared error handling in `src/gm_kit/cli.py`
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -60,17 +60,15 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 1 (Test-first)
 
-- [ ] T010 [P] [US1] Create CLI contract test for `gmkit init` in `tests/contract/test_cli_init_contract.py`
-- [ ] T011 [P] [US1] Add init prompt/arg validation tests in `tests/unit/test_init.py`
-- [ ] T012 [P] [US1] Add installer unit tests for uv layout/shims in `tests/unit/test_installer.py`
-- [ ] T013 [P] [US1] Add full init flow integration test in `tests/integration/test_full_init_flow.py`
+- [X] T010 [P] [US1] Create CLI contract test for `gmkit init` in `tests/contract/test_cli_init_contract.py`
+- [X] T011 [P] [US1] Add init prompt/arg validation tests in `tests/unit/test_init.py`
+- [X] T013 [P] [US1] Add full init flow integration test in `tests/integration/test_full_init_flow.py`
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implement uv tool install verification and shim logic in `src/gm_kit/installer.py`
-- [ ] T015 [US1] Implement `gmkit init` flow in `src/gm_kit/init.py` (folder creation, template/script copy)
-- [ ] T016 [US1] Wire `gmkit init` command into CLI in `src/gm_kit/cli.py`
-- [ ] T017 [US1] Ensure console entrypoint is configured in `pyproject.toml`
+- [X] T015 [US1] Implement `gmkit init` flow in `src/gm_kit/init.py` (folder creation, template/script copy)
+- [X] T016 [US1] Wire `gmkit init` command into CLI in `src/gm_kit/cli.py`
+- [X] T017 [US1] Ensure console entrypoint is configured in `pyproject.toml`
 
 **Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
 
@@ -84,14 +82,14 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 2 (Test-first)
 
-- [ ] T018 [P] [US2] Add script generation unit tests in `tests/unit/test_script_generator.py`
-- [ ] T019 [P] [US2] Add bash vs PowerShell parity tests (via `pwsh` on Linux) in `tests/integration/test_script_parity.py`
+- [X] T018 [P] [US2] Add script generation unit tests in `tests/unit/test_script_generator.py`
+- [X] T019 [P] [US2] Add bash vs PowerShell parity tests (via `pwsh` on Linux) in `tests/integration/test_script_parity.py`
 
 ### Implementation for User Story 2
 
-- [ ] T020 [US2] Implement bash script generation in `src/gm_kit/script_generator.py`
-- [ ] T021 [US2] Implement PowerShell script generation in `src/gm_kit/script_generator.py`
-- [ ] T022 [US2] Ensure OS selection routes to correct script template in `src/gm_kit/init.py`
+- [X] T020 [US2] Implement bash script generation in `src/gm_kit/script_generator.py`
+- [X] T021 [US2] Implement PowerShell script generation in `src/gm_kit/script_generator.py`
+- [X] T022 [US2] Ensure OS selection routes to correct script template in `src/gm_kit/init.py`
 
 **Checkpoint**: User Story 2 should be independently testable and produce identical outputs across platforms
 
@@ -105,16 +103,16 @@ description: "Task list template for feature implementation"
 
 ### Tests for User Story 3 (Test-first)
 
-- [ ] T023 [P] [US3] Add agent config mapping tests in `tests/unit/test_agent_config.py`
-- [ ] T024 [P] [US3] Add prompt generation tests for md/toml in `tests/unit/test_template_manager.py`
-- [ ] T025 [P] [US3] Add TOML validation tests in `tests/integration/test_toml_validation.py`
-- [ ] T026 [P] [US3] Add agent validation tests in `tests/integration/test_agent_validation.py`
+- [X] T023 [P] [US3] Add agent config mapping tests in `tests/unit/test_agent_config.py`
+- [X] T024 [P] [US3] Add prompt generation tests for md/toml in `tests/unit/test_template_manager.py`
+- [X] T025 [P] [US3] Add TOML validation tests in `tests/integration/test_toml_validation.py`
+- [X] T026 [P] [US3] Add agent validation tests in `tests/integration/test_agent_validation.py`
 
 ### Implementation for User Story 3
 
-- [ ] T027 [US3] Implement agent prompt file generation in `src/gm_kit/template_manager.py`
-- [ ] T028 [US3] Implement TOML embedding/validation in `src/gm_kit/template_manager.py`
-- [ ] T029 [US3] Implement agent install checks and errors in `src/gm_kit/validator.py`
+- [X] T027 [US3] Implement agent prompt file generation in `src/gm_kit/template_manager.py`
+- [X] T028 [US3] Implement TOML embedding/validation in `src/gm_kit/template_manager.py`
+- [X] T029 [US3] Implement agent install checks and errors in `src/gm_kit/validator.py`
 
 **Checkpoint**: All user stories should now be independently functional
 
@@ -124,8 +122,8 @@ description: "Task list template for feature implementation"
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T030 [P] Validate quickstart steps and update if needed in `specs/002-installer-skeleton/quickstart.md`
-- [ ] T031 Run lint/typecheck/test commands documented in `justfile`
+- [X] T030 [P] Validate quickstart steps and update if needed in `specs/002-installer-skeleton/quickstart.md`
+- [X] T031 Run lint/typecheck/test commands documented in `justfile`
 
 ---
 
@@ -169,7 +167,6 @@ description: "Task list template for feature implementation"
 # Launch all tests for User Story 1 together:
 Task: "Create CLI contract test for gmkit init in tests/contract/test_cli_init_contract.py"
 Task: "Add init prompt/arg validation tests in tests/unit/test_init.py"
-Task: "Add installer unit tests for uv layout/shims in tests/unit/test_installer.py"
 Task: "Add full init flow integration test in tests/integration/test_full_init_flow.py"
 ```
 

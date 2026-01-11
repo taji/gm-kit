@@ -28,6 +28,9 @@ GM-Kit lets a GM reshape the contents of a long-form published scenario PDF into
 ## Testing Requirements
 - PowerShell (`pwsh`) is required on Linux to run bash vs PowerShell parity tests.
 
+## Dev Tools
+- Agent install helpers live in `devtools/scripts/` (`agents.registry.sh`, `provision_agents.sh`, `remove_agents.sh`).
+
 ## Keep README & Planning In Sync
 1. Update `docs/team/project-overview.md` and `BACKLOG.md` whenever goals or prompts change.
 2. Reflect the changes here (mission, workflow, contributor lifecycle, audit instructions) so onboarding stays frictionless.

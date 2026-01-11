@@ -35,7 +35,7 @@ Scale/Scope: Single-user operation, supports 10+ coding agents, cross-platform s
 
 **V. Observability**: PASS - Text I/O debuggable, structured logging; Versioning follows MAJOR.MINOR.BUILD.
 
-**VI. AI Agent Integration**: PASS - Supports prioritized agents with templates from local repo folders (templates/, templates/commands/, scripts/), fallback for discontinued tools.
+**VI. AI Agent Integration**: PASS - Supports prioritized agents with templates from package assets (src/gm_kit/assets/templates/, src/gm_kit/assets/scripts/), fallback for discontinued tools.
 
 **VII. Interactive CLI Testing**: PASS - pexpect for testing gmkit init prompts, validates unsupported agents/network failures.
 
@@ -65,31 +65,29 @@ specs/002-installer-skeleton/
 src/gm_kit/                    # Existing Python package
 ├── __init__.py
 ├── cli.py                      # Main CLI entry point (new)
-├── installer.py                # UV installer logic (new)
 ├── init.py                     # gmkit init command logic (new)
 ├── validator.py                # Agent validation (new)
 ├── script_generator.py         # Bash/PowerShell script generation (new)
 ├── template_manager.py         # Template handling, TOML generation, and validation (new)
 └── agent_config.py             # Agent-specific configurations (folder paths, file formats per data-model.md)
 
-templates/                      # Source templates in gm-kit repo (mirroring spec-kit)
+src/gm_kit/assets/templates/    # Source templates packaged with gm-kit
 ├── commands/                   # Source prompt files for slash commands
 │   ├── gmkit.hello-gmkit.md     # Source template (single source of truth)
 └── hello-gmkit-template.md     # Output template for greetings
 
-scripts/                        # Source scripts
+src/gm_kit/assets/scripts/      # Source scripts packaged with gm-kit
 ├── bash/
 │   └── say-hello.sh            # Bash script template
 └── powershell/
     └── say-hello.ps1           # PowerShell script template
 
-memory/                         # Constitution and shared memory
+src/gm_kit/assets/memory/       # Constitution and shared memory
 └── constitution.md             # GM-Kit principles
 
 tests/
 ├── unit/                       # Unit tests
 │   ├── test_cli.py
-│   ├── test_installer.py
 │   ├── test_init.py
 │   ├── test_validator.py
 │   ├── test_script_generator.py
@@ -104,14 +102,14 @@ tests/
 
 ```
 
-**Structure Decision**: Single project CLI structure - builds on existing gm_kit package with new modules for installer/init functionality. Tests follow constitution requirements with pexpect for interactive testing. Agent-specific configurations reference the enhanced CLI contract specifications for exact folder paths and file formats.
+**Structure Decision**: Single project CLI structure - builds on existing gm_kit package with new modules for init functionality. Tests follow constitution requirements with pexpect for interactive testing. Agent-specific configurations reference the enhanced CLI contract specifications for exact folder paths and file formats.
 
 ## Template Generation Strategy
 
 ### Agent-Specific File Generation
-The implementation uses a single-source approach where `templates/commands/gmkit.hello-gmkit.md` in the gm-kit repo serves as the master template, with agent-specific generation during initialization:
+The implementation uses a single-source approach where `src/gm_kit/assets/templates/commands/gmkit.hello-gmkit.md` serves as the master template, with agent-specific generation during initialization:
 
-1. **Source Templates**: Maintain `.md` prompt files as single source of truth in `templates/commands/` (gm-kit repo)
+1. **Source Templates**: Maintain `.md` prompt files as single source of truth in `src/gm_kit/assets/templates/commands/`
 2. **Agent-Specific Generation**: During `gmkit init`, generate agent-appropriate files in user project:
    - **claude**: Copy to `.claude/commands/gmkit.hello-gmkit.md`
    - **codex-cli**: Copy to `.codex/prompts/gmkit.hello-gmkit.md`

@@ -9,19 +9,19 @@
 ## Initialize Project
 
 1. Create temp workspace: `mkdir /tmp/gmkit-test`
-2. Run init: `gmkit init /tmp/gmkit-test --agent claude --os linux`
+2. Run init: `gmkit init /tmp/gmkit-test --agent claude --os macos/linux`
 3. Or interactive: `gmkit init /tmp/gmkit-test` (prompts for agent/OS)
 
 ### Agent Examples
 
 **Claude (most common):**
 ```bash
-gmkit init /tmp/gmkit-test --agent claude --os linux
+gmkit init /tmp/gmkit-test --agent claude --os macos/linux
 ```
 
 **Other supported agents:**
 ```bash
-gmkit init /tmp/gmkit-test --agent codex-cli --os linux
+gmkit init /tmp/gmkit-test --agent codex-cli --os macos/linux
 gmkit init /tmp/gmkit-test --agent gemini --os windows  
 gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ```

@@ -26,3 +26,19 @@ typecheck:
 # Run tests
 test:
     uv run --python "$(cat .python-version)" --extra dev -- pytest
+
+# Build distribution artifacts with Hatch
+build:
+    hatch build
+
+# Publish distribution artifacts with Hatch (requires auth)
+publish:
+    hatch publish
+
+# Bump version via Hatch: just bump patch|minor|major
+bump level:
+    hatch version {{level}}
+
+# Run gmkit init with a target path, e.g. `just run_gmkit_init /tmp/gmkit-test`
+run_gmkit_init target_path:
+    uv run --python "$(cat .python-version)" --extra dev --editable -- gmkit init {{target_path}}
