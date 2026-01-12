@@ -59,5 +59,4 @@ Developer guidance lives under `docs/team/` and should be kept in sync with the 
 
 ### Reference Docs
 - Spec-Kit guidelines: `docs/team/speckit_guidelines.md`
-- Knowledge graph usage: `docs/team/mcp_knowledge_graph_guidelines.md`
 - Prompt templates for new commands: `docs/team/speckit_prompt_templates_for_gmkit.md`
