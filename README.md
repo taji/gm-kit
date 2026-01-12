@@ -1,5 +1,7 @@
 # GM-Kit
 
+**Status: prealpha. Expect breaking changes.**
+
 GM-Kit helps GMs turn long-form scenarios into succinct, bullet-pointed outlines using a common shorthand format. It provides a CLI that initializes a project workspace with agent-specific prompts, scripts, and templates so you can run slash commands and generate consistent prep artifacts.
 
 ## Mission Snapshot
