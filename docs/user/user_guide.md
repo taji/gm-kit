@@ -85,6 +85,10 @@ Agent prompt locations:
 - `Unsupported agent`: use one of `claude`, `codex-cli`, `gemini`, or `qwen`.
 - `os must be 'macos/linux' or 'windows'`: pass one of those values or use interactive mode.
 
+## Contributor CI
+- Pull requests to `master` run Linux CI gates (lint, typecheck, unit, integration, parity, security audit) via `just` tasks.
+- Parity checks compare bash vs PowerShell-generated outputs on Linux (PowerShell is installed in CI as needed).
+
 ## Release Notes / Changes
 - Notable changes that affect user behavior or compatibility.
 - Migration/upgrade steps when required.

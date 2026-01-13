@@ -48,7 +48,7 @@ As a maintainer, I want every PR to master to run quality gates and core tests s
 - **FR-004**: CI MUST run a Linux parity check (`just test-parity`) that compares Unix-shell and Windows-shell generated file contents. CI MUST attempt to install PowerShell on Linux if it is unavailable; if parity still cannot run, CI MUST fail with a clear error.
 - **FR-005**: CI MUST publish a pass/fail status that is visible on the PR and blocks merging on failure.
 
-**Quality Gate Tasks**: `just lint`, `just typecheck`, `just test-unit`, `just test-integration`, `just test-parity`, `bandit -r src`, and `uv audit` are required gates. `just test` runs unit + integration + parity together. `just format` and `just format-imports` are optional and not gating.
+**Quality Gate Tasks**: `just lint`, `just typecheck`, `just test-unit`, `just test-integration`, `just test-parity`, `bandit -r src`, and `pip-audit` (run via `uv tool`) are required gates. `just test` runs unit + integration + parity together. `just format` and `just format-imports` are optional and not gating.
 
 **Parity Comparison Scope**: Parity compares the generated hello-gmkit outputs (the greeting file and rendered template outputs) produced by bash vs PowerShell scripts.
 

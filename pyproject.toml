@@ -12,7 +12,7 @@ authors = [{ name = "James Todd Garza" }]
 dependencies = ["readchar", "typer", "tomli; python_version < \"3.11\""]
 
 [project.optional-dependencies]
-dev = ["ruff", "pytest", "black", "isort", "mypy", "pytest-cov", "readchar", "typer"]
+dev = ["ruff", "pytest", "black", "isort", "mypy", "pytest-cov", "readchar", "typer", "bandit"]
 
 [project.scripts]
 gmkit = "gm_kit.cli:app"

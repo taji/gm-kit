@@ -12,7 +12,7 @@ Establish a GitHub Actions CI pipeline for PRs to master that enforces quality g
 **Language/Version**: Python 3.13.7
 **Primary Dependencies**: typer, rich, uv, pytest, ruff, black, isort, mypy, bandit
 **Storage**: N/A (CI configuration only)
-**Testing**: pytest, ruff, mypy, bandit, uv audit (invoked via `just` tasks including `test-unit`, `test-integration`, `test-parity`)
+**Testing**: pytest, ruff, mypy, bandit, pip-audit (via `uv tool run`, invoked by `just` tasks including `test-unit`, `test-integration`, `test-parity`)
 **Target Platform**: GitHub Actions runner (ubuntu-latest)
 **Project Type**: single CLI repository
 **Performance Goals**: Linux CI job under 15 minutes for typical PRs, with overruns reported

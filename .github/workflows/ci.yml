@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13.7"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+        working-directory: ${{ github.workspace }}
+
+      - name: Install just
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y just
+          just --version
+        working-directory: ${{ github.workspace }}
+
+      - name: Install PowerShell (pwsh)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y powershell
+          pwsh -v
+        working-directory: ${{ github.workspace }}
+
+      - name: Lint
+        run: just lint
+        working-directory: ${{ github.workspace }}
+
+      - name: Typecheck
+        run: just typecheck
+        working-directory: ${{ github.workspace }}
+
+      - name: Unit tests
+        run: just test-unit
+        working-directory: ${{ github.workspace }}
+
+      - name: Integration tests
+        run: just test-integration
+        working-directory: ${{ github.workspace }}
+
+      - name: Parity tests
+        run: just test-parity
+        working-directory: ${{ github.workspace }}
+
+      - name: Bandit
+        run: just bandit
+        working-directory: ${{ github.workspace }}
+
+      - name: Audit
+        run: just audit
+        working-directory: ${{ github.workspace }}
