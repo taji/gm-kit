@@ -23,9 +23,23 @@ lint:
 typecheck:
     uv run --python "$(cat .python-version)" --extra dev -- mypy src
 
-# Run tests
+# Run unit tests only
+test-unit:
+    uv run --python "$(cat .python-version)" --extra dev -- pytest tests/unit
+
+# Run integration tests only
+test-integration:
+    uv run --python "$(cat .python-version)" --extra dev -- pytest tests/integration
+
+# Run parity tests only
+test-parity:
+    uv run --python "$(cat .python-version)" --extra dev -- pytest tests/integration/test_script_parity.py
+
+# Run all tests (unit + integration + parity)
 test:
-    uv run --python "$(cat .python-version)" --extra dev -- pytest
+    just test-unit
+    just test-integration
+    just test-parity
 
 # Build distribution artifacts with Hatch
 build:

@@ -247,3 +247,10 @@ Completion requirements vary by task type:
 - The implementation adheres to project architecture and style guidelines
 
 <!-- GENERATED:AGENT_CONTEXT_PYTHON_END -->
+
+## Active Technologies
+- Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit (001-ci-walking-skeleton)
+- N/A (CI configuration only) (001-ci-walking-skeleton)
+
+## Recent Changes
+- 001-ci-walking-skeleton: Added Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit

@@ -110,19 +110,20 @@ Success looks like:
 - contributors can invoke /gmkit.hello-gmkit slash command from their coding agent of choice (selected during "gmkit init" command) and the "<project folder>/greetings/greetingXX.md" file will be written with the appropriate XX sequence number.
     - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written. Agent CLI batch mode is currently non-viable (codex-cli, gemini, opencode) for clean slash-command invocation; codex output is not reliable for automated tests.
 
-### E2-03. CI/CD Pipeline for Walking Skeleton **[FEATURE, NOT SPECCED]**
+### E2-03. CI Pipeline for Walking Skeleton **[FEATURE, DRAFT as specs/001-ci-walking-skeleton/spec.md]**
 Feature description:
-Establish a CI/CD pipeline that validates the walking skeleton implementation (E2-02). The pipeline must run quality gates including lint/format/type-check, unit tests for installer functionality, and integration tests for the gmkit init and hello-gmkit workflows. Define release/versioning, tagging, and changelog steps for the walking skeleton. Include a release checklist (artifacts, docs, installation verification) and how feedback is collected.
+Establish a CI pipeline that validates the walking skeleton implementation (E2-02). The pipeline must run quality gates including lint/format/type-check, unit tests for installer functionality, and integration tests for the gmkit init and hello-gmkit workflows. CI is Linux-only; Windows validation is deferred to CD.
 
 Requirements:
 - Unit tests covering installer components (folder creation, script generation, symlink creation)
 - Integration tests for `gmkit init` command across supported agents (claude, codex-cli, gemini, qwen)
-- Integration tests for `/gmkit.hello-gmkit` slash command execution and template rendering
-- Cross-platform testing (macOS/Linux/Windows) for installer artifacts
-- Pipeline runs on each PR to main branch
-- Automated artifact generation for releases
+- Integration tests for `/gmkit.hello-gmkit` workflows run scripts directly to render templates (no agent invocation)
+- Linux parity tests compare bash and PowerShell outputs using pwsh on Linux; CI fails if pwsh cannot be installed
+- Pipeline runs on each PR to master branch
 
-Success looks like: a passing CI/CD pipeline that validates the walking skeleton functionality, provides repeatable release process, and ensures cross-platform compatibility of the installer and hello-gmkit workflow.
+Success looks like: a passing Linux CI pipeline that validates the walking skeleton functionality, including parity checks and script-rendered outputs.
+
+Sync: spec drafted in specs/001-ci-walking-skeleton/spec.md; quickstart/plan/data-model not yet synced
 
 ---
 
