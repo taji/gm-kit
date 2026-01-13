@@ -5,6 +5,10 @@ on:
     branches:
       - master
 
+defaults:
+  run:
+    working-directory: ${{ github.workspace }}
+
 jobs:
   linux:
     runs-on: ubuntu-latest
