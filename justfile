@@ -48,7 +48,8 @@ bandit:
 # Dependency audit
 audit:
     uv run --python "3.13.7" --extra dev -- python -m ensurepip --upgrade
-    PIPAPI_PYTHON_LOCATION=.venv/bin/python uv tool run --from pip-audit pip-audit
+    uv run --python "3.13.7" --extra dev -- python -m pip install -U pip
+    PIPAPI_PYTHON_LOCATION=.venv/bin/python uv tool run --from pip-audit pip-audit --skip-editable
 
 # Build distribution artifacts with Hatch
 build:
