@@ -47,7 +47,7 @@ bandit:
 
 # Dependency audit
 audit:
-    uv tool run --from pip-audit pip-audit
+    PIPAPI_PYTHON_LOCATION=.venv/bin/python uv tool run --from pip-audit pip-audit
 
 # Build distribution artifacts with Hatch
 build:
