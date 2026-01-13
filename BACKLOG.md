@@ -110,7 +110,7 @@ Success looks like:
 - contributors can invoke /gmkit.hello-gmkit slash command from their coding agent of choice (selected during "gmkit init" command) and the "<project folder>/greetings/greetingXX.md" file will be written with the appropriate XX sequence number.
     - proven by tests that invoke the script directly to fill the template and verify the "<project folder>/greetings/greetingXX.md" file has been written. Agent CLI batch mode is currently non-viable (codex-cli, gemini, opencode) for clean slash-command invocation; codex output is not reliable for automated tests.
 
-### E2-03. CI Pipeline for Walking Skeleton **[FEATURE, DRAFT as specs/001-ci-walking-skeleton/spec.md]**
+### E2-03. CI Pipeline for Walking Skeleton **[FEATURE, COMPLETED as specs/001-ci-walking-skeleton/spec.md]**
 Feature description:
 Establish a CI pipeline that validates the walking skeleton implementation (E2-02). The pipeline must run quality gates including lint/format/type-check, unit tests for installer functionality, and integration tests for the gmkit init and hello-gmkit workflows. CI is Linux-only; Windows validation is deferred to CD.
 
@@ -123,7 +123,7 @@ Requirements:
 
 Success looks like: a passing Linux CI pipeline that validates the walking skeleton functionality, including parity checks and script-rendered outputs.
 
-Sync: spec drafted in specs/001-ci-walking-skeleton/spec.md; quickstart/plan/data-model not yet synced
+Sync: quickstart synced to docs/user/user_guide.md; plan/research/data-model synced to ARCHITECTURE.md; mark **SYNCED**
 
 ---
 
