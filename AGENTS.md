@@ -28,8 +28,8 @@ Follow these steps for each interaction:
      e) Relationships (personal and professional relationships up to 3 degrees of separation)
 
 5. Progress tracking (Backlog → memory)
-   - When reading or updating BACKLOG.md, create or refresh memory entities for each epic/feature with status (COMPLETED/DRAFT/PARTIAL/NOT SPECCED), key blockers, and next steps (e.g., E1-03 CLI surface mismatch + missing dry-run/logging tests; E1-04 Cardinal palette gap; E1-05 Xvfb/Zenity modal blocks test enablement; E1-09 pending CLI rename).
-   - Record spec folder links and doc-sync state per epic (quickstart synced to docs/user/user-guide.md, plan/research/data-model synced to ARCHITECTURE.md). Note pending sync actions and the file that must be updated/marked **SYNCED** in BACKLOG.md.
+   - When reading or updating BACKLOG.md, create or refresh memory entities for each epic/feature with status (COMPLETED/DRAFT/PARTIAL/NOT SPECCED), key blockers, and next steps (e.g., E1-03 CLI surface mismatch + missing dry-run/logging tests; E1-04 Cardinal palette gap; E1-05 Xvfb/Zenity modal blocks test enablement; E1-09 pending CLI rename). Keep this detail out of the BACKLOG title; record it as lines under the feature.
+   - Record spec folder links and doc-sync state per epic (quickstart synced to docs/user/user-guide.md, plan/research/data-model synced to ARCHITECTURE.md). Note pending sync actions and the file that must be updated/marked **SYNCED** in BACKLOG.md. When a feature has a spec folder, include it directly in the BACKLOG feature title, using the format shown in E2-02 (e.g., `### E2-02. Installation and Walking Skeleton **[FEATURE, COMPLETED as specs/002-installer-skeleton/spec.md]**`), and put doc-sync state on its own line under the feature.
    - On any status change or newly discovered blocker, immediately update memory with observations and relations to the epic entity (e.g., `E1-03` relates to `specs/001-cli-fxp-conversion`, `docs/user/user-guide.md`).
    - If `docs/user/user-guide.md` or `ARCHITECTURE.md` conflicts with a spec, add a "needs clarification" note in the spec file and capture that unresolved item in memory until resolved.
 

@@ -38,7 +38,7 @@ Success looks like: documented learnings on whether the knowledge graph improves
 
 NOTE: The developer will install the mcp and configure it. Use the context at this link in both codex and opencode to ensure it's working correctly: https://github.com/modelcontextprotocol/servers/tree/main/src/memory (See SYSTEM PROMPT section in the readme, note we are using Cheezy's recommended knowledge graph mcp rather than the Memory mcp)
 
-### E2-02. Installation and Walking Skeleton **[FEATURE, NOT SPECCED]**
+### E2-02. Installation and Walking Skeleton **[FEATURE, COMPLETED as specs/002-installer-skeleton/spec.md]**
 Feature description:
 1) Deliver a Python/uv installer that installs the following three artifacts:
 
