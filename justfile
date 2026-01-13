@@ -47,7 +47,7 @@ bandit:
 
 # Dependency audit
 audit:
-    uv pip audit
+    uv tool run --from pip-audit pip-audit
 
 # Build distribution artifacts with Hatch
 build:
