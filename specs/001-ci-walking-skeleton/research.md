@@ -1,8 +1,8 @@
 # Research: CI Pipeline for Walking Skeleton
 
 ## Decision 1: CI Platform
-- **Decision**: Use GitHub Actions for CI.
-- **Rationale**: Matches current repository hosting and provides first-class Linux and Windows runners.
+- **Decision**: Use GitHub Actions for CI (Linux-only in CI).
+- **Rationale**: Matches current repository hosting and provides a stable Linux runner for PR gating.
 - **Alternatives considered**: GitLab CI, CircleCI.
 
 ## Decision 2: Linux Parity Execution
@@ -11,9 +11,9 @@
 - **Alternatives considered**: Skip parity when pwsh is missing; run parity only on Windows.
 
 ## Decision 3: Windows Validation Scope
-- **Decision**: Windows CI runs source-based validation of `gmkit init` and `/gmkit.hello-gmkit` without installing a published package.
-- **Rationale**: CD/release pipeline does not exist yet; source-based validation still protects Windows users.
-- **Alternatives considered**: Use published UV installs (deferred to CD).
+- **Decision**: Defer Windows validation to a future CD feature.
+- **Rationale**: CI is Linux-only and focused on fast PR gating; CD will cover Windows end-to-end validation later.
+- **Alternatives considered**: Add a Windows CI job in this feature.
 
 ## Decision 4: CI Trigger
 - **Decision**: Run CI on pull requests targeting master.

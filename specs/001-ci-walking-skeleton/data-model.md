@@ -4,8 +4,8 @@ This feature introduces no persistent data model. CI artifacts are ephemeral and
 
 ## Entities
 
-- **CI Workflow**: The pipeline definition for PR validation; includes Linux and Windows jobs.
-- **CI Job**: An execution unit (e.g., Linux quality gates, Windows validation, parity check).
+- **CI Workflow**: The pipeline definition for PR validation; includes a Linux job.
+- **CI Job**: An execution unit (e.g., Linux quality gates, parity check).
 - **Parity Output**: Generated files used to compare bash vs PowerShell outputs.
 
 ## Relationships

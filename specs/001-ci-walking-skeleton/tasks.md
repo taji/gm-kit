@@ -22,7 +22,7 @@ description: "Task list for CI Pipeline for Walking Skeleton"
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create CI workflow scaffold for PRs to master in `.github/workflows/ci.yml`
+- [x] T001 Create CI workflow scaffold for PRs to master in `.github/workflows/ci.yml`
 
 ---
 
@@ -32,8 +32,8 @@ description: "Task list for CI Pipeline for Walking Skeleton"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T002 Add `bandit` and `audit` tasks in `justfile` to run `bandit -r src` and `uv audit`
-- [ ] T003 Add `test-unit`, `test-integration`, and `test-parity` tasks in `justfile` and update `test` to run all three
+- [x] T002 Add `bandit` and `audit` tasks in `justfile` to run `bandit -r src` and `uv audit`
+- [x] T003 Add `test-unit`, `test-integration`, and `test-parity` tasks in `justfile` and update `test` to run all three
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -47,11 +47,11 @@ description: "Task list for CI Pipeline for Walking Skeleton"
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Implement Linux CI job that installs dependencies and runs `just lint` in `.github/workflows/ci.yml`
-- [ ] T005 [US1] Add steps for `just typecheck`, `just test-unit`, `just test-integration`, `just test-parity`, `just bandit`, and `just audit` in `.github/workflows/ci.yml`
-- [ ] T006 [US1] Add steps to install PowerShell (`pwsh`) on Linux and fail CI if installation fails in `.github/workflows/ci.yml`
-- [ ] T007 [US1] Run `just parity` after pwsh install and fail on parity mismatches in `.github/workflows/ci.yml`
-- [ ] T008 [US1] Ensure CI status is reported and gating on PRs to master in `.github/workflows/ci.yml`
+- [x] T004 [US1] Implement Linux CI job that installs dependencies and runs `just lint` in `.github/workflows/ci.yml`
+- [x] T005 [US1] Add steps for `just typecheck`, `just test-unit`, `just test-integration`, `just test-parity`, `just bandit`, and `just audit` in `.github/workflows/ci.yml`
+- [x] T006 [US1] Add steps to install PowerShell (`pwsh`) on Linux and fail CI if installation fails in `.github/workflows/ci.yml`
+- [x] T007 [US1] Run `just test-parity` after pwsh install and fail on parity mismatches in `.github/workflows/ci.yml`
+- [x] T008 [US1] Ensure CI status is reported and gating on PRs to master in `.github/workflows/ci.yml`
 
 **Checkpoint**: User Story 1 is fully functional and independently testable
 
@@ -61,9 +61,9 @@ description: "Task list for CI Pipeline for Walking Skeleton"
 
 **Purpose**: Documentation alignment and cleanup
 
-- [ ] T009 [P] Update `specs/001-ci-walking-skeleton/research.md` to remove Windows CI references and align with Linux-only scope
-- [ ] T010 [P] Update `specs/001-ci-walking-skeleton/data-model.md` to remove Windows job references
-- [ ] T011 [P] Update `specs/001-ci-walking-skeleton/quickstart.md` to remove Windows steps and align with Linux-only CI
+- [x] T009 [P] Update `specs/001-ci-walking-skeleton/research.md` to remove Windows CI references and align with Linux-only scope
+- [x] T010 [P] Update `specs/001-ci-walking-skeleton/data-model.md` to remove Windows job references
+- [x] T011 [P] Update `specs/001-ci-walking-skeleton/quickstart.md` to remove Windows steps and align with Linux-only CI
 
 ---
 
@@ -90,9 +90,9 @@ description: "Task list for CI Pipeline for Walking Skeleton"
 
 ```bash
 Task: "Implement Linux CI job that installs dependencies and runs just lint in .github/workflows/ci.yml"
-Task: "Add steps for just typecheck, just test, just bandit, and just audit in .github/workflows/ci.yml"
+Task: "Add steps for just typecheck, just test-unit, just test-integration, just test-parity, just bandit, and just audit in .github/workflows/ci.yml"
 Task: "Add steps to install PowerShell (pwsh) on Linux and fail CI if installation fails in .github/workflows/ci.yml"
-Task: "Run just parity after pwsh install and fail on parity mismatches in .github/workflows/ci.yml"
+Task: "Run just test-parity after pwsh install and fail on parity mismatches in .github/workflows/ci.yml"
 ```
 
 ---

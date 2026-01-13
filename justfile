@@ -41,6 +41,14 @@ test:
     just test-integration
     just test-parity
 
+# Security scan
+bandit:
+    uv run --python "$(cat .python-version)" --extra dev -- bandit -r src
+
+# Dependency audit
+audit:
+    uv run --python "$(cat .python-version)" --extra dev -- uv audit
+
 # Build distribution artifacts with Hatch
 build:
     hatch build
