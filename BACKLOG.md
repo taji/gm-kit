@@ -129,11 +129,11 @@ Sync: quickstart synced to docs/user/user_guide.md; plan/research/data-model syn
 
 ## Epic 3 — Spec-Kit Architecture Analysis
 
-### E3-01. Spec-Kit Repo Deep Dive
+### ✅ E3-01. Spec-Kit Repo Deep Dive **[FEATURE, COMPLETED as docs/team/spec-kit-analysis/Spec-Kit-Analysis.md]**
 Feature description:
 Download the upstream spec-kit repo and catalogue how commands, templates, and scripts are organized. Include notes on versioning, template prefixes, and how prompts feed specs.
 
-Success looks like: a concise reference document file stored as './docs/speckit_architecture_notes.md' that captures the structural learnings.
+Success looks like: a concise reference document file stored as `docs/team/spec-kit-analysis/Spec-Kit-Analysis.md` that captures the structural learnings.
 
 ### E3-02. Constitution → Gate Mapping
 Feature description:

@@ -50,7 +50,7 @@ More on these files below.
 
 Note that once the project is initialized the specify bash/ps command is no longer used for the project.
 
-## Invoke the different slash commands in the coding agent to groom features
+## 3) Invoke the different slash commands in the coding agent to groom features
 
 Here are the specific slash commands invoked inside the coding agent. Each slash command below has a corresponding markdown stored in the coding agents configureation.  Here is the list of prompt markdown files installed by ```specify init```:
     - /speckit.constitution : invoked to establish rules spec-kit will follow when grooming and implementing new features. 
@@ -98,10 +98,40 @@ So as an example if we invoke /specify with a prompt of "create a todo list app 
 
 1. The prompt is passed to the agent along with the context and instructions in the ```speckit.specify.md``` file.
 2. The agent considers the context and prompt and builds a list of arguments for the ```create-new-featuere.sh``` script.
-3. The script is invoked which takes the arguments and populates them into the ```spec-template.md``` template to create the spec.md.
+3. The script is invoked to create the feature folder and copy ```spec-template.md``` into spec.md (no placeholder rendering happens in the script).
 
-So it's ```/spec (invoked by user)  ==> Analysis (by agent) => Arguments for script (by agent) ==> Script invoked (by agent) ==> template rendered using args (by script) ==> spec.md.```
+So it's ```/spec (invoked by user)  ==> Analysis (by agent) => Arguments for script (by agent) ==> Script invoked (by agent; copies template) ==> template rendered using args (by agent) ==> spec.md.```
+Note: the rendering step is guided by the agent prompt file (Codex: `.codex/prompts/speckit.specify.md`, OpenCode: `.opencode/command/speckit.specify.md`).
 
 Note that this process is a first pass at creating spec.md. It provides the structure needed in the spec.md file so that the agent can 1) revise the spec directly later as needed and 2) refer to the spec.md file as it creates the plan.md, tasks.md file, etc as the process continues.
 
-All of the other /slash commands follow this same pattern: prompt and instructions => create arguments => render template.
+All of the other /slash commands follow this same pattern: prompt and instructions => create arguments => script scaffolds files => agent renders placeholders.
+
+## Additional notes
+
+## Versioning and template/prompt prefixes
+
+- Versioning is controlled by the installed `specify-cli` package version (via `uv tool install`); the prompts/scripts/templates copied into a project are a snapshot from that installed version at init time and do not auto-update.
+- Prompt filenames and slash commands are consistently prefixed with `speckit.` (for example `speckit.specify.md` maps to `/speckit.specify`).
+- Template filenames use descriptive suffixes (for example `spec-template.md`, `plan-template.md`, `tasks-template.md`) rather than a shared prefix.
+
+## Constitution flow (prompt-only, no script)
+
+- `/speckit.constitution` is an exception to the “prompt → script → template render” pattern: the command template instructs the agent to edit `/memory/constitution.md` directly (project path: `.specify/memory/constitution.md`).
+- There is no corresponding bash/PowerShell script under `spec-kit/scripts/` for constitution updates; the agent is responsible for applying the template rules and writing the file.
+- Likely rationale: constitution updates are inherently judgment-heavy (semantic version bumps, governance edits, propagation notes), which are easier to do in‑prompt than by rigid script arguments. Scripts are used where deterministic templating is more important (spec/plan/tasks scaffolding).
+- This trade-off suggests a split: use scripts when you need reproducible scaffolding and file placement, but rely on prompt-driven edits when the content requires nuanced judgment or cross‑document reasoning.
+- Templates are primarily first-pass scaffolding; follow-up revisions are done by the agent directly editing the generated files.
+- For revisions, do not re‑invoke the slash command; instead reference the relevant command’s guidance (e.g., “update `spec.md` following `/speckit.clarify`”). Ad‑hoc edits may align with the norms, but are not guaranteed unless you explicitly cite the guidance.
+
+## Constitution-driven gates (source terminology)
+
+These gate names come from spec-kit’s own documentation and plan templates, not from GM-Kit. The labels below appear in `spec-kit/spec-driven.md` and the plan template scaffolding.
+
+- **Simplicity Gate (Article VII)**: Pre-implementation checks like “Using ≤3 projects?” and “No future-proofing?” to prevent scope creep or speculative architecture.
+- **Anti-Abstraction Gate (Article VIII)**: Checks like “Using framework directly?” and “Single model representation?” to avoid unnecessary wrapper layers.
+- **Integration-First Gate (Article IX)**: Checks like “Contracts defined?” and “Contract tests written?” to ensure integration testing leads.
+
+Example (GM-Kit context):
+- If a new artifact type is proposed (e.g., `npc-profile`), the **Simplicity Gate** asks whether this can be implemented as a single new prompt/template + minimal schema changes (no new subsystem).
+- The **Anti-Abstraction Gate** asks whether we are adding a generic “artifact renderer” interface before proving it’s needed.
