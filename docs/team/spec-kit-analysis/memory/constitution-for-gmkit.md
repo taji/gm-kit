@@ -1,3 +1,5 @@
+<!-- JTG ANALYSIS: Note that this constitution is specific to gm-kit's development processes.  It was created from a template in the speckit's package folder and then filled in via conversations with the agent on what principles are important/expected/required. -->
+
 # GM-Kit Constitution
 <!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
 

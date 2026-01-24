@@ -126,7 +126,7 @@ All of the other /slash commands follow this same pattern: prompt and instructio
 
 ## Constitution-driven gates (source terminology)
 
-These gate names come from spec-kit’s own documentation and plan templates, not from GM-Kit. The labels below appear in `spec-kit/spec-driven.md` and the plan template scaffolding.
+These gate names come from spec-kit’s own documentation, not from GM-Kit. The labels below appear in `docs/team/spec-kit-analysis/docs/spec-driven.md` (copied from upstream). The spec-kit constitution template itself does not name Anti-Abstraction explicitly; it only gives example slots for principle names. The GM-Kit plan template only includes a placeholder (“[Gates determined based on constitution file]”) and does not name the gates explicitly.
 
 - **Simplicity Gate (Article VII)**: Pre-implementation checks like “Using ≤3 projects?” and “No future-proofing?” to prevent scope creep or speculative architecture.
 - **Anti-Abstraction Gate (Article VIII)**: Checks like “Using framework directly?” and “Single model representation?” to avoid unnecessary wrapper layers.
@@ -135,3 +135,5 @@ These gate names come from spec-kit’s own documentation and plan templates, no
 Example (GM-Kit context):
 - If a new artifact type is proposed (e.g., `npc-profile`), the **Simplicity Gate** asks whether this can be implemented as a single new prompt/template + minimal schema changes (no new subsystem).
 - The **Anti-Abstraction Gate** asks whether we are adding a generic “artifact renderer” interface before proving it’s needed.
+
+Open questions tracked in `BACKLOG.md` under E3-02.

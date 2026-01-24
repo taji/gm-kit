@@ -135,17 +135,21 @@ Download the upstream spec-kit repo and catalogue how commands, templates, and s
 
 Success looks like: a concise reference document file stored as `docs/team/spec-kit-analysis/Spec-Kit-Analysis.md` that captures the structural learnings.
 
-### E3-02. Constitution → Gate Mapping
+### ✅ E3-02. Constitution → Gate Mapping **[FEATURE, COMPLETED as docs/team/spec-kit-analysis/docs/spec-driven.md]**
 Feature description:
 Trace how Spec-Kit’s constitution articles produce gates like the “Simplicity Gate” and “Anti-Abstraction Gate.” Clarify what “No future-proofing” truly enforces and how those checks can be adapted for GM-Kit.
 
 Success looks like: actionable guidance for crafting GM-Kit checklists based on upstream doctrine.
 
-### E3-03. MCP Flow Walkthrough (Specify → Clarify → Plan → Execute)
-Feature description:
-Describe, with screenshots or transcripts, how each Spec-Kit phase behaves today when building a feature. Focus on checklists, clarifying questions, and artifact outputs so we can mirror or adapt them.
+JTG 01-23-2025 There are two questions that went unanswered during investigation regarding the gates above:
+    - Where do these concepts originate from spec-kit? We only see explanations in spec-kit’s spec-driven.md documentation file.
+    - How are the simplicity and abstraction gates included in the /plan's pre check list? 
 
-Success looks like: the team can answer “why does Spec-Kit ask for this gate?” with evidence.
+### E3-03. Spec-Kit Command Flow (Specify-Only)
+Feature description:
+Document the `/speckit.specify` flow only: how the command, script, and templates interact to produce `spec.md` and `requirements.md` in a new feature folder.
+
+Success looks like: a clear walkthrough of the specify command’s inputs/outputs and how placeholder rendering happens in practice.
 
 ### E3-04. Guardrails & Cross-Platform Considerations
 Feature description:
