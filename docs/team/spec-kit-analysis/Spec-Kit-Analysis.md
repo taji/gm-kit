@@ -94,13 +94,14 @@ It's important to note that these files are markdown to be consumed by the codin
         - tasks-template.md
         - agent-file-template.md
    
-So as an example if we invoke /specify with a prompt of "create a todo list app in angular", this is the process of creating the spec.md file:
+So as an example if we invoke /specify with a prompt of "create a todo list app in angular", this is the process of creating the spec.md file and requirements checklist end-to-end:
 
 1. The prompt is passed to the agent along with the context and instructions in the ```speckit.specify.md``` file.
 2. The agent considers the context and prompt and builds a list of arguments for the ```create-new-featuere.sh``` script.
-3. The script is invoked to create the feature folder and copy ```spec-template.md``` into spec.md (no placeholder rendering happens in the script).
+3. The script is invoked to create the feature folder and copy ```spec-template.md``` into spec.md and ```checklist-template.md``` into requirements.md (no placeholder rendering happens in the script).
+4. The agent renders both files by replacing template placeholders with the inferred values and writing final content.
 
-So it's ```/spec (invoked by user)  ==> Analysis (by agent) => Arguments for script (by agent) ==> Script invoked (by agent; copies template) ==> template rendered using args (by agent) ==> spec.md.```
+So it's ```/spec (invoked by user)  ==> Analysis (by agent) => Arguments for script (by agent) ==> Script invoked (by agent; copies templates) ==> templates rendered using args (by agent) ==> spec.md + requirements.md.```
 Note: the rendering step is guided by the agent prompt file (Codex: `.codex/prompts/speckit.specify.md`, OpenCode: `.opencode/command/speckit.specify.md`).
 
 Note that this process is a first pass at creating spec.md. It provides the structure needed in the spec.md file so that the agent can 1) revise the spec directly later as needed and 2) refer to the spec.md file as it creates the plan.md, tasks.md file, etc as the process continues.
