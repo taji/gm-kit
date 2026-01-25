@@ -123,6 +123,12 @@ Requirements:
 
 Success looks like: a passing Linux CI pipeline that validates the walking skeleton functionality, including parity checks and script-rendered outputs.
 
+### E2-04. Constitution Guardrails Template (Licensed Content + Unsafe Behavior)
+Feature description:
+Add licensed‑content and unsafe‑behavior guardrails to the default `constitution.md` template shipped with GM‑Kit. Ensure `gmkit init` scaffolding copies this template into `.gmkit/memory/constitution.md` so every project starts with these guardrails baked in. Cross‑platform CLI compatibility is already addressed in E2-02 and is out of scope here.
+
+Success looks like: `gmkit init` installs `.gmkit/memory/constitution.md` from a template that explicitly states the licensed‑content and unsafe‑behavior guardrails the agent must follow.
+
 Sync: quickstart synced to docs/user/user_guide.md; plan/research/data-model synced to ARCHITECTURE.md; mark **SYNCED**
 
 ---
@@ -145,17 +151,11 @@ JTG 01-23-2025 There are two questions that went unanswered during investigation
     - Where do these concepts originate from spec-kit? We only see explanations in spec-kit’s spec-driven.md documentation file.
     - How are the simplicity and abstraction gates included in the /plan's pre check list? 
 
-### E3-03. Spec-Kit Command Flow (Specify-Only)
+### ✅ E3-03. Spec-Kit Command Flow (Specify-Only) **[FEATURE, COMPLETED as docs/team/spec-kit-analysis/Spec-Kit-Analysis.md]**
 Feature description:
 Document the `/speckit.specify` flow only: how the command, script, and templates interact to produce `spec.md` and `requirements.md` in a new feature folder.
 
 Success looks like: a clear walkthrough of the specify command’s inputs/outputs and how placeholder rendering happens in practice.
-
-### E3-04. Guardrails & Cross-Platform Considerations
-Feature description:
-Identify what guardrails are necessary when GM-Kit becomes its own MCP: how to ensure cross-platform CLI compatibility, how to warn about licensed content, and how to steer AI agents away from unsafe behaviors.
-
-Success looks like: a list of guardrails ready to be codified into specs and templates.
 
 ---
 
@@ -163,33 +163,69 @@ Success looks like: a list of guardrails ready to be codified into specs and tem
 
 ### E4-01. Research Plan Across Three Module Formats
 Feature description:
-Define the research matrix: DMsGuild two-column, Call of Cthulhu, and Werewolf 5E samples. Outline success criteria, manual review steps, and how findings will be recorded.
+Define the research matrix and evaluation set. Current test PDFs:
+- `temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf` (2‑column, dense, maps/tables)
+- `temp-resources/Temple of the Basilisk Cult Print Friendly V9.pdf` (outline/bulleted)
+- `temp-resources/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf` (modern layout)
+- `temp-resources/Werewolf_The_Apocalypse_No_Matter_How_Small.pdf` (complex typography/backgrounds)
+- `temp-resources/JG102 The Caverns of Thracia.pdf` (scanned, single‑column)
+- `temp-resources/tsr09067 - M1 Blizzard Pass.pdf` (scanned, double‑column, bleed‑through)
 
-Success looks like: a reproducible study plan for evaluating conversion quality across systems.
+Outline success criteria, manual review steps, and how findings will be recorded.
+
+Success looks like: a reproducible study plan plus concrete guidance to include in the E4-07 `/specify` prompt and acceptance criteria, with success criteria covering:
+- Structural accuracy (heading levels, section boundaries)
+- Callout fidelity (boxed text preserved as blockquotes, read‑aloud vs GM notes tagged)
+- Content completeness (no missing sections/paragraphs/tables)
+- Layout sanity (correct column order, no header/footer noise)
+- Cleanup effort (time and number of manual edits)
+- OCR robustness (for scans, acceptable error rate)
+- Column gutter spacing artifacts removed (extra spaces from 2‑column alignment)
+- End‑of‑line hyphenation artifacts fixed
+
+Manual review steps (fixed checklist for each PDF):
+- Verify heading hierarchy (H1/H2/H3) against the source
+- Confirm section order and column reading order
+- Check boxed text/callouts formatting and placement
+- Spot-check tables and lists for completeness
+- Note OCR artifacts (for scans) and severity
+- Identify gutter spacing artifacts and hyphenation errors
+- Estimate cleanup time and log edit counts
+
+Findings recorded in: `specs/004-pdf-research/findings/` (one file per PDF, plus summaries as needed).
 
 ### E4-02. AI-Only Conversion Approach
 Feature description:
-Prompt AI to perform direct conversion of PDFs into Markdown, describing how to manage context limits, heading detection, call-out handling (`>` for box text), and verification loops with the user.
+Prompt AI to perform direct conversion of PDFs into Markdown, documenting the end-to-end steps being evaluated:
+1) ingest/validate PDF, 2) optional pre-process (deskew/OCR/chunk), 3) extract text + structure cues,
+4) detect hierarchy, 5) convert to Markdown, 6) handle boxed text/callouts,
+7) normalize/clean, 8) image extraction approach (research only), 9) QA/verification pass,
+10) iterate/repair, 11) finalize output.
 
-Success looks like: documented steps for when AI alone is sufficient and how to check results.
+Success looks like: documented AI-only steps and checks plus a comparison against the CLI/Python pipeline, resulting in a recommendation (or hybrid split) to be embedded in the E4-07 `/specify` prompt.
 
 ### E4-03. CLI/Python Conversion Pipeline
 Feature description:
-Design the hybrid workflow: CLI utilities (`pdfinfo`, `qpdf`, `pdftohtml`, `pandoc`, `pdfimages`, `ocrmypdf`) vs pure-Python alternatives. Include install guidance for Windows/macOS/Linux and show where AI should clean up the Markdown output.
+Design the hybrid workflow (CLI utilities vs pure-Python alternatives) and document the end-to-end steps being evaluated:
+1) ingest/validate PDF, 2) optional pre-process (deskew/OCR/chunk), 3) extract text + structure cues,
+4) detect hierarchy, 5) convert to Markdown, 6) handle boxed text/callouts,
+7) normalize/clean, 8) image extraction approach (research only), 9) QA/verification pass,
+10) iterate/repair, 11) finalize output.
+Include install guidance for Windows/macOS/Linux and show where AI should clean up the Markdown output.
 
-Success looks like: a spec-ready blueprint for automating conversions portably.
+Success looks like: a spec-ready CLI/Python blueprint plus a comparison against the AI-only approach, resulting in a recommendation (or hybrid split) to be embedded in the E4-07 `/specify` prompt.
 
 ### E4-04. Heading & Hierarchy Verification Tooling
 Feature description:
 Create a command that surfaces title snippets from the PDF, allows the AI/user to assign heading levels, and validates whether the Markdown mirrors the PDF’s hierarchy.
 
-Success looks like: fewer mis-leveled headers and a repeatable QA checklist.
+Success looks like: heading-validation rules and a QA checklist that can be inserted into the E4-07 `/specify` prompt.
 
 ### E4-05. Box Text & Callout Handling
 Feature description:
 Define how boxed text should appear in Markdown (`>`), how to tag read-aloud vs GM-only notes, and how to preserve their placement relative to body copy.
 
-Success looks like: readable Markdown that keeps the intent of boxed callouts intact.
+Success looks like: box-text handling rules formatted as prompt-ready guidance for E4-07.
 
 ### E4-06. Version 2 Image Extraction
 Feature description:
@@ -201,9 +237,9 @@ Success looks like: a scoped V2 plan that can follow the initial converter work.
 
 Feature description:
 
-Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (claude, codex-cli, gemini, qwen). The flow: (1) split large PDFs into chunk PDFs via `qpdf` (preferred) or `pdftk` using bash/PowerShell scripts; (2) convert each chunk to Markdown; (3) merge chunk Markdown into a single file. The installer installs and verifies `qpdf` (preferred) or `pdftk` via system package managers (brew/apt/choco/winget). If no package manager is available, allow bundling a vetted qpdf binary when licensing permits. No Python splitter fallback for MVP. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work.
+Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (claude, codex-cli, gemini, qwen). The conversion approach (AI-only, CLI/Python, or hybrid) and any tool choices (e.g., chunking, extraction, merge tooling) must be selected based on E4-01–E4-05 findings. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work. Avoid locking in tool-specific choices until the research outputs are complete.
 
-Success looks like: a locked-in scope for the converter with chunk/convert/merge implemented via CLI tools, agent-accessible prompts, and verified PDF processing tools.
+Success looks like: a locked-in scope informed by E4-01–E4-05, with the chosen approach (AI-only, CLI/Python, or hybrid) reflected in prompts, scripts, and acceptance tests.
 
 ---
 
