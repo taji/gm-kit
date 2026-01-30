@@ -1,0 +1,785 @@
+{
+  "notes": "Prefilled labels are best guesses based on matching TOC titles. Use \"#\", \"##\", \"###\" for headings. Use custom tags like \"body\", \"read_aloud\", \"gm_note\" for later formatting. Note: \"-\" is ignored and treated as body.",
+  "families": [
+    {
+      "size": 54.0,
+      "font": "Voltaire",
+      "label": "##",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 3,
+          "text": "CREDITS"
+        },
+        {
+          "page": 4,
+          "text": "TABLE OF CONTENTS"
+        },
+        {
+          "page": 18,
+          "text": "THE"
+        },
+        {
+          "page": 18,
+          "text": "HAUNTING"
+        }
+      ]
+    },
+    {
+      "size": 34.2,
+      "font": "Cristoforo-Cthulhu-Regul",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 6,
+          "text": "welcome to"
+        }
+      ]
+    },
+    {
+      "size": 25.0,
+      "font": "Voltaire",
+      "label": "##",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 6,
+          "text": "DO YOU HEAR"
+        },
+        {
+          "page": 6,
+          "text": "THE CALL OF CTHULHU?"
+        },
+        {
+          "page": 9,
+          "text": "INVESTIGATORS"
+        },
+        {
+          "page": 11,
+          "text": "GAME SYSTEM"
+        },
+        {
+          "page": 18,
+          "text": "LOCATION 1:"
+        },
+        {
+          "page": 18,
+          "text": "INTRODUCTION"
+        },
+        {
+          "page": 19,
+          "text": "LOCATION 2:"
+        },
+        {
+          "page": 19,
+          "text": "THE BOSTON GLOBE"
+        }
+      ]
+    },
+    {
+      "size": 24.0,
+      "font": "Cristoforo-Cthulhu-Regul",
+      "label": "#",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 1,
+          "text": "QUICK-START RULES"
+        }
+      ]
+    },
+    {
+      "size": 24.0,
+      "font": "Haettenschweiler",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 1,
+          "text": "Sandy"
+        },
+        {
+          "page": 1,
+          "text": "Petersen,"
+        },
+        {
+          "page": 1,
+          "text": "Mason,"
+        },
+        {
+          "page": 1,
+          "text": "Paul"
+        },
+        {
+          "page": 1,
+          "text": "Fri"
+        },
+        {
+          "page": 1,
+          "text": "cker,"
+        },
+        {
+          "page": 1,
+          "text": "and"
+        },
+        {
+          "page": 1,
+          "text": "Lynn"
+        }
+      ]
+    },
+    {
+      "size": 18.0,
+      "font": "ACaslonPro-Regular",
+      "label": "##",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 2,
+          "text": "Quick-Start Rules"
+        }
+      ]
+    },
+    {
+      "size": 17.0,
+      "font": "Voltaire",
+      "label": "gm_note",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 8,
+          "text": "NEVER PLAYED A ROLEPLAYING GAME BEFORE?"
+        },
+        {
+          "page": 8,
+          "text": "EQUIPMENT REQUIRED"
+        },
+        {
+          "page": 10,
+          "text": "CREDIT RATING"
+        },
+        {
+          "page": 11,
+          "text": "LEVELS OF SUCCESS"
+        },
+        {
+          "page": 15,
+          "text": "WEAPON DAMAGE"
+        },
+        {
+          "page": 16,
+          "text": "OTHER FORMS OF DAMAGE"
+        },
+        {
+          "page": 16,
+          "text": "ABOUT THE READY-MADE INVESTIGATORS"
+        },
+        {
+          "page": 30,
+          "text": "BOUTS OF MADNESS"
+        }
+      ]
+    },
+    {
+      "size": 14.0,
+      "font": "ACaslonPro-Bold",
+      "label": "##",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 4,
+          "text": "DO YOU HEAR THE CALL OF CTHULHU?\b.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd5"
+        },
+        {
+          "page": 4,
+          "text": "INVESTIGATORS\b.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd8"
+        },
+        {
+          "page": 4,
+          "text": "GAME SYSTEM\b.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd10"
+        },
+        {
+          "page": 4,
+          "text": "THE HAUNTING \b.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd25"
+        },
+        {
+          "page": 4,
+          "text": "READY-MADE INVESTIGATORS\b.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd.\ufffd34"
+        },
+        {
+          "page": 6,
+          "text": "INTRODUCTION"
+        },
+        {
+          "page": 7,
+          "text": "AN OVERVIEW"
+        },
+        {
+          "page": 7,
+          "text": "OF THE GAME"
+        }
+      ]
+    },
+    {
+      "size": 14.0,
+      "font": "ACaslonPro-Italic",
+      "label": "quote",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 2,
+          "text": "\u201cThe oldest and strongest emotion of mankind is fear.\u201d"
+        }
+      ]
+    },
+    {
+      "size": 14.0,
+      "font": "ACaslonPro-Regular",
+      "label": "quote_author",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 2,
+          "text": "\u2014H. P. Lovecraft"
+        }
+      ]
+    },
+    {
+      "size": 12.0,
+      "font": "Helvetica-Bold",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 50,
+          "text": "Horror and Mystery Roleplaying against the Cthulhu Mythos"
+        }
+      ]
+    },
+    {
+      "size": 12.0,
+      "font": "Voltaire",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 7,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 8,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 9,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 10,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 11,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 12,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 13,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        },
+        {
+          "page": 14,
+          "text": "WELCOME TO CALL OF CTHULHU"
+        }
+      ]
+    },
+    {
+      "size": 11.0,
+      "font": "ACaslonPro-Bold",
+      "label": "###",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 3,
+          "text": "Authors"
+        },
+        {
+          "page": 3,
+          "text": "Editorial"
+        },
+        {
+          "page": 3,
+          "text": "Cover Art"
+        },
+        {
+          "page": 3,
+          "text": "Interior Art"
+        },
+        {
+          "page": 3,
+          "text": "Layout"
+        },
+        {
+          "page": 3,
+          "text": "Licensing"
+        },
+        {
+          "page": 3,
+          "text": "Call of Cthulhu Creative Director"
+        },
+        {
+          "page": 3,
+          "text": "Clear Credit"
+        }
+      ]
+    },
+    {
+      "size": 11.0,
+      "font": "ACaslonPro-BoldItalic",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 19,
+          "text": "Using Dice To..."
+        },
+        {
+          "page": 21,
+          "text": "Using Dice To..."
+        }
+      ]
+    },
+    {
+      "size": 11.0,
+      "font": "ACaslonPro-Regular",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 4,
+          "text": "Overview \ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd6"
+        },
+        {
+          "page": 4,
+          "text": "Roleplaying Dice \ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd6"
+        },
+        {
+          "page": 4,
+          "text": "Equipment Required \ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd7"
+        },
+        {
+          "page": 4,
+          "text": "Skill Rolls and Difficulty Levels\b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd10"
+        },
+        {
+          "page": 4,
+          "text": "Opposed Rolls\b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd10"
+        },
+        {
+          "page": 4,
+          "text": "Bonus and Penalty Dice\b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd11"
+        },
+        {
+          "page": 4,
+          "text": "Luck Rolls\b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd12"
+        },
+        {
+          "page": 4,
+          "text": "Sanity\b\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd12"
+        }
+      ]
+    },
+    {
+      "size": 10.1,
+      "font": "Helvetica-Bold",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 50,
+          "text": "Welcome to Chaosium\u2019s Call of Cthulhu! This Quick-Start booklet collects the essential rules for the Call of Cthulhu tabletop"
+        },
+        {
+          "page": 50,
+          "text": "roleplaying game in abbreviated and introductory form."
+        },
+        {
+          "page": 50,
+          "text": "This is a game where the players enact a sort of improvisational verbal theater, using the rules and dice to help determine"
+        },
+        {
+          "page": 50,
+          "text": "dramatic outcomes. Each player creates a character (called an \u201cInvestigator\u201d) to explore strange mysteries and confront the"
+        },
+        {
+          "page": 50,
+          "text": "horrors of the Cthulhu Mythos, while one player takes on the role of the game\u2019s referee and storyteller (the \u201cKeeper of Arcane"
+        },
+        {
+          "page": 50,
+          "text": "Lore\u201d). Together, you delve into plots and tell a shared story."
+        },
+        {
+          "page": 50,
+          "text": "Use"
+        },
+        {
+          "page": 50,
+          "text": "Use this booklet to start playing Call of Cthulhu immediately\u2014included is a classic beginning adventure called \u201cThe"
+        }
+      ]
+    },
+    {
+      "size": 10.1,
+      "font": "Helvetica-BoldOblique",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 50,
+          "text": "The Great Old Ones ruled aeons before the rise of humanity. They came from the voids between the stars, and their strange"
+        },
+        {
+          "page": 50,
+          "text": "songs would reshape the cosmos. Remains of their cyclopean cities and forbidden knowledge can still be found in deep"
+        },
+        {
+          "page": 50,
+          "text": "deserts, beneath the waves, and in forgotten places. Now they are dead but dreaming. When the stars are right they will rise,"
+        },
+        {
+          "page": 50,
+          "text": "and, once again, walk this Earth."
+        }
+      ]
+    },
+    {
+      "size": 9.1,
+      "font": "ACaslonPro-Bold",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 30,
+          "text": "2.\tPSYCHOSOMATIC DISABILITY: The investigator"
+        },
+        {
+          "page": 30,
+          "text": "8.\tPHYSICAL HYSTERICS OR EMOTIONAL"
+        }
+      ]
+    },
+    {
+      "size": 9.1,
+      "font": "ACaslonPro-Regular",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 8,
+          "text": "\u2022\t A quiet place to play, such as around a kitchen table or"
+        },
+        {
+          "page": 9,
+          "text": "1.\tAbout Your Investigator: your investigator\u2019s name, age,"
+        },
+        {
+          "page": 9,
+          "text": "residence. In Call of Cthulhu, an investigator\u2019s occupation"
+        },
+        {
+          "page": 9,
+          "text": "percentile value between 1 and 100; thus, STR 60 means"
+        },
+        {
+          "page": 9,
+          "text": "\u2022\t APP: the physical appeal or how \u201cgood looking\u201d your"
+        },
+        {
+          "page": 9,
+          "text": "\u2022\t INT: a measure of your investigator\u2019s cunning, problem"
+        },
+        {
+          "page": 9,
+          "text": "\u2022\t Hit Points (HP): when your investigator suffers damage,"
+        },
+        {
+          "page": 9,
+          "text": "your investigator falls unconscious and may die\u2014see Hit"
+        }
+      ]
+    },
+    {
+      "size": 9.0,
+      "font": "ACaslonPro-Bold",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 9,
+          "text": "\u201c12\u201d (one-fifth of 60). See Skill Rolls and Difficulty Levels,"
+        },
+        {
+          "page": 9,
+          "text": "Points, Wounds, and Healing, page 14."
+        },
+        {
+          "page": 10,
+          "text": "Rolls and Difficulty Levels, page 10, for what these"
+        },
+        {
+          "page": 14,
+          "text": "\u2022\t If you are initiating the attack: roll your Fighting skill and"
+        },
+        {
+          "page": 14,
+          "text": "\u2022\t If you are responding\u2014fighting back: use your Fighting"
+        },
+        {
+          "page": 16,
+          "text": "column on the Other Forms of Damage Table. Each injury"
+        },
+        {
+          "page": 16,
+          "text": "Injury"
+        },
+        {
+          "page": 16,
+          "text": "Damage"
+        }
+      ]
+    },
+    {
+      "size": 9.0,
+      "font": "ACaslonPro-BoldItalic",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 7,
+          "text": "Reading D100 (Percentile Dice)"
+        },
+        {
+          "page": 8,
+          "text": "Dice Roll Variations"
+        },
+        {
+          "page": 24,
+          "text": "Corbitt House Map (Keeper Version)"
+        },
+        {
+          "page": 27,
+          "text": "Attacking With the Knife"
+        },
+        {
+          "page": 28,
+          "text": "Using a Fighting Maneuver to Grab the Knife"
+        },
+        {
+          "page": 29,
+          "text": "a Result of Meeting Corbitt). If the INT roll is"
+        },
+        {
+          "page": 29,
+          "text": "Combat"
+        },
+        {
+          "page": 31,
+          "text": "Roleplaying hooks:"
+        }
+      ]
+    },
+    {
+      "size": 9.0,
+      "font": "ACaslonPro-Italic",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 6,
+          "text": "the Call of Cthulhu: Keeper Rulebook, which contains the full"
+        },
+        {
+          "page": 8,
+          "text": "Debbie and their partner Alex, along with their two friends"
+        },
+        {
+          "page": 8,
+          "text": "Morgan and Susan, meet up at John\u2019s house on Friday evening"
+        },
+        {
+          "page": 8,
+          "text": "at around seven o\u2019clock. After catching up on the week\u2019s news and"
+        },
+        {
+          "page": 8,
+          "text": "getting some drinks and nibbles, they sit down in the lounge,"
+        },
+        {
+          "page": 8,
+          "text": "ready to play. John hands out some ready-made investigators"
+        },
+        {
+          "page": 8,
+          "text": "along with some paper and pencils, and everyone is ready to start."
+        },
+        {
+          "page": 8,
+          "text": "It\u2019s now about eight o\u2019clock. John kicks off the game by describing"
+        }
+      ]
+    },
+    {
+      "size": 9.0,
+      "font": "ACaslonPro-Regular",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 3,
+          "text": "Mike Mason with Paul Fricker,"
+        },
+        {
+          "page": 3,
+          "text": "Sandy Petersen, and Lynn Willis"
+        },
+        {
+          "page": 3,
+          "text": "Lynne Hardy"
+        },
+        {
+          "page": 3,
+          "text": "Lin Hsiang"
+        },
+        {
+          "page": 3,
+          "text": "Lin Hsiang, Victor Leza, Rachel Kahn,"
+        },
+        {
+          "page": 3,
+          "text": "Andrey Fetisov, and Albeerto Bontempi"
+        },
+        {
+          "page": 3,
+          "text": "Nicholas Nacario"
+        },
+        {
+          "page": 3,
+          "text": "Michael O\u2019Brien, James Lowder, and Mike Mason"
+        }
+      ]
+    },
+    {
+      "size": 8.9,
+      "font": "ACaslonPro-Bold",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 14,
+          "text": "\u2022\t If you are responding\u2014dodging: use your Dodge skill. Your"
+        }
+      ]
+    },
+    {
+      "size": 8.9,
+      "font": "ACaslonPro-Regular",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 8,
+          "text": "\u2022\t A set of polyhedral (\u201croleplaying\u201d) dice or a dice-rolling app."
+        },
+        {
+          "page": 9,
+          "text": "gender, and occupation, as well as their birthplace and current"
+        },
+        {
+          "page": 9,
+          "text": "2.\tCharacteristics: there are eight characteristics used to measure"
+        },
+        {
+          "page": 9,
+          "text": "(INT), and Willpower (POW). Each of these has a \u201cRegular\u201d"
+        },
+        {
+          "page": 9,
+          "text": "(or \u201cHard\u201d value, i.e. the Regular value divided by 2), while the"
+        },
+        {
+          "page": 9,
+          "text": "\u2022\t SIZ: an abstracted value of your investigator\u2019s height and weight."
+        },
+        {
+          "page": 9,
+          "text": "has accumulated through formal education or the venerated"
+        },
+        {
+          "page": 9,
+          "text": "\u2022\t POW: a combination of force of will, spirit, and mental stability."
+        }
+      ]
+    },
+    {
+      "size": 8.3,
+      "font": "Helvetica-Bold",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 50,
+          "text": "For a complete listing of Chaosium products,"
+        },
+        {
+          "page": 50,
+          "text": "please visit our website at www.chaosium.com"
+        }
+      ]
+    },
+    {
+      "size": 8.0,
+      "font": "ACaslonPro-Regular",
+      "label": "body",
+      "overrides": [],
+      "samples": [
+        {
+          "page": 3,
+          "text": "The Call of Cthulhu roleplaying game was originally written by Sandy Petersen, with later revisions by Lynn Willis and others. The 7th edition of the"
+        },
+        {
+          "page": 3,
+          "text": "game was a collaboration between, and written by, Mike Mason and Paul Fricker. This Quick-Start revision written by Mike Mason and based upon"
+        },
+        {
+          "page": 3,
+          "text": "work by Paul Fricker and Mike Mason. Investigator sheet design by Matt Ryan and Max Harrison."
+        },
+        {
+          "page": 3,
+          "text": "Cthulhu of Cthulhu: Quick-Start Rules \u00a9 1990, 2007, 2018, 2021 Chaosium Inc. All rights reserved."
+        },
+        {
+          "page": 3,
+          "text": "Call of Cthulhu \u00a9 1981\u20132021 Chaosium Inc. All rights reserved."
+        },
+        {
+          "page": 3,
+          "text": "Call of Cthulhu, Chaosium Inc., and the Chaosium logo are registered trademarks of Chaosium Inc."
+        },
+        {
+          "page": 3,
+          "text": "This is a work of fiction. This book includes descriptions and portrayals of real places, real events, and real people; these may not be presented"
+        },
+        {
+          "page": 3,
+          "text": "accurately and with conformity to the real-world nature of these places, people, and events, and are reinterpreted through the lens of the Cthulhu"
+        }
+      ]
+    }
+  ]
+}

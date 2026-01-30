@@ -34,6 +34,10 @@ Use them to pick chunk sizes and merge strategy during E4-01–E4-06 testing.
 - Treat **20 MB** as a hard ceiling.
 - If a chunk exceeds 19 MB, split that page range further.
 
+## Two-Column PDFs (Known Limitation)
+- `pdftotext`-only extraction can drop or reorder content in dense two-column layouts.
+- For two-column PDFs, prefer OCR or multimodal PDF readers (Claude/Gemini) when available.
+
 ## Merge Guidance
 - Deduplicate repeated headers/footers across chunks.
 - Resolve split sentences at chunk edges.

@@ -1,0 +1,25 @@
+1 | Front Cover | 1
+1 | Title Page | 2
+1 | Credits | 3
+1 | Contents | 4
+1 | Do You Hear the Call of Cthulhu? | 6
+2 | Overview | 7
+2 | Roleplaying Dice | 7
+2 | Equipment Required | 8
+1 | Investigators | 9
+1 | Game System | 11
+2 | Skill Rolls and Difficulty Levels | 11
+2 | Opposed Skill Rolls | 11
+2 | Bonus and Penalty Dice | 12
+2 | Luck Rolls | 13
+2 | Sanity  | 13
+2 | Combat | 13
+2 | Close Combat | 14
+2 | Fighting Maneuvers | 14
+2 | Outnumbered | 15
+2 | Firearms | 15
+2 | Hit Points, Wounds, and Healing | 15
+2 | Other Forms of Damage | 16
+1 | The Haunting | 18
+1 | Collected Player Handouts | 33
+1 | Ready-Made Investigators | 35
