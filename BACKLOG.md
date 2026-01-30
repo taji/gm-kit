@@ -353,7 +353,7 @@ Success looks like: Agent prompts that reliably produce outputs meeting defined 
 
 Feature description:
 
-Implement the User-category steps (6 of 70 total) from the PDF conversion architecture. This includes interactive prompts for font-family label review, header/footer removal confirmation, and final issue resolution.
+Implement the User-category steps (5 of 70 total) from the PDF conversion architecture. This includes interactive prompts for font-family label review, header/footer removal confirmation, and final issue resolution.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
@@ -364,7 +364,7 @@ Requirements:
 - Correction capture and application
 - Integration with E4-07a and E4-07b pipelines
 
-Steps covered: 0.6, 7.11, 9.9-9.11
+Steps covered: 0.6, 7.10, 9.9-9.11
 
 Success looks like: User can review agent findings, confirm or correct proposed changes, and have corrections applied to the final output.
 
@@ -378,7 +378,7 @@ Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
 Requirements:
 - Generate `images/image-manifest.json` during Phase 1 extraction (step 1.4)
-- Insert commented image links during Phase 8 hierarchy application (step 8.10)
+- Insert commented image links during Phase 8 hierarchy application (step 8.9)
 - Licensing caution documentation for users who uncomment image links, appearing in three locations:
   1. **Conversion report**: A note reminding users that extracted images remain under publisher copyright
   2. **User guide**: A section explaining when it's appropriate to uncomment image links (personal table use: OK; publishing/redistribution: not OK)

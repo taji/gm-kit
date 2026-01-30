@@ -16,7 +16,7 @@ The conversion pipeline consists of 11 phases with 70 total steps, categorized b
 |----------|-------|-------------|
 | Code | 49 | Deterministic automation via Python/PyMuPDF |
 | Agent | 15 | Judgment calls requiring AI analysis |
-| User | 6 | Confirmation steps requiring human decision |
+| User | 5 | Confirmation steps requiring human decision |
 
 ### Design Principles
 
@@ -160,7 +160,7 @@ Options:
 Your choice [A/B]: _
 ```
 
-**Step 7.11 (Font Label Review):**
+**Step 7.10 (Font Label Review):**
 ```
 ══════════════════════════════════════════════════════════════
   Font Family Label Review
@@ -377,7 +377,7 @@ with fitz.open(input_pdf) as doc:
 
 **Label Inference Logic (Step 3.6):**
 
-The label inference system pre-fills heading/structure labels to minimize user effort in Step 7.11.
+The label inference system pre-fills heading/structure labels to minimize user effort in Step 7.10.
 
 **Single H1 Rule:** Each document must have exactly one H1 (the document title). All TOC-based headings start at H2 to ensure proper hierarchy. This follows HTML/accessibility best practices and prevents heading level conflicts.
 
@@ -727,7 +727,7 @@ Key rules:
 - Smart analysis presentation (headers/footers)
 - Correction capture and application
 
-**Steps covered:** 7.11, 9.9-9.11
+**Steps covered:** 7.10, 9.9-9.11
 
 ### E4-07d: Image Link Injection
 
@@ -750,6 +750,7 @@ Key rules:
 - Pre-flight analysis (Phase 0)
 - State tracking (`.state.json`) for progress and resumability
 - User involvement notices and interaction patterns
+- Bash and PowerShell script templates for setup
 - Integration orchestration for E4-07a/b/c/d components
 
 **CLI Interface:**
