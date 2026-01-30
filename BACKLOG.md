@@ -131,6 +131,24 @@ Success looks like: `gmkit init` installs `.gmkit/memory/constitution.md` from a
 
 Sync: quickstart synced to docs/user/user_guide.md; plan/research/data-model synced to ARCHITECTURE.md; mark **SYNCED**
 
+### E2-05. PDF Safety Scanner (Optional)
+Feature description:
+Add an optional PDF safety scanner that checks for suspicious elements before processing. Uses `pdfid` library to detect red flags such as embedded JavaScript, Launch actions, embedded files, and automatic open actions. This is a precautionary feature—RPG PDFs from legitimate publishers are extremely unlikely to contain malicious content—but provides peace of mind for users processing PDFs from less trusted sources.
+
+Scope:
+- Integrate `pdfid` as an optional dependency
+- Provide a `gmkit scan <pdf-path>` command that reports concerns
+- Optionally integrate into PDF conversion workflow with `--scan` flag
+- Clear user-facing warnings that distinguish high-risk indicators (Launch, JS) from low-risk (AcroForm)
+
+Out of scope:
+- Deep malware analysis or signature-based detection
+- Blocking/quarantining files (user decides how to proceed)
+
+Success looks like: Users can run `gmkit scan module.pdf` and receive a clear report of any suspicious indicators, or "No concerns found" for clean files.
+
+Priority: LOW (MVP does not require this; add if user feedback indicates demand)
+
 ---
 
 ## Epic 3 — Spec-Kit Architecture Analysis
@@ -161,15 +179,16 @@ Success looks like: a clear walkthrough of the specify command’s inputs/output
 
 ## Epic 4 — PDF → Markdown Research & Pipelines
 
-### E4-01. Research Plan Across Three Module Formats
+### ✅ E4-01. Research Plan Across Three Module Formats **[COMPLETED]**
 Feature description:
 Define the research matrix and evaluation set. Current test PDFs:
 - `temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf` (2‑column, dense, maps/tables)
 - `temp-resources/Temple of the Basilisk Cult Print Friendly V9.pdf` (outline/bulleted)
 - `temp-resources/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf` (modern layout)
 - `temp-resources/Werewolf_The_Apocalypse_No_Matter_How_Small.pdf` (complex typography/backgrounds)
-- `temp-resources/JG102 The Caverns of Thracia.pdf` (scanned, single‑column)
-- `temp-resources/tsr09067 - M1 Blizzard Pass.pdf` (scanned, double‑column, bleed‑through)
+- `temp-resources/The Homebrewery - NaturalCrit.pdf` (short, standard D&D formatting)
+- `temp-resources/JG102 The Caverns of Thracia.pdf` (scanned, single‑column; out of scope—use external tools)
+- `temp-resources/tsr09067 - M1 Blizzard Pass.pdf` (scanned, double‑column, bleed‑through; out of scope—use external tools)
 
 Outline success criteria, manual review steps, and how findings will be recorded.
 
@@ -179,7 +198,6 @@ Success looks like: a reproducible study plan plus concrete guidance to include 
 - Content completeness (no missing sections/paragraphs/tables)
 - Layout sanity (correct column order, no header/footer noise)
 - Cleanup effort (time and number of manual edits)
-- OCR robustness (for scans, acceptable error rate)
 - Column gutter spacing artifacts removed (extra spaces from 2‑column alignment)
 - End‑of‑line hyphenation artifacts fixed
 
@@ -188,58 +206,252 @@ Manual review steps (fixed checklist for each PDF):
 - Confirm section order and column reading order
 - Check boxed text/callouts formatting and placement
 - Spot-check tables and lists for completeness
-- Note OCR artifacts (for scans) and severity
 - Identify gutter spacing artifacts and hyphenation errors
 - Estimate cleanup time and log edit counts
 
 Findings recorded in: `specs/004-pdf-research/findings/` (one file per PDF, plus summaries as needed).
 
-### E4-02. AI-Only Conversion Approach
+**Research matrix (completed):**
+| Agent | Keep on the Borderlands | Call of Cthulhu |
+|-------|-------------------------|-----------------|
+| Claude | Tested | Tested |
+| Codex | Tested | Tested |
+| Gemini | Tested | Tested |
+| Qwen | Tested | Tested |
+
+**Outputs:**
+- `specs/004-pdf-research/findings/keep-on-the-borderlands.md`
+- `specs/004-pdf-research/findings/call-of-cthulhu.md`
+- `specs/004-pdf-research/findings/call-of-cthulhu-codex-report.md` (detailed Codex conversion report)
+- `specs/004-pdf-research/findings/review-checklist.md`
+- `specs/004-pdf-research/pdf-conversion-architecture.md` (63-step pipeline derived from research)
+
+**Deferred to E4-07a/b/c:** Testing of Temple of the Basilisk Cult, Werewolf, and The Homebrewery PDFs during implementation validation.
+
+### ✅ E4-02. AI-Only Conversion Approach **[COMPLETED]**
 Feature description:
 Prompt AI to perform direct conversion of PDFs into Markdown, documenting the end-to-end steps being evaluated:
-1) ingest/validate PDF, 2) optional pre-process (deskew/OCR/chunk), 3) extract text + structure cues,
+1) ingest/validate PDF, 2) optional pre-process (deskew/chunk), 3) extract text + structure cues,
 4) detect hierarchy, 5) convert to Markdown, 6) handle boxed text/callouts,
 7) normalize/clean, 8) image extraction approach (research only), 9) QA/verification pass,
 10) iterate/repair, 11) finalize output.
+OCR for image-only PDFs is out of scope; direct users to external tools.
 
 Success looks like: documented AI-only steps and checks plus a comparison against the CLI/Python pipeline, resulting in a recommendation (or hybrid split) to be embedded in the E4-07 `/specify` prompt.
 
-### E4-03. CLI/Python Conversion Pipeline
+**Outcome:** AI-only approach is too costly due to API usage limits and token consumption for large PDFs. A hybrid approach combining Code (for deterministic preprocessing/cleanup), Agent (for judgment calls), and User (for confirmation) saves AI usage and produces more consistent results. This hybrid approach is captured in the 63-step architecture with category pyramid: Code (43 steps) > Agent (15 steps) > User (5 steps).
+
+**Reference:** `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+### ✅ E4-03. CLI/Python Conversion Pipeline **[COMPLETED]**
 Feature description:
 Design the hybrid workflow (CLI utilities vs pure-Python alternatives) and document the end-to-end steps being evaluated:
-1) ingest/validate PDF, 2) optional pre-process (deskew/OCR/chunk), 3) extract text + structure cues,
+1) ingest/validate PDF, 2) optional pre-process (deskew/chunk), 3) extract text + structure cues,
 4) detect hierarchy, 5) convert to Markdown, 6) handle boxed text/callouts,
 7) normalize/clean, 8) image extraction approach (research only), 9) QA/verification pass,
 10) iterate/repair, 11) finalize output.
+OCR for image-only PDFs is out of scope; direct users to external tools.
 Include install guidance for Windows/macOS/Linux and show where AI should clean up the Markdown output.
 
 Success looks like: a spec-ready CLI/Python blueprint plus a comparison against the AI-only approach, resulting in a recommendation (or hybrid split) to be embedded in the E4-07 `/specify` prompt.
 
-### E4-04. Heading & Hierarchy Verification Tooling
+**Recommendation (from findings):** Use a hybrid approach combining Code, Agent, and User intervention:
+- **Code (PyMuPDF):** Preprocessing (image extraction, image removal, TOC extraction, font sampling), deterministic cleanup (character-level fixes, word-level fixes), structural detection, and report generation. Pure Python avoids per-OS CLI dependencies.
+- **Agent:** Judgment calls requiring context (visual TOC parsing, spelling correction, table detection/conversion, quality assessments, two-column reading order validation).
+- **User:** Confirmation steps for font-family labels, header/footer removal, and final issue resolution.
+
+CLI text extraction tools (pdftotext, etc.) were tested but found unreliable for two-column PDFs. PyMuPDF provides consistent cross-platform results for preprocessing while Agent handles text extraction and judgment calls.
+
+**Reference:**
+- `specs/004-pdf-research/findings/keep-on-the-borderlands.md`
+- `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+### ✅ E4-04. Heading & Hierarchy Verification Tooling **[COMPLETED]**
 Feature description:
-Create a command that surfaces title snippets from the PDF, allows the AI/user to assign heading levels, and validates whether the Markdown mirrors the PDF’s hierarchy.
+Define a process that surfaces title snippets from the PDF, allows the AI/user to assign heading levels, and validates whether the Markdown mirrors the PDF's hierarchy.
 
 Success looks like: heading-validation rules and a QA checklist that can be inserted into the E4-07 `/specify` prompt.
 
-### E4-05. Box Text & Callout Handling
+**Outcome:** Heading verification is integrated into the conversion pipeline rather than a standalone command:
+- **Phase 3:** Font-family sampling with TOC-based label pre-fill (steps 3.4-3.6)
+- **Phase 7:** Build heading map from TOC, detect heading patterns (ALL CAPS, Title Case), detect inline/embedded headings, user reviews font-family labels (steps 7.1-7.4, 7.9-7.11)
+- **Phase 8:** Apply heading levels, validate hierarchy has no level skips (steps 8.2-8.3, 8.10-8.11)
+- **Phase 9:** Review TOC validation issues (step 9.7)
+
+**Reference:** `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+### ✅ E4-05. Box Text & Callout Handling **[COMPLETED]**
 Feature description:
 Define how boxed text should appear in Markdown (`>`), how to tag read-aloud vs GM-only notes, and how to preserve their placement relative to body copy.
 
 Success looks like: box-text handling rules formatted as prompt-ready guidance for E4-07.
 
-### E4-06. Version 2 Image Extraction
+**Outcome:** Box-text and callout handling is integrated into the conversion pipeline:
+- **Phase 7 (Detection):** GM/Keeper note keyword detection (step 7.5), read-aloud text marker detection (step 7.6), quote blocks and attribution detection (step 7.7)
+- **Phase 8 (Application):** Apply GM note blockquote formatting (step 8.4), apply read-aloud blockquote formatting (step 8.5), apply quote formatting with italic + attribution (step 8.6), apply blockquote formatting to callout boxes (step 8.8)
+- **Phase 9 (Verification):** Callout formatting check (step 9.5)
+
+**Reference:** `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+### ✅ E4-06. Version 2 Image Extraction **[COMPLETED]**
 Feature description:
 Plan the follow-up feature that extracts images, saves them to `images/`, and injects relative links into the Markdown at the correct positions. Include licensing cautions.
 
 Success looks like: a scoped V2 plan that can follow the initial converter work.
 
-### E4-07. PDF→Markdown Feature
+**Outcome:** Image extraction is included in the base pipeline (Phase 1). Injecting visible image links may not always be desired (licensing concerns, user preference), so the approach is to inject **commented-out** image links at the correct positions. This preserves location information while keeping images hidden by default. User or agent can uncomment if desired.
+
+**Example output:**
+```markdown
+[FIGURE: Map of the dungeon level 1]
+<!-- ![Map of the dungeon level 1](images/page005_img01.png) -->
+```
+
+**Implementation:** Covered by E4-07d (Image Link Injection feature).
+
+**Reference:** `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+### E4-07a. PDF→Markdown Code-Driven Pipeline **[FEATURE]**
 
 Feature description:
 
-Ship a slash-command-driven PDF→Markdown flow usable from all supported agents (claude, codex-cli, gemini, qwen). The conversion approach (AI-only, CLI/Python, or hybrid) and any tool choices (e.g., chunking, extraction, merge tooling) must be selected based on E4-01–E4-05 findings. Capture dependencies, CLI surface, acceptance tests, and integration with Arcane Library formatting work. Avoid locking in tool-specific choices until the research outputs are complete.
+Implement the Code-category steps (49 of 70 total) from the PDF conversion architecture. This includes Python/PyMuPDF modules for image extraction, image removal, TOC extraction, font sampling, text extraction, chunking, merging, character-level fixes, word-level fixes, structural detection, hierarchy application, markdown linting, and report generation.
 
-Success looks like: a locked-in scope informed by E4-01–E4-05, with the chosen approach (AI-only, CLI/Python, or hybrid) reflected in prompts, scripts, and acceptance tests.
+Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+Requirements:
+- TDD with unit and integration tests for each module
+- Modular phase functions that can be composed into a pipeline
+- CLI interface for running individual phases or full pipeline
+- Phase-by-phase markdown output for diagnostics
+- Regression testing: Any anomalies discovered during integration testing that require code changes to a step must be accompanied by new unit tests covering the specific anomaly
+
+Phases covered: 1, 2, most of 3-8, scaffolding for 9-10
+
+Success looks like: A tested Python package that executes all Code-category steps reliably and produces intermediate outputs for each phase.
+
+### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE]**
+
+Feature description:
+
+Implement the Agent-category steps (15 of 70 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, callout formatting, figure placeholders, quality assessments, and two-column reading order validation.
+
+Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+Requirements:
+- Prompt templates for each agent step (15 total): These are AI-directed prompts invoked by the orchestrator at specific steps—not user-facing prompts, not phase-level, and not for the entire command. Each template defines the task, input format, expected output format, and edge cases for a single step.
+- Contract definitions (input/output specifications)
+- Rubric definitions for evaluation
+- Integration points with E4-07a Code pipeline
+- Testing via contract testing, rubric evaluation, golden file comparison, structural validation
+
+Steps covered: 3.2, 4.6, 6.4, 7.7, 8.6-8.8, 9.1-9.5, 9.7-9.8, 10.2-10.3
+
+Success looks like: Agent prompts that reliably produce outputs meeting defined contracts and rubrics, integrated with the Code pipeline.
+
+### E4-07c. PDF→Markdown User Interaction Workflow **[FEATURE]**
+
+Feature description:
+
+Implement the User-category steps (6 of 70 total) from the PDF conversion architecture. This includes interactive prompts for font-family label review, header/footer removal confirmation, and final issue resolution.
+
+Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+Requirements:
+- Interactive prompts that present analysis results clearly
+- Before/after display for proposed changes
+- Smart analysis presentation (e.g., header frequency, multi-per-page detection)
+- Correction capture and application
+- Integration with E4-07a and E4-07b pipelines
+
+Steps covered: 0.6, 7.11, 9.9-9.11
+
+Success looks like: User can review agent findings, confirm or correct proposed changes, and have corrections applied to the final output.
+
+### E4-07d. PDF→Markdown Image Link Injection **[FEATURE]**
+
+Feature description:
+
+Implement image position tracking and commented link injection. During image extraction, log image positions (page, coordinates) to a manifest file. During hierarchy application, use the manifest to inject commented-out image links at the correct positions in the markdown. This preserves image location information while keeping images hidden by default.
+
+Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+Requirements:
+- Generate `images/image-manifest.json` during Phase 1 extraction (step 1.4)
+- Insert commented image links during Phase 8 hierarchy application (step 8.10)
+- Licensing caution documentation for users who uncomment image links, appearing in three locations:
+  1. **Conversion report**: A note reminding users that extracted images remain under publisher copyright
+  2. **User guide**: A section explaining when it's appropriate to uncomment image links (personal table use: OK; publishing/redistribution: not OK)
+  3. **Inline markdown comment**: A licensing notice block inserted near the first image reference in each converted document, using metadata extracted from PDF in step 0.1
+- Integration with E4-07a Code pipeline
+
+Steps covered: 1.4, 8.9
+
+Example output:
+```markdown
+<!--
+IMAGE LICENSING NOTE
+Images extracted from this PDF are copyrighted by [Author/Publisher from metadata].
+They are commented out by default. Uncommenting for personal use at your table
+is generally acceptable, but do not redistribute or publish without permission.
+-->
+
+[FIGURE: Map of the dungeon level 1]
+<!-- ![Map of the dungeon level 1](images/page005_img01.png) -->
+```
+
+Success looks like: Images are extracted with position data, commented links appear at correct locations in markdown output, and licensing cautions are present in the conversion report, user guide, and inline in the markdown.
+
+### E4-07e. PDF→Markdown Command Orchestration **[FEATURE]**
+
+Feature description:
+
+Implement the `/gmkit.pdf-to-markdown` slash command and `gmkit pdf-convert` CLI that orchestrates the entire conversion pipeline. This is the top-level feature that integrates E4-07a/b/c/d components.
+
+Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+
+Requirements:
+- Command prompt file (`gmkit.pdf-to-markdown.md`) defining full conversion flow
+- CLI interface with resume/retry capabilities:
+  - `gmkit pdf-convert <pdf-path> --output <dir>` - Full pipeline
+  - `gmkit pdf-convert --resume <dir>` - Resume from checkpoint
+  - `gmkit pdf-convert --phase N <dir>` - Re-run specific phase
+  - `gmkit pdf-convert --from-step N.N <dir>` - Re-run from specific step
+  - `gmkit pdf-convert --status <dir>` - Check progress
+- Pre-flight analysis (Phase 0) with complexity report
+- State tracking (`.state.json`) for progress and resumability
+- User involvement notices at start (list phases requiring input)
+- Bash and PowerShell script templates for setup
+- Integration orchestration for E4-07a/b/c/d components (initially with stubs)
+- Copyright notice block at top of final markdown output warning users about text reproduction. Uses metadata extracted from PDF in step 0.1 (title, author, publisher, copyright if available):
+  ```markdown
+  <!--
+  COPYRIGHT NOTICE
+  ================
+  This markdown file was converted from a copyrighted PDF for personal game
+  preparation use only. The text, structure, and content remain the intellectual
+  property of the original publisher. Do not redistribute, publish, or share
+  this file publicly. For official content, please purchase from the publisher.
+
+  Title: [PDF title metadata or filename]
+  Author/Publisher: [PDF author/creator metadata if available]
+  Copyright: [PDF copyright metadata if available]
+  Source file: [Original PDF filename]
+  Converted: [Date]
+  Tool: GM-Kit pdf-convert
+  -->
+  ```
+
+Implementation approach (top-down):
+1. Implement E4-07e first with stubs/mocks for a/b/c/d
+2. Then implement E4-07a (Code pipeline) replacing stubs
+3. Then implement E4-07b (Agent pipeline) replacing stubs
+4. Then implement E4-07c (User interaction) replacing stubs
+5. Then implement E4-07d (Image link injection) replacing stubs
+
+Steps covered: 0.1-0.6 (Pre-flight Analysis), orchestration of all phases
+
+Success looks like: User can invoke `/gmkit.pdf-to-markdown` with a PDF path, see a pre-flight complexity report, confirm to proceed, and have the pipeline execute with proper state tracking and resumability.
 
 ---
 
