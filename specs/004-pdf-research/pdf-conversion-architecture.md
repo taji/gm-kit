@@ -722,12 +722,13 @@ Key rules:
 **Scope:** All 5 User-category steps
 
 **Deliverables:**
+- Pre-flight confirmation prompt (step 0.6) - gates the entire pipeline
 - Interactive prompts for user confirmation
 - Before/after display for proposed changes
 - Smart analysis presentation (headers/footers)
 - Correction capture and application
 
-**Steps covered:** 7.10, 9.9-9.11
+**Steps covered:** 0.6, 7.10, 9.9-9.11
 
 ### E4-07d: Image Link Injection
 
@@ -745,13 +746,17 @@ Key rules:
 **Scope:** `/gmkit.pdf-to-markdown` command and CLI interface
 
 **Deliverables:**
-- Command prompt file defining full conversion flow
+- Command prompt file (`gmkit.pdf-to-markdown.md`) that invokes CLI
 - CLI interface (`gmkit pdf-convert`) with resume/retry capabilities
-- Pre-flight analysis (Phase 0)
+- Pre-flight analysis (Phase 0 code steps 0.1-0.5)
 - State tracking (`.state.json`) for progress and resumability
 - User involvement notices and interaction patterns
 - Bash and PowerShell script templates for setup
 - Integration orchestration for E4-07a/b/c/d components
+
+**Entry Points:**
+- `/gmkit.pdf-to-markdown` slash command (prompt file invokes CLI)
+- `gmkit pdf-convert` CLI (direct invocation)
 
 **CLI Interface:**
 ```bash
@@ -763,7 +768,12 @@ gmkit pdf-convert --from-step 5.3 <conversion-dir>  # Re-run from step
 gmkit pdf-convert --status <conversion-dir>      # Check progress
 ```
 
-**Steps covered:** 0.1-0.6 (Pre-flight), orchestration of all phases
+**Testing Approach:**
+- Integration tests use mocks for Code (Python), Agent (prompts), User (pexpect)
+- Unit tests retain mocks permanently for isolation
+- Mocks replaced by real implementations when E4-07a/b/c/d complete
+
+**Steps covered:** 0.1-0.5 (Pre-flight code steps), orchestration of all phases. Step 0.6 owned by E4-07c.
 
 ---
 
