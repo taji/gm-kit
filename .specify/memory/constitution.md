@@ -33,7 +33,7 @@ Technology stack: Python 3.8+, typer, rich, httpx, uv for dependency management;
 
 ## Development Workflow
 
-Quality Gates: Run just test, just lint, just typecheck, bandit, uv audit before commits; coverage >80%. Review Process: PRs must include tests, pass all gates, and sync to user-guide.md/ARCHITECTURE.md.
+Quality Gates: Run just test, just lint, just typecheck, bandit, uv audit before commits; coverage >80%. Review Process: PRs must include tests, pass all gates, and sync to user-guide.md/ARCHITECTURE.md. Test output assertions must normalize terminal formatting (e.g., strip ANSI codes) to stay CI-stable.
 
 ## Governance
 
