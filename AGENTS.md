@@ -135,6 +135,8 @@ Fix all issues automatically where possible.
 - When asserting errors, compare the exact error string and include a `# Expect: "<full error>"` comment above the assertion.
 - In integration tests, assert `returncode == 0` on success paths to prevent silent failures.
 - For help/usage tests, assert the `Usage:` line (and error line when applicable).
+- When asserting CLI output, normalize terminal formatting (e.g., strip ANSI codes) before exact string comparisons.
+- Help/usage assertions must be robust to ANSI styling and line-wrapping; normalize output before matching option names.
 
 ## 5. Type Checking
 Use MyPy to enforce typing standards:

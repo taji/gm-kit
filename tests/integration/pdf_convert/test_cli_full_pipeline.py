@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import subprocess
 import sys
 import zipfile
@@ -13,6 +14,11 @@ import pytest
 TEST_PDF_PATH = Path(__file__).parent.parent.parent.parent / (
     "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf"
 )
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[mK]")
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 @pytest.fixture
@@ -204,11 +210,12 @@ class TestCLIHelp:
         )
 
         assert result.returncode == 0
-        assert "pdf-convert" in result.stdout.lower()
-        assert "Usage:" in result.stdout
-        assert "--output" in result.stdout
-        assert "--resume" in result.stdout
-        assert "--diagnostics" in result.stdout
+        clean_stdout = _strip_ansi(result.stdout)
+        assert "pdf-convert" in clean_stdout.lower()
+        assert "Usage:" in clean_stdout
+        assert "--output" in clean_stdout
+        assert "--resume" in clean_stdout
+        assert "--diagnostics" in clean_stdout
 
 
 class TestStatusCommand:
