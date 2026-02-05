@@ -303,6 +303,19 @@ class TestStatePersistence:
 
         assert (nested / ".state.json").exists()
 
+    def test_save_state__should_raise_error__when_lock_unavailable(self, tmp_path, monkeypatch):
+        """save_state raises OSError when lock cannot be acquired."""
+        state = ConversionState(
+            pdf_path=str(tmp_path / "test.pdf"),
+            output_dir=str(tmp_path),
+        )
+
+        monkeypatch.setattr("gm_kit.pdf_convert.state._acquire_lock", lambda *_: False)
+        monkeypatch.setattr("gm_kit.pdf_convert.state.time.sleep", lambda *_: None)
+
+        with pytest.raises(OSError, match="Could not acquire lock"):
+            save_state(state)
+
 
 class TestAtomicWrite:
     """Tests for atomic write mechanism."""
@@ -361,6 +374,17 @@ class TestFileLocking:
             f.write("99999999")  # Very high PID unlikely to exist
 
         # Should be able to acquire (stale lock cleaned up)
+        acquired = _acquire_lock(lock_path, timeout=2)
+        assert acquired is True
+
+        _release_lock(lock_path)
+
+    def test_lock__should_acquire__when_lock_pid_invalid(self, tmp_path):
+        """Invalid PID in lock file is cleaned up."""
+        lock_path = tmp_path / ".state.lock"
+
+        lock_path.write_text("not-a-pid")
+
         acquired = _acquire_lock(lock_path, timeout=2)
         assert acquired is True
 
@@ -453,3 +477,17 @@ class TestValidateStateForResume:
 
         errors = validate_state_for_resume(state)
         assert errors == ["completed_phases contains 3 >= current_phase 3"]
+
+    def test_validate_state__should_return_error__when_phase_out_of_range(self, tmp_path):
+        """Invalid current_phase returns error."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            current_phase=PHASE_MAX + 1,
+        )
+
+        errors = validate_state_for_resume(state)
+        assert errors == [f"Invalid current_phase: {PHASE_MAX + 1}"]
