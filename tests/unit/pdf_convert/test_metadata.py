@@ -166,6 +166,14 @@ class TestHelperFunctions:
         """_safe_string handles unicode correctly."""
         assert _safe_string("héllo wörld") == "héllo wörld"
 
+    def test_safe_string__should_return_empty__when_str_raises(self):
+        """_safe_string returns empty string when __str__ raises."""
+        class _BadStr:
+            def __str__(self):
+                raise ValueError("boom")
+
+        assert _safe_string(_BadStr()) == ""
+
     def test_parse_pdf_date__should_parse__when_prefix_present(self):
         """_parse_pdf_date handles D: prefixed dates."""
         result = _parse_pdf_date("D:20240115120000")
@@ -190,6 +198,7 @@ class TestHelperFunctions:
         """_parse_pdf_date returns None for invalid input."""
         assert _parse_pdf_date("invalid") is None
         assert _parse_pdf_date("2024") is None
+        assert _parse_pdf_date("D:20241301") is None
 
 
 class TestExtractMetadata:
@@ -239,6 +248,59 @@ class TestExtractMetadataErrors:
         """extract_metadata raises FileNotFoundError for missing file."""
         with pytest.raises(FileNotFoundError, match="PDF file not found"):
             extract_metadata(tmp_path / "nonexistent.pdf")
+
+    def test_extract_metadata__should_raise_value_error__when_open_reports_encrypted(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """extract_metadata raises ValueError when fitz.open reports encryption."""
+        pdf_path = tmp_path / "encrypted.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4\n%Fake\n")
+
+        def _open(_path):
+            raise RuntimeError("File is encrypted and requires password")
+
+        monkeypatch.setitem(sys.modules, "fitz", SimpleNamespace(open=_open))
+
+        with pytest.raises(ValueError, match="PDF is encrypted or password-protected"):
+            extract_metadata(pdf_path)
+
+    def test_extract_metadata__should_raise_value_error__when_doc_is_encrypted(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """extract_metadata raises ValueError when doc.is_encrypted is true."""
+        pdf_path = tmp_path / "encrypted.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4\n%Fake\n")
+
+        pages = [_FakePage(images=[], fonts=[])]
+        monkeypatch.setitem(
+            sys.modules,
+            "fitz",
+            SimpleNamespace(open=lambda _p: _FakeDoc(pages, is_encrypted=True)),
+        )
+
+        with pytest.raises(ValueError, match="PDF is encrypted or password-protected"):
+            extract_metadata(pdf_path)
+
+    def test_extract_metadata__should_reraise__when_open_fails_for_other_reasons(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """extract_metadata re-raises when fitz.open fails for other reasons."""
+        pdf_path = tmp_path / "broken.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4\n%Fake\n")
+
+        def _open(_path):
+            raise RuntimeError("unexpected failure")
+
+        monkeypatch.setitem(sys.modules, "fitz", SimpleNamespace(open=_open))
+
+        with pytest.raises(RuntimeError, match="unexpected failure"):
+            extract_metadata(pdf_path)
 
 
 class TestSaveAndLoadMetadata:
