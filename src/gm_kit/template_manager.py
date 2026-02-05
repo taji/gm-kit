@@ -1,17 +1,10 @@
 from __future__ import annotations
 
 import shutil
-import sys
+import tomllib
 from pathlib import Path
-from typing import List
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - fallback for Python <3.11
-    import tomli as tomllib  # type: ignore[import-not-found]
 
 from gm_kit.agent_config import AgentConfig
-
 
 # TOML descriptions for each command template
 COMMAND_DESCRIPTIONS = {
@@ -65,7 +58,7 @@ class TemplateManager:
             self.validate_toml(dest)
         return dest
 
-    def list_command_prompts(self) -> List[str]:
+    def list_command_prompts(self) -> list[str]:
         """List all available command prompt names."""
         return [p.stem for p in self.commands_dir.glob("*.md")]
 

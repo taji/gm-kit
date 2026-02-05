@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
@@ -32,9 +32,9 @@ class MockPhaseConfig:
     """
     status: PhaseStatus = PhaseStatus.SUCCESS
     delay_ms: int = 0
-    error_message: Optional[str] = None
-    warning_message: Optional[str] = None
-    output_file: Optional[str] = None
+    error_message: str | None = None
+    warning_message: str | None = None
+    output_file: str | None = None
     step_count: int = 3
     fail_at_step: int = 0
 
@@ -49,7 +49,7 @@ class MockPhase(Phase):
     def __init__(
         self,
         phase_num: int,
-        config: Optional[MockPhaseConfig] = None,
+        config: MockPhaseConfig | None = None,
     ) -> None:
         """Initialize mock phase.
 
@@ -130,7 +130,7 @@ class MockPhaseRegistry:
     """
 
     def __init__(self) -> None:
-        self._configs: Dict[int, MockPhaseConfig] = {}
+        self._configs: dict[int, MockPhaseConfig] = {}
 
     def configure(self, phase_num: int, config: MockPhaseConfig) -> None:
         """Configure behavior for a specific phase.
@@ -192,7 +192,7 @@ class MockPhaseRegistry:
         config = self._configs.get(phase_num, MockPhaseConfig())
         return MockPhase(phase_num, config)
 
-    def get_all_phases(self) -> List[Phase]:
+    def get_all_phases(self) -> list[Phase]:
         """Get all 11 mock phases (0-10).
 
         Returns:
@@ -205,7 +205,7 @@ class MockPhaseRegistry:
 default_registry = MockPhaseRegistry()
 
 
-def get_mock_phases() -> List[Phase]:
+def get_mock_phases() -> list[Phase]:
     """Get all mock phases using default registry.
 
     Returns:

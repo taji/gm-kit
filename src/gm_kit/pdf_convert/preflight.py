@@ -10,7 +10,6 @@ import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import List, Optional
 
 from rich.console import Console
 from rich.table import Table
@@ -18,6 +17,12 @@ from rich.table import Table
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata
 
 logger = logging.getLogger(__name__)
+
+FILE_SIZE_DIVISOR = 1024
+FONT_COMPLEXITY_LOW_MAX = 3
+FONT_COMPLEXITY_MODERATE_MAX = 8
+IMAGE_COMPLEXITY_MODERATE_MIN = 10
+IMAGE_COMPLEXITY_HIGH_MIN = 50
 
 
 class TOCApproach(str, Enum):
@@ -61,18 +66,18 @@ class PreflightReport:
     toc_approach: TOCApproach
     font_complexity: Complexity
     overall_complexity: Complexity
-    warnings: List[str] = field(default_factory=list)
-    user_involvement_phases: List[int] = field(default_factory=lambda: [7, 9])
-    copyright_notice: Optional[str] = None
+    warnings: list[str] = field(default_factory=list)
+    user_involvement_phases: list[int] = field(default_factory=lambda: [7, 9])
+    copyright_notice: str | None = None
 
 
 def _format_file_size(size_bytes: int) -> str:
     """Format file size in human-readable format."""
     size = float(size_bytes)
     for unit in ["B", "KB", "MB", "GB"]:
-        if size < 1024:
+        if size < FILE_SIZE_DIVISOR:
             return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} {unit}"
-        size /= 1024
+        size /= FILE_SIZE_DIVISOR
     return f"{size:.1f} TB"
 
 
@@ -84,15 +89,15 @@ def _calculate_font_complexity(font_count: int) -> Complexity:
     - Moderate: 4-8 unique font families
     - High: >8 unique font families
     """
-    if font_count <= 3:
+    if font_count <= FONT_COMPLEXITY_LOW_MAX:
         return Complexity.LOW
-    elif font_count <= 8:
+    elif font_count <= FONT_COMPLEXITY_MODERATE_MAX:
         return Complexity.MODERATE
     else:
         return Complexity.HIGH
 
 
-def _calculate_overall_complexity(
+def _calculate_overall_complexity(  # noqa: PLR0911
     font_complexity: Complexity,
     page_count: int,
     image_count: int,
@@ -111,9 +116,9 @@ def _calculate_overall_complexity(
         return Complexity.HIGH
 
     # Check image count
-    if image_count > 50:
+    if image_count > IMAGE_COMPLEXITY_HIGH_MIN:
         return Complexity.HIGH
-    elif image_count > 10:
+    elif image_count > IMAGE_COMPLEXITY_MODERATE_MIN:
         if font_complexity == Complexity.MODERATE:
             return Complexity.HIGH
         return Complexity.MODERATE
@@ -224,7 +229,7 @@ def analyze_pdf(pdf_path: Path) -> PreflightReport:
 
 def display_preflight_report(
     report: PreflightReport,
-    console: Optional[Console] = None,
+    console: Console | None = None,
 ) -> None:
     """Display pre-flight report to user.
 
@@ -318,7 +323,7 @@ def display_preflight_report(
 
 
 def prompt_user_confirmation(
-    console: Optional[Console] = None,
+    console: Console | None = None,
     auto_proceed: bool = False,
 ) -> bool:
     """Prompt user to proceed with conversion.
@@ -356,9 +361,9 @@ def prompt_user_confirmation(
 
 def run_preflight(
     pdf_path: Path,
-    console: Optional[Console] = None,
+    console: Console | None = None,
     auto_proceed: bool = False,
-) -> Optional[PreflightReport]:
+) -> PreflightReport | None:
     """Run complete pre-flight analysis and display results.
 
     Args:

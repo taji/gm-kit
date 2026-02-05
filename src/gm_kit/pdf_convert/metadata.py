@@ -7,12 +7,17 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
+
+DATE_MIN_LEN = 8
+DATE_HOUR_LEN = 10
+DATE_MINUTE_LEN = 12
+DATE_SECOND_LEN = 14
 
 
 @dataclass
@@ -44,15 +49,15 @@ class PDFMetadata:
     author: str = ""
     creator: str = ""
     producer: str = ""
-    copyright: Optional[str] = None
+    copyright: str | None = None
     has_toc: bool = False
     toc_entries: int = 0
     toc_max_depth: int = 0
     image_count: int = 0
     font_count: int = 0
     extracted_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    creation_date: Optional[str] = None
-    modification_date: Optional[str] = None
+    creation_date: str | None = None
+    modification_date: str | None = None
 
     def __post_init__(self) -> None:
         """Validate required fields."""
@@ -65,12 +70,12 @@ class PDFMetadata:
         if self.image_count < 0:
             raise ValueError(f"image_count must be >= 0, got {self.image_count}")
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> PDFMetadata:
+    def from_dict(cls, data: dict[str, Any]) -> PDFMetadata:
         """Create PDFMetadata from dictionary."""
         return cls(
             page_count=data["page_count"],
@@ -106,7 +111,7 @@ def _safe_string(value: Any) -> str:
         return ""
 
 
-def _parse_pdf_date(date_str: Optional[str]) -> Optional[str]:
+def _parse_pdf_date(date_str: str | None) -> str | None:
     """Parse PDF date format to ISO8601.
 
     PDF dates are in format: D:YYYYMMDDHHmmSSOHH'mm'
@@ -121,14 +126,14 @@ def _parse_pdf_date(date_str: Optional[str]) -> Optional[str]:
             date_str = date_str[2:]
 
         # Basic parsing - extract YYYYMMDD at minimum
-        if len(date_str) >= 8:
+        if len(date_str) >= DATE_MIN_LEN:
             year = int(date_str[0:4])
             month = int(date_str[4:6])
             day = int(date_str[6:8])
 
-            hour = int(date_str[8:10]) if len(date_str) >= 10 else 0
-            minute = int(date_str[10:12]) if len(date_str) >= 12 else 0
-            second = int(date_str[12:14]) if len(date_str) >= 14 else 0
+            hour = int(date_str[8:10]) if len(date_str) >= DATE_HOUR_LEN else 0
+            minute = int(date_str[10:12]) if len(date_str) >= DATE_MINUTE_LEN else 0
+            second = int(date_str[12:14]) if len(date_str) >= DATE_SECOND_LEN else 0
 
             dt = datetime(year, month, day, hour, minute, second)
             return dt.isoformat()
@@ -165,7 +170,7 @@ def extract_metadata(pdf_path: Path) -> PDFMetadata:
         doc = fitz.open(str(pdf_path))
     except Exception as e:
         if "encrypted" in str(e).lower() or "password" in str(e).lower():
-            raise ValueError("PDF is encrypted or password-protected")
+            raise ValueError("PDF is encrypted or password-protected") from e
         raise
 
     try:
@@ -242,7 +247,7 @@ def save_metadata(metadata: PDFMetadata, output_dir: Path) -> Path:
     return metadata_path
 
 
-def load_metadata(output_dir: Path) -> Optional[PDFMetadata]:
+def load_metadata(output_dir: Path) -> PDFMetadata | None:
     """Load metadata from metadata.json in the output directory.
 
     Args:

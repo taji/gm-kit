@@ -6,6 +6,7 @@ Handles atomic writes and file locking for concurrent access protection.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
@@ -15,7 +16,7 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 
@@ -59,12 +60,12 @@ class ErrorInfo:
     recoverable: bool
     suggestion: str
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ErrorInfo:
+    def from_dict(cls, data: dict[str, Any]) -> ErrorInfo:
         """Create ErrorInfo from dictionary."""
         return cls(
             phase=data["phase"],
@@ -105,12 +106,12 @@ class ConversionState:
     updated_at: str = field(default_factory=lambda: datetime.now().isoformat())
     current_phase: int = 0
     current_step: str = "0.1"
-    completed_phases: List[int] = field(default_factory=list)
-    phase_results: List[Dict[str, Any]] = field(default_factory=list)
+    completed_phases: list[int] = field(default_factory=list)
+    phase_results: list[dict[str, Any]] = field(default_factory=list)
     status: ConversionStatus = ConversionStatus.IN_PROGRESS
-    error: Optional[ErrorInfo] = None
+    error: ErrorInfo | None = None
     diagnostics_enabled: bool = False
-    config: Dict[str, Any] = field(default_factory=dict)
+    config: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         """Ensure paths are absolute."""
@@ -137,7 +138,7 @@ class ConversionState:
         self.current_step = step
         self.update_timestamp()
 
-    def mark_phase_completed(self, phase: int, result: Dict[str, Any]) -> None:
+    def mark_phase_completed(self, phase: int, result: dict[str, Any]) -> None:
         """Mark a phase as completed and record its result.
 
         Args:
@@ -166,7 +167,7 @@ class ConversionState:
         self.status = ConversionStatus.CANCELLED
         self.update_timestamp()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "version": self.version,
@@ -185,7 +186,7 @@ class ConversionState:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> ConversionState:
+    def from_dict(cls, data: dict[str, Any]) -> ConversionState:
         """Create ConversionState from dictionary."""
         error = None
         if data.get("error"):
@@ -253,20 +254,16 @@ def _acquire_lock(lock_path: Path, timeout: float = LOCK_TIMEOUT_SECONDS) -> boo
                     continue
             except (ValueError, FileNotFoundError):
                 # Invalid or removed lock file
-                try:
+                with contextlib.suppress(FileNotFoundError):
                     lock_path.unlink()
-                except FileNotFoundError:
-                    pass
                 continue
     return False
 
 
 def _release_lock(lock_path: Path) -> None:
     """Release the lock on the state file."""
-    try:
+    with contextlib.suppress(FileNotFoundError):
         lock_path.unlink()
-    except FileNotFoundError:
-        pass
 
 
 def save_state(state: ConversionState) -> None:
@@ -302,25 +299,22 @@ def save_state(state: ConversionState) -> None:
                     os.replace(temp_path, state_path)
                 except Exception:
                     # Clean up temp file on error
-                    try:
+                    with contextlib.suppress(FileNotFoundError):
                         os.unlink(temp_path)
-                    except FileNotFoundError:
-                        pass
                     raise
             finally:
                 _release_lock(lock_path)
             return
-        else:
-            if attempt < LOCK_MAX_RETRIES - 1:
-                time.sleep(LOCK_RETRY_DELAY)
+        elif attempt < LOCK_MAX_RETRIES - 1:
+            time.sleep(LOCK_RETRY_DELAY)
 
-    raise IOError(
+    raise OSError(
         f"Could not acquire lock on {lock_path} after {LOCK_MAX_RETRIES} attempts. "
         "Another conversion may be in progress."
     )
 
 
-def load_state(output_dir: Path) -> Optional[ConversionState]:
+def load_state(output_dir: Path) -> ConversionState | None:
     """Load state from file.
 
     Args:
@@ -341,7 +335,7 @@ def load_state(output_dir: Path) -> Optional[ConversionState]:
         with open(state_path) as f:
             data = json.load(f)
     except json.JSONDecodeError as e:
-        raise ValueError(f"State file is not valid JSON: {e}")
+        raise ValueError(f"State file is not valid JSON: {e}") from e
 
     # Validate required fields
     required_fields = [
@@ -372,7 +366,7 @@ def load_state(output_dir: Path) -> Optional[ConversionState]:
     return ConversionState.from_dict(data)
 
 
-def validate_state_for_resume(state: ConversionState) -> List[str]:
+def validate_state_for_resume(state: ConversionState) -> list[str]:
     """Validate state file for resume operation.
 
     Args:

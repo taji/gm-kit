@@ -1,6 +1,7 @@
 from __future__ import annotations  # For type checking/hinting.
 
 import sys
+
 import typer  # CLI framework.
 
 from gm_kit.agent_config import get_agent_config, list_supported_agents
@@ -11,7 +12,8 @@ from gm_kit.validator import ValidationError
 app = typer.Typer(help="GM-Kit CLI")
 
 
-# Required to allow subcommands via typer, consider this a noop function called by typer to provide a command group (so init below).
+# Required to allow subcommands via typer. This noop provides a command group so
+# the init command can be registered below.
 @app.callback(invoke_without_command=False)
 def cli_root() -> None:
     """Entry point for GM-Kit CLI."""
@@ -37,7 +39,10 @@ def _prompt_menu_choice(label: str, choices: list[str]) -> str:
         from rich.panel import Panel
         from rich.table import Table
     except ModuleNotFoundError as exc:
-        typer.echo("Menu prompts require readchar and rich. Use --text-input or install dependencies.")
+        typer.echo(
+            "Menu prompts require readchar and rich. "
+            "Use --text-input or install dependencies."
+        )
         raise typer.Exit(code=1) from exc
     console = Console()
     selected_index = 0
@@ -108,7 +113,7 @@ def init(
 
 # PDF Convert command
 @app.command("pdf-convert")
-def pdf_convert(
+def pdf_convert(  # noqa: PLR0913
     pdf_path: str = typer.Argument(
         None,
         help="Path to the PDF file to convert",
@@ -160,8 +165,9 @@ def pdf_convert(
         gmkit pdf-convert --status ./converted/
     """
     from pathlib import Path
+
+    from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
     from gm_kit.pdf_convert.orchestrator import Orchestrator
-    from gm_kit.pdf_convert.errors import ExitCode, ErrorMessages, format_error
 
     # Build CLI args string for diagnostics
     cli_args = " ".join(sys.argv[1:])

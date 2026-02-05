@@ -10,14 +10,13 @@ import re
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata, save_metadata
-from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.phases.base import Phase
 from gm_kit.pdf_convert.phases.stubs import get_mock_phases
 from gm_kit.pdf_convert.preflight import (
@@ -60,7 +59,7 @@ def sanitize_filename(name: str) -> str:
 
 def create_output_directory(
     pdf_path: Path,
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
 ) -> Path:
     """Create the output directory structure per FR-021.
 
@@ -97,8 +96,8 @@ def create_output_directory(
 
 def create_diagnostic_bundle(
     state: ConversionState,
-    console: Optional[Console] = None,
-) -> Optional[Path]:
+    console: Console | None = None,
+) -> Path | None:
     """Create diagnostic bundle at end of Phase 10 per FR-010b/c/d.
 
     Args:
@@ -203,8 +202,8 @@ class Orchestrator:
 
     def __init__(
         self,
-        console: Optional[Console] = None,
-        phases: Optional[List[Phase]] = None,
+        console: Console | None = None,
+        phases: list[Phase] | None = None,
     ) -> None:
         """Initialize orchestrator.
 
@@ -217,10 +216,10 @@ class Orchestrator:
         self.phases = phases or get_mock_phases()
         self._phase_map = {p.phase_num: p for p in self.phases}
 
-    def run_new_conversion(
+    def run_new_conversion(  # noqa: PLR0911
         self,
         pdf_path: Path,
-        output_dir: Optional[Path] = None,
+        output_dir: Path | None = None,
         diagnostics: bool = False,
         auto_proceed: bool = False,
         cli_args: str = "",
@@ -306,7 +305,7 @@ class Orchestrator:
         # Run remaining phases
         return self._run_phases(state, start_phase=1)
 
-    def _handle_existing_state(
+    def _handle_existing_state(  # noqa: PLR0913
         self,
         existing_state: ConversionState,
         pdf_path: Path,

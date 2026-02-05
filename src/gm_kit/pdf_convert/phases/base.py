@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Dict, Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from gm_kit.pdf_convert.constants import PHASE_NAMES
 
@@ -42,15 +42,15 @@ class StepResult:
     description: str
     status: PhaseStatus
     duration_ms: int = 0
-    output_file: Optional[str] = None
-    message: Optional[str] = None
+    output_file: str | None = None
+    message: str | None = None
 
     def __post_init__(self) -> None:
         """Convert string status to enum if needed."""
         if isinstance(self.status, str):
             self.status = PhaseStatus(self.status)
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "step_id": self.step_id,
@@ -62,7 +62,7 @@ class StepResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> StepResult:
+    def from_dict(cls, data: dict[str, Any]) -> StepResult:
         """Create StepResult from dictionary."""
         return cls(
             step_id=data["step_id"],
@@ -94,10 +94,10 @@ class PhaseResult:
     status: PhaseStatus
     started_at: str = field(default_factory=lambda: datetime.now().isoformat())
     completed_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    steps: List[StepResult] = field(default_factory=list)
-    output_file: Optional[str] = None
-    warnings: List[str] = field(default_factory=list)
-    errors: List[str] = field(default_factory=list)
+    steps: list[StepResult] = field(default_factory=list)
+    output_file: str | None = None
+    warnings: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Convert string status to enum if needed."""
@@ -138,7 +138,7 @@ class PhaseResult:
         """Mark the phase as complete with current timestamp."""
         self.completed_at = datetime.now().isoformat()
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "phase_num": self.phase_num,
@@ -153,7 +153,7 @@ class PhaseResult:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> PhaseResult:
+    def from_dict(cls, data: dict[str, Any]) -> PhaseResult:
         """Create PhaseResult from dictionary."""
         steps = [StepResult.from_dict(s) for s in data.get("steps", [])]
         return cls(
@@ -203,7 +203,7 @@ class Phase(ABC):
     def create_result(
         self,
         status: PhaseStatus = PhaseStatus.SUCCESS,
-        output_file: Optional[str] = None,
+        output_file: str | None = None,
     ) -> PhaseResult:
         """Create a PhaseResult for this phase.
 
@@ -223,14 +223,14 @@ class Phase(ABC):
             output_file=output_file,
         )
 
-    def create_step_result(
+    def create_step_result(  # noqa: PLR0913
         self,
         step_num: int,
         description: str,
         status: PhaseStatus = PhaseStatus.SUCCESS,
         duration_ms: int = 0,
-        output_file: Optional[str] = None,
-        message: Optional[str] = None,
+        output_file: str | None = None,
+        message: str | None = None,
     ) -> StepResult:
         """Create a StepResult for a step in this phase.
 

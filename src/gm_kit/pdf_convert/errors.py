@@ -4,7 +4,6 @@ Defines exit codes and error message constants per FR-029 through FR-048a.
 """
 
 from enum import IntEnum
-from typing import Optional
 
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 
@@ -218,7 +217,7 @@ class ErrorMessages:
 
 def format_error(
     error: tuple,
-    context: Optional[str] = None,
+    context: str | None = None,
 ) -> str:
     """Format an error message for display.
 

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional  # for type checking/hinting.
 
 from gm_kit.agent_config import AgentConfig
 from gm_kit.script_generator import ScriptGenerator
@@ -19,7 +18,7 @@ def _copy_constitution(asset_root: Path, target_root: Path) -> Path:
     return dest
 
 
-def run_init(temp_path: str, agent: Optional[str] = None, os_type: Optional[str] = None) -> Path:
+def run_init(temp_path: str, agent: str | None = None, os_type: str | None = None) -> Path:
     workspace = validate_temp_path(temp_path)
     agent_config: AgentConfig = validate_agent(agent)
     os_validated = validate_os(os_type)
