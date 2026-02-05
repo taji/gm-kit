@@ -1,6 +1,7 @@
 """Unit tests for preflight analysis (T018)."""
 
 import sys
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -15,6 +16,9 @@ from gm_kit.pdf_convert.preflight import (
     _determine_toc_approach,
     analyze_pdf,
     check_text_extractability,
+    display_preflight_report,
+    prompt_user_confirmation,
+    run_preflight,
 )
 from gm_kit.pdf_convert.metadata import PDFMetadata
 
@@ -95,6 +99,10 @@ class TestFormatFileSize:
     def test_format_file_size__should_return_gigabytes__when_1gb_or_more(self):
         """Formats gigabytes correctly."""
         assert _format_file_size(1024 * 1024 * 1024) == "1.0 GB"
+
+    def test_format_file_size__should_return_terabytes__when_1tb_or_more(self):
+        """Formats terabytes correctly."""
+        assert _format_file_size(1024 * 1024 * 1024 * 1024) == "1.0 TB"
 
 
 class TestCalculateFontComplexity:
@@ -391,3 +399,127 @@ class TestAnalyzePdfWarnings:
         report = analyze_pdf(fake_pdf_path)
         assert report.overall_complexity == Complexity.HIGH
         assert report.warnings == ["Complex document - expect more user involvement"]
+
+    def test_analyze_pdf__should_warn__when_text_not_extractable(
+        self,
+        stub_preflight,
+        fake_pdf_path,
+        monkeypatch,
+    ):
+        """Warning generated when text is not extractable."""
+        stub_preflight(has_toc=True, toc_entries=1, image_count=0, font_count=1)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.preflight.check_text_extractability",
+            lambda *_args, **_kwargs: False,
+        )
+        report = analyze_pdf(fake_pdf_path)
+        assert report.warnings == ["Scanned PDF detected - very little extractable text"]
+
+    def test_analyze_pdf__should_warn__when_file_size_large(
+        self,
+        stub_preflight,
+        fake_pdf_path,
+    ):
+        """Warning generated when file exceeds 50MB."""
+        stub_preflight(
+            file_size_bytes=51 * 1024 * 1024,
+            has_toc=True,
+            toc_entries=1,
+            image_count=0,
+            font_count=1,
+        )
+        report = analyze_pdf(fake_pdf_path)
+        assert report.warnings == ["Very large file - may require extended processing"]
+
+
+class TestDisplayPreflightReport:
+    """Tests for display_preflight_report output."""
+
+    def test_display_report__should_include_warning_and_user_phases__when_called(self):
+        """Preflight report output includes warnings and involvement phases."""
+        report = PreflightReport(
+            pdf_name="test.pdf",
+            file_size_display="1.0 MB",
+            page_count=10,
+            image_count=2,
+            text_extractable=True,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+            warnings=["No TOC found - hierarchy may be incomplete"],
+        )
+        from rich.console import Console
+
+        console = Console(record=True)
+        display_preflight_report(report, console=console)
+
+        output = console.export_text()
+        assert "Pre-flight Analysis Complete" in output
+        assert "WARNING:" in output
+        assert "User involvement required in: Phase 7, 9" in output
+
+
+class TestPromptUserConfirmation:
+    """Tests for prompt_user_confirmation."""
+
+    def test_prompt_user_confirmation__should_return_true__when_auto_proceed(self):
+        """auto_proceed skips prompt and returns True."""
+        assert prompt_user_confirmation(auto_proceed=True) is True
+
+    def test_prompt_user_confirmation__should_return_true__when_valid_choice_entered(
+        self,
+        monkeypatch,
+    ):
+        """Valid choice returns True after invalid input."""
+        inputs = iter(["x", "A"])
+        monkeypatch.setattr("builtins.input", lambda _prompt: next(inputs))
+        from rich.console import Console
+
+        console = Console(record=True)
+        assert prompt_user_confirmation(console=console) is True
+
+
+class TestRunPreflight:
+    """Tests for run_preflight."""
+
+    def test_run_preflight__should_return_none__when_scanned_pdf_detected(self, monkeypatch):
+        """Scanned PDFs return None with warning output."""
+        report = PreflightReport(
+            pdf_name="test.pdf",
+            file_size_display="1.0 MB",
+            page_count=10,
+            image_count=0,
+            text_extractable=False,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.preflight.analyze_pdf", lambda _p: report)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.preflight.display_preflight_report",
+            lambda *_args, **_kwargs: None,
+        )
+        assert run_preflight(Path("test.pdf")) is None
+
+    def test_run_preflight__should_return_report__when_user_proceeds(self, monkeypatch):
+        """Returns report when user confirms."""
+        report = PreflightReport(
+            pdf_name="test.pdf",
+            file_size_display="1.0 MB",
+            page_count=10,
+            image_count=0,
+            text_extractable=True,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.preflight.analyze_pdf", lambda _p: report)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.preflight.display_preflight_report",
+            lambda *_args, **_kwargs: None,
+        )
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.preflight.prompt_user_confirmation",
+            lambda *_args, **_kwargs: True,
+        )
+        assert run_preflight(Path("test.pdf")) is report

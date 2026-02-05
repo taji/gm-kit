@@ -559,7 +559,7 @@ Requirements:
 - Test heading inference with real RPG PDFs using family name only vs. family+size+weight+style
 - Determine if size/weight/style improves heading-level accuracy (e.g., distinguishing `Arial 18pt Bold` as h1 from `Arial 12pt Regular` as body)
 
-### E4-10. Ruff Ruleset Expansion + Refactor Checks **[FEATURE]**
+### E4-10. Ruff Ruleset Expansion + Refactor Checks **[FEATURE, COMPLETED]**
 
 Feature description:
 Enable a focused Ruff ruleset for the CLI codebase (E/W/F/I/B/UP/SIM + PLR), and address any new lint findings. Keep security scanning in Bandit rather than enabling Ruff security rules.

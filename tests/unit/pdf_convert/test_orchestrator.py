@@ -1,10 +1,19 @@
 """Unit tests for orchestrator resume logic (T038) and copyright notice (T056)."""
 
+from pathlib import Path
+
+import pytest
+from rich.console import Console
+
+from gm_kit.pdf_convert.metadata import PDFMetadata
 from gm_kit.pdf_convert.orchestrator import (
     Orchestrator,
+    create_diagnostic_bundle,
+    create_output_directory,
     generate_copyright_notice,
     insert_copyright_notice,
 )
+from gm_kit.pdf_convert.preflight import PreflightReport, TOCApproach, Complexity
 from gm_kit.pdf_convert.state import ConversionState, ConversionStatus, save_state, load_state
 from gm_kit.pdf_convert.errors import ExitCode
 from gm_kit.pdf_convert.phases.base import PhaseStatus
@@ -708,3 +717,266 @@ class TestPhaseFailure:
         captured = capsys.readouterr()
         # Expect: "WARNING: 3 images could not be extracted"
         assert "WARNING: 3 images could not be extracted" in captured.out
+
+
+class TestOutputDirectory:
+    """Tests for output directory creation."""
+
+    def test_create_output_dir__should_raise_permission_error__when_mkdir_fails(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Permission errors are surfaced with formatted message."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+
+        def _raise_permission(*_args, **_kwargs):
+            raise PermissionError("denied")
+
+        monkeypatch.setattr(Path, "mkdir", _raise_permission)
+
+        with pytest.raises(PermissionError) as excinfo:
+            create_output_directory(pdf_path)
+
+        assert "Cannot create output directory" in str(excinfo.value)
+
+
+class TestDiagnosticBundle:
+    """Tests for diagnostic bundle creation."""
+
+    def test_diagnostic_bundle__should_return_none__when_disabled(self, tmp_path):
+        """Diagnostics disabled returns None."""
+        state = ConversionState(
+            pdf_path=str(tmp_path / "test.pdf"),
+            output_dir=str(tmp_path),
+            diagnostics_enabled=False,
+        )
+        assert create_diagnostic_bundle(state) is None
+
+    def test_diagnostic_bundle__should_return_none__when_zip_fails(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Zip failures return None without raising."""
+        state = ConversionState(
+            pdf_path=str(tmp_path / "test.pdf"),
+            output_dir=str(tmp_path),
+            diagnostics_enabled=True,
+        )
+
+        class _FailingZip:
+            def __init__(self, *_args, **_kwargs):
+                raise OSError("zip failed")
+
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.zipfile.ZipFile", _FailingZip)
+        assert create_diagnostic_bundle(state, console=Console()) is None
+
+
+class TestRunNewConversion:
+    """Tests for new conversion paths."""
+
+    def test_run_new_conversion__should_return_file_error__when_pdf_missing(self, tmp_path):
+        """Missing PDFs return FILE_ERROR."""
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.run_new_conversion(tmp_path / "missing.pdf")
+        assert exit_code == ExitCode.FILE_ERROR
+
+    def test_run_new_conversion__should_return_file_error__when_pdf_unreadable(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Permission errors return FILE_ERROR."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+
+        def _raise_permission(*_args, **_kwargs):
+            raise PermissionError("denied")
+
+        monkeypatch.setattr("builtins.open", _raise_permission)
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.FILE_ERROR
+
+    def test_run_new_conversion__should_delegate__when_state_exists(self, tmp_path, monkeypatch):
+        """Existing state delegates to handler."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(output_dir),
+        )
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: state)
+
+        orchestrator = Orchestrator()
+        called = {"delegated": False}
+
+        def _handle_existing_state(*_a, **_k):
+            called["delegated"] = True
+            return ExitCode.SUCCESS
+
+        monkeypatch.setattr(
+            orchestrator,
+            "_handle_existing_state",
+            _handle_existing_state,
+        )
+
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.SUCCESS
+        assert called["delegated"] is True
+
+    def test_run_new_conversion__should_return_pdf_error__when_encrypted(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Encrypted PDFs return PDF_ERROR."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.extract_metadata",
+            lambda *_a, **_k: (_ for _ in ()).throw(ValueError("encrypted")),
+        )
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.PDF_ERROR
+
+    def test_run_new_conversion__should_return_pdf_error__when_scanned_pdf(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Scanned PDFs return PDF_ERROR."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
+        report = PreflightReport(
+            pdf_name=pdf_path.name,
+            file_size_display="1.0 KB",
+            page_count=1,
+            image_count=0,
+            text_extractable=False,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.analyze_pdf", lambda *_a, **_k: report)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.display_preflight_report",
+            lambda *_a, **_k: None,
+        )
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.PDF_ERROR
+
+    def test_run_new_conversion__should_return_user_abort__when_user_cancels(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """User cancellation returns USER_ABORT."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
+        report = PreflightReport(
+            pdf_name=pdf_path.name,
+            file_size_display="1.0 KB",
+            page_count=1,
+            image_count=0,
+            text_extractable=True,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.analyze_pdf", lambda *_a, **_k: report)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.display_preflight_report",
+            lambda *_a, **_k: None,
+        )
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.prompt_user_confirmation",
+            lambda *_a, **_k: False,
+        )
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.USER_ABORT
+
+
+class TestRunSinglePhase:
+    """Tests for run_single_phase error paths."""
+
+    def test_run_single_phase__should_return_state_error__when_phase_missing(self, tmp_path):
+        """Missing phase returns STATE_ERROR."""
+        state = ConversionState(
+            pdf_path=str(tmp_path / "test.pdf"),
+            output_dir=str(tmp_path),
+        )
+
+        class _Phase:
+            def __init__(self, phase_num):
+                self.phase_num = phase_num
+
+        orchestrator = Orchestrator(phases=[_Phase(1)])
+        exit_code = orchestrator._run_single_phase(state, phase_num=0)
+        assert exit_code == ExitCode.STATE_ERROR
+
+    def test_run_single_phase__should_return_pdf_error__when_phase_raises(
+        self,
+        tmp_path,
+    ):
+        """Exceptions in phase execution return PDF_ERROR."""
+        state = ConversionState(
+            pdf_path=str(tmp_path / "test.pdf"),
+            output_dir=str(tmp_path),
+        )
+
+        class _Phase:
+            def __init__(self, phase_num):
+                self.phase_num = phase_num
+
+            def execute(self, _state):
+                raise RuntimeError("boom")
+
+        orchestrator = Orchestrator(phases=[_Phase(0)])
+        exit_code = orchestrator._run_single_phase(state, phase_num=0)
+        assert exit_code == ExitCode.PDF_ERROR
