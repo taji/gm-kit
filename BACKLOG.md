@@ -149,6 +149,67 @@ Success looks like: Users can run `gmkit scan module.pdf` and receive a clear re
 
 Priority: LOW (MVP does not require this; add if user feedback indicates demand)
 
+### E2-06. Remove Walking Skeleton Placeholder Command **[TASK]**
+Task description:
+Remove the `/gmkit.hello-gmkit` command and associated bash/PowerShell scripts once the first official command (`/gmkit.pdf-to-markdown`) is implemented. The hello-gmkit command was a placeholder for the walking skeleton CI implementation and is no longer needed.
+
+Scope:
+- Remove `say-hello.sh` and `say-hello.ps1` from `src/gm_kit/assets/scripts/`
+- Remove `hello-gmkit-template.md` from `src/gm_kit/assets/templates/`
+- Remove `gmkit.hello-gmkit.md` prompt file from assets
+- Update `gmkit init` to no longer install hello-gmkit artifacts
+- Update CI parity tests to use pdf-convert instead of hello-gmkit
+- Update documentation (user_guide.md, ARCHITECTURE.md)
+
+Success looks like: The walking skeleton placeholder is cleanly removed with no orphaned files or documentation references.
+
+Depends on: E4-07e (PDF conversion orchestration) must be implemented first.
+
+### E2-07. Research: Replace Bash/PowerShell with Python for Agent Scripts **[TASK]**
+Task description:
+Research and document whether to replace all bash/PowerShell agent-invoked scripts with Python implementations. The original spec-kit design used bash/PowerShell because it needed to create git branches. GM-Kit has no git dependency (version control is out of scope), so Python can handle all operations directly.
+
+Background:
+- Python is already installed (UV requirement)
+- Python can be invoked via `#!/usr/bin/env python3` shebang
+- Eliminates need for cross-platform script parity testing
+- Simplifies the codebase (one language instead of three)
+
+Scope:
+1. Document decision rationale in `docs/team/spec-kit-analysis/Spec-Kit-Analysis.md` (add note that gm-kit deprecates bash/ps in favor of Python-only implementation)
+2. Update `docs/user/user_guide.md` to reflect Python-only approach
+3. Update `ARCHITECTURE.md` to remove bash/PowerShell parity references
+4. Add note that bash/PowerShell can be re-implemented in future if a specific need is discovered
+
+Success looks like: Clear documentation of the Python-only decision with rationale, and updated docs reflecting the simplified architecture.
+
+Timing: Complete after E2-06 (hello-gmkit removal) and E4-07e implementation.
+
+### E2-08. Multi-Agent CI Testing (Optional) **[FEATURE]**
+Feature description:
+Add optional CI/CD tests that verify slash commands work correctly when invoked through actual AI agents. This validates the end-to-end flow from slash command → agent → CLI → output.
+
+Implementation approach:
+1. **Phase 1 (POC):** Implement Gemini agent testing only (free tier available)
+   - Install Gemini CLI in GitHub Actions
+   - Authenticate using secrets
+   - Invoke `/gmkit.pdf-to-markdown` with test PDF
+   - Verify expected output files are created
+2. **Phase 2:** Expand to other agents (Claude, Codex, Qwen) as separate tasks
+3. **Cost control:** Tests enabled/disabled via `RUN_AGENT_TESTS` environment variable
+   - Default: disabled (to avoid unexpected API costs)
+   - Can be scheduled on less frequent basis (weekly vs per-PR)
+
+Requirements:
+- Environment variable toggle (`RUN_AGENT_TESTS=true` to enable)
+- Graceful skip when disabled (not a failure)
+- Clear cost documentation for each agent
+- Secrets management for API keys
+
+Success looks like: Optional CI job that validates slash command → agent → CLI flow works correctly, with Gemini as the initial proof of concept.
+
+Priority: LOW (nice-to-have after core features are stable)
+
 ---
 
 ## Epic 3 — Spec-Kit Architecture Analysis
@@ -353,11 +414,12 @@ Success looks like: Agent prompts that reliably produce outputs meeting defined 
 
 Feature description:
 
-Implement the User-category steps (5 of 70 total) from the PDF conversion architecture. This includes interactive prompts for font-family label review, header/footer removal confirmation, and final issue resolution.
+Implement the User-category steps (5 of 70 total) from the PDF conversion architecture. This includes pre-flight confirmation, interactive prompts for font-family label review, header/footer removal confirmation, and final issue resolution.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
 Requirements:
+- Pre-flight confirmation prompt (step 0.6) - gates the entire pipeline
 - Interactive prompts that present analysis results clearly
 - Before/after display for proposed changes
 - Smart analysis presentation (e.g., header frequency, multi-per-page detection)
@@ -365,6 +427,12 @@ Requirements:
 - Integration with E4-07a and E4-07b pipelines
 
 Steps covered: 0.6, 7.10, 9.9-9.11
+
+Design note — Phase 9 review interaction has two candidate flows to evaluate:
+1. **Interactive one-at-a-time**: Agent presents each concern individually, collects user response, applies revision, then moves to the next. Tight feedback loop.
+2. **Checklist-based batch**: Agent generates `review-checklist.md` with all concerns, user annotates the file (approvals, corrections, notes), then agent processes all annotations in one pass. Better for users who want to review holistically before committing changes.
+
+These flows may coexist: the interactive flow for the default agent-driven path, and the checklist flow as an alternative for users who prefer batch review. The `review-checklist.md` output file could serve double duty — as both the batch-review input artifact and the post-conversion QA record.
 
 Success looks like: User can review agent findings, confirm or correct proposed changes, and have corrections applied to the final output.
 
@@ -421,7 +489,6 @@ Requirements:
 - Pre-flight analysis (Phase 0) with complexity report
 - State tracking (`.state.json`) for progress and resumability
 - User involvement notices at start (list phases requiring input)
-- Bash and PowerShell script templates for setup
 - Integration orchestration for E4-07a/b/c/d components (initially with stubs)
 - Copyright notice block at top of final markdown output warning users about text reproduction. Uses metadata extracted from PDF in step 0.1 (title, author, publisher, copyright if available):
   ```markdown
@@ -449,9 +516,66 @@ Implementation approach (top-down):
 4. Then implement E4-07c (User interaction) replacing stubs
 5. Then implement E4-07d (Image link injection) replacing stubs
 
-Steps covered: 0.1-0.6 (Pre-flight Analysis), orchestration of all phases
+Steps covered: 0.1-0.5 (Pre-flight Analysis code steps), orchestration of all phases. Note: Step 0.6 (user confirmation) is owned by E4-07c; E4-07e calls into E4-07c for that interaction.
+
+Entry points:
+- `/gmkit.pdf-to-markdown` slash command (prompt file that invokes CLI)
+- `gmkit pdf-convert` CLI (direct invocation)
+
+Testing approach:
+- Integration tests use mocks for Code steps (Python), Agent steps (prompts), and User steps (pexpect)
+- Unit tests retain mocks permanently for isolation
+- Mocks replaced by real implementations when E4-07a/b/c/d are complete
 
 Success looks like: User can invoke `/gmkit.pdf-to-markdown` with a PDF path, see a pre-flight complexity report, confirm to proceed, and have the pipeline execute with proper state tracking and resumability.
+
+### E4-08. Workspace-Level Active Conversion Tracking **[FEATURE]**
+
+Feature description:
+
+Store the active conversion directory in `.gmkit/active-conversion.json` so that `--resume`, `--phase`, `--from-step`, and `--status` can infer the target directory without the user specifying it explicitly. Similar to how spec-kit tracks the active feature folder.
+
+Requirements:
+- When a new conversion starts, write the output directory path to `.gmkit/active-conversion.json`
+- `gmkit pdf-convert --resume` (no path) reads from active conversion state
+- `gmkit pdf-convert --phase N` (no path) reads from active conversion state
+- `gmkit pdf-convert --from-step N.N` (no path) reads from active conversion state
+- `gmkit pdf-convert --status` (no path) reads from active conversion state
+- Handle multiple conversions: decide whether to track only the most recent, or support multiple with a selection prompt
+- Handle stale references: if the tracked directory was deleted or moved, show a clear error
+- Explicit path always overrides the inferred path
+
+Dependencies: E4-07e (command orchestration must be complete)
+
+Success looks like: User can run `gmkit pdf-convert my-module.pdf`, then later run `gmkit pdf-convert --resume` without specifying the directory, and it resumes the correct conversion.
+
+### E4-09. Font Size/Weight/Style in Heading-Level Inference **[INVESTIGATION]**
+
+Feature description:
+
+Evaluate whether font size, weight, and style variants (not just family name) are needed for accurate heading-level inference during Phase 7 (Font Label Assignment) and Phase 8 (Heading Insertion). Currently FR-015 uses base font name only. The spec notes this may need revision after testing with real PDFs.
+
+Requirements:
+- Test heading inference with real RPG PDFs using family name only vs. family+size+weight+style
+- Determine if size/weight/style improves heading-level accuracy (e.g., distinguishing `Arial 18pt Bold` as h1 from `Arial 12pt Regular` as body)
+
+### E4-10. Ruff Ruleset Expansion + Refactor Checks **[FEATURE, COMPLETED]**
+
+Feature description:
+Enable a focused Ruff ruleset for the CLI codebase (E/W/F/I/B/UP/SIM + PLR), and address any new lint findings. Keep security scanning in Bandit rather than enabling Ruff security rules.
+
+Requirements:
+- Configure `pyproject.toml` Ruff rule selection for the focused set plus refactor rules (`PLR`).
+- Run `just lint` and fix all exposed issues.
+
+Success looks like: Ruff lint passes with the expanded ruleset and no new lint errors.
+- If needed, update `metadata.py` to extract and store font size/weight/style in the font family data
+- Update FR-015 in spec.md based on findings
+- Update `font-family-mapping.json` schema if additional font attributes are tracked
+
+Dependencies: E4-07a (code-driven pipeline must be functional to test with real PDFs)
+
+Success looks like: A documented decision on whether font attributes beyond family name are needed, with metadata.py and the spec updated accordingly.
 
 ---
 

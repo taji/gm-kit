@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable
 
 
 @dataclass(frozen=True)
@@ -20,7 +20,7 @@ def _config(name: str, path: str, ext: str) -> AgentConfig:
     return AgentConfig(name=name, prompt_location=Path(path), file_extension=ext)
 
 
-SUPPORTED_AGENTS: Dict[str, AgentConfig] = {
+SUPPORTED_AGENTS: dict[str, AgentConfig] = {
     "claude": _config("claude", ".claude/commands", ".md"),
     "codex-cli": _config("codex-cli", ".codex/prompts", ".md"),
     "gemini": _config("gemini", ".gemini/commands", ".toml"),

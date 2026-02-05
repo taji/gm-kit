@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Literal
 
 from gm_kit.agent_config import AgentConfig, get_agent_config, is_supported
 
@@ -27,7 +27,7 @@ def validate_temp_path(temp_path: str) -> Path:
     return path
 
 
-def validate_os(os_type: Optional[str]) -> OSType:
+def validate_os(os_type: str | None) -> OSType:
     if os_type is None:
         raise ValidationError("os is required (macos/linux or windows).")
     normalized = os_type.lower()
@@ -36,7 +36,7 @@ def validate_os(os_type: Optional[str]) -> OSType:
     return "windows" if normalized == "windows" else "macos/linux"
 
 
-def validate_agent(agent: Optional[str]) -> AgentConfig:
+def validate_agent(agent: str | None) -> AgentConfig:
     if agent is None:
         raise ValidationError("agent is required (claude, codex-cli, gemini, qwen).")
     if not is_supported(agent):

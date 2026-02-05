@@ -17,8 +17,10 @@ def test_validate_toml_accepts_generated_prompt(tmp_path: Path):
     tmpl = TemplateManager(asset_root)
     gemini = get_agent_config("gemini")
 
-    toml_path = tmpl.generate_prompt(gemini, tmp_path)
-    tmpl.validate_toml(toml_path)  # should not raise
+    toml_dir = tmpl.generate_prompt(gemini, tmp_path)
+    # Validate all generated TOML files
+    for toml_path in toml_dir.glob("*.toml"):
+        tmpl.validate_toml(toml_path)  # should not raise
 
 
 def test_validate_toml_rejects_invalid_file(tmp_path: Path):

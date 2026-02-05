@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gm-kit.dev/schemas/pdf-metadata.json",
+  "title": "PDFMetadata",
+  "description": "Extracted PDF metadata for pre-flight report and copyright notices",
+  "type": "object",
+  "required": [
+    "title",
+    "author",
+    "creator",
+    "producer",
+    "page_count",
+    "file_size_bytes",
+    "has_toc",
+    "image_count",
+    "font_count",
+    "extracted_at"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "PDF title from metadata (may be empty)"
+    },
+    "author": {
+      "type": "string",
+      "description": "Author name from metadata"
+    },
+    "creator": {
+      "type": "string",
+      "description": "Creating application"
+    },
+    "producer": {
+      "type": "string",
+      "description": "PDF producer software"
+    },
+    "copyright": {
+      "type": "string",
+      "description": "Copyright notice if found in metadata"
+    },
+    "page_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total number of pages"
+    },
+    "file_size_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "File size in bytes"
+    },
+    "has_toc": {
+      "type": "boolean",
+      "description": "Whether PDF has embedded TOC outline"
+    },
+    "toc_entries": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of TOC entries (0 if none)"
+    },
+    "toc_max_depth": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Maximum nesting level of TOC (0 if none)"
+    },
+    "image_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total images across all pages"
+    },
+    "font_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of unique font families detected"
+    },
+    "extracted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When metadata was extracted (ISO8601)"
+    },
+    "creation_date": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "PDF creation date (ISO8601 or null)"
+    },
+    "modification_date": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "PDF modification date (ISO8601 or null)"
+    }
+  }
+}

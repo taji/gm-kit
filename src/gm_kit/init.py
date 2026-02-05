@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Optional  # for type checking/hinting.
 
 from gm_kit.agent_config import AgentConfig
 from gm_kit.script_generator import ScriptGenerator
@@ -19,7 +18,7 @@ def _copy_constitution(asset_root: Path, target_root: Path) -> Path:
     return dest
 
 
-def run_init(temp_path: str, agent: Optional[str] = None, os_type: Optional[str] = None) -> Path:
+def run_init(temp_path: str, agent: str | None = None, os_type: str | None = None) -> Path:
     workspace = validate_temp_path(temp_path)
     agent_config: AgentConfig = validate_agent(agent)
     os_validated = validate_os(os_type)
@@ -33,10 +32,16 @@ def run_init(temp_path: str, agent: Optional[str] = None, os_type: Optional[str]
     template_mgr.copy_hello_template(workspace)
     _copy_constitution(asset_root_path, workspace)
 
-    # Generate prompt for the selected agent
+    # Generate prompts for all command templates for the selected agent
     template_mgr.generate_prompt(agent_config, workspace)
 
     # Generate script for the selected OS
     script_gen.generate(os_validated, workspace)
 
     return workspace
+
+
+def get_installed_commands(asset_root_path: Path) -> list:
+    """Return list of command prompt names that will be installed."""
+    template_mgr = TemplateManager(asset_root_path)
+    return template_mgr.list_command_prompts()

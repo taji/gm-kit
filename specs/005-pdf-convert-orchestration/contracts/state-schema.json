@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gm-kit.dev/schemas/conversion-state.json",
+  "title": "ConversionState",
+  "description": "State file for PDF to Markdown conversion pipeline",
+  "type": "object",
+  "required": [
+    "version",
+    "pdf_path",
+    "output_dir",
+    "started_at",
+    "updated_at",
+    "current_phase",
+    "current_step",
+    "completed_phases",
+    "status",
+    "diagnostics_enabled"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema version for compatibility",
+      "pattern": "^\\d+\\.\\d+$",
+      "examples": ["1.0"]
+    },
+    "pdf_path": {
+      "type": "string",
+      "description": "Absolute path to source PDF"
+    },
+    "output_dir": {
+      "type": "string",
+      "description": "Absolute path to output directory"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Conversion start timestamp (ISO8601)"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last state update timestamp (ISO8601)"
+    },
+    "current_phase": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Phase currently executing"
+    },
+    "current_step": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+$",
+      "description": "Step currently executing (e.g., '5.3')"
+    },
+    "completed_phases": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10
+      },
+      "description": "List of completed phase numbers"
+    },
+    "phase_results": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PhaseResult"
+      },
+      "description": "Results for each completed phase"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["in_progress", "completed", "failed", "cancelled"],
+      "description": "Overall conversion status"
+    },
+    "error": {
+      "$ref": "#/$defs/ErrorInfo",
+      "description": "Error details if status is 'failed'"
+    },
+    "diagnostics_enabled": {
+      "type": "boolean",
+      "description": "Whether --diagnostics flag was set"
+    },
+    "config": {
+      "type": "object",
+      "description": "Additional CLI configuration options",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "PhaseResult": {
+      "type": "object",
+      "required": ["phase_num", "name", "status", "started_at", "completed_at", "steps"],
+      "properties": {
+        "phase_num": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "name": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "warning", "error", "skipped"]
+        },
+        "started_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/StepResult"
+          }
+        },
+        "output_file": {
+          "type": "string"
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "StepResult": {
+      "type": "object",
+      "required": ["step_id", "description", "status", "duration_ms"],
+      "properties": {
+        "step_id": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+$"
+        },
+        "description": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["success", "warning", "error", "skipped"]
+        },
+        "duration_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "output_file": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      }
+    },
+    "ErrorInfo": {
+      "type": "object",
+      "required": ["phase", "step", "code", "message", "recoverable", "suggestion"],
+      "properties": {
+        "phase": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10
+        },
+        "step": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+$"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "recoverable": {
+          "type": "boolean"
+        },
+        "suggestion": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
