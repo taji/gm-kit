@@ -176,6 +176,28 @@ class TestMissingStateFile:
         assert exit_code == ExitCode.STATE_ERROR
 
 
+class TestResumeValidation:
+    """Tests for resume validation errors."""
+
+    def test_resume__should_fail__when_validation_errors_present(self, tmp_path, monkeypatch):
+        """Validation errors return STATE_ERROR."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: state)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.validate_state_for_resume",
+            lambda *_a, **_k: ["bad state"],
+        )
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.resume_conversion(output_dir, auto_proceed=True)
+
+        assert exit_code == ExitCode.STATE_ERROR
+
+
 class TestCorruptStateFile:
     """Tests for corrupt state file handling."""
 
@@ -245,6 +267,14 @@ class TestReRunSinglePhase:
 
         assert exit_code == ExitCode.SUCCESS
 
+    def test_rerun_phase__should_fail__when_state_missing(self, tmp_path, monkeypatch):
+        """Missing state returns STATE_ERROR."""
+        orchestrator = Orchestrator()
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+
+        exit_code = orchestrator.run_single_phase(tmp_path, phase_num=0)
+        assert exit_code == ExitCode.STATE_ERROR
+
 
 class TestFromStepResume:
     """Tests for resuming from a specific step."""
@@ -279,6 +309,36 @@ class TestFromStepResume:
         # Phase 11 doesn't exist
         exit_code = orchestrator.run_from_step(tmp_path, step_id="11.1")
         assert exit_code == ExitCode.FILE_ERROR
+
+    def test_from_step__should_fail__when_state_missing(self, tmp_path, monkeypatch):
+        """Missing state returns STATE_ERROR."""
+        orchestrator = Orchestrator()
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+
+        exit_code = orchestrator.run_from_step(tmp_path, step_id="5.3")
+        assert exit_code == ExitCode.STATE_ERROR
+
+    def test_from_step__should_run_phases__when_state_exists(self, tmp_path, monkeypatch):
+        """Valid step resumes from the requested phase."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: state)
+
+        orchestrator = Orchestrator()
+        called = {"phases": False}
+
+        def _run_phases(*_args, **_kwargs):
+            called["phases"] = True
+            return ExitCode.SUCCESS
+
+        monkeypatch.setattr(orchestrator, "_run_phases", _run_phases)
+
+        exit_code = orchestrator.run_from_step(output_dir, step_id="5.3")
+        assert exit_code == ExitCode.SUCCESS
+        assert called["phases"] is True
 
 
 class TestShowStatus:
@@ -438,6 +498,49 @@ class TestShowStatus:
         size_mb = pdf_path.stat().st_size / (1024 * 1024)
         size_str = f"{size_mb:.1f} MB"
         assert f"Source: my-document.pdf ({size_str})" in captured.out
+
+    def test_status__should_show_file_not_found__when_source_missing(self, tmp_path, capsys):
+        """Missing source PDF displays file-not-found indicator."""
+        pdf_path = tmp_path / "missing.pdf"
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            current_phase=1,
+            current_step="1.1",
+        )
+        save_state(state)
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.show_status(tmp_path)
+
+        assert exit_code == ExitCode.SUCCESS
+        captured = capsys.readouterr()
+        # Expect: "file not found"
+        assert "file not found" in captured.out
+
+    def test_status__should_show_completion_time__when_phase_results_present(
+        self,
+        tmp_path,
+        capsys,
+    ):
+        """Completed phases include timestamp in status table."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            completed_phases=[1],
+            phase_results=[{"phase_num": 1, "completed_at": "2026-02-05T10:11:12"}],
+        )
+        save_state(state)
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.show_status(tmp_path)
+
+        assert exit_code == ExitCode.SUCCESS
+        captured = capsys.readouterr()
+        assert "2026-02-05 10:11:12" in captured.out
 
 
 class TestCopyrightNotice:
@@ -718,6 +821,37 @@ class TestPhaseFailure:
         # Expect: "WARNING: 3 images could not be extracted"
         assert "WARNING: 3 images could not be extracted" in captured.out
 
+    def test_phase_failure__should_create_bundle__when_diagnostics_enabled(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Diagnostics bundle is created after successful phases."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            diagnostics_enabled=True,
+        )
+        save_state(state)
+
+        registry = MockPhaseRegistry()
+        orchestrator = self._make_orchestrator_with_phases(registry)
+        called = {"bundle": False}
+
+        def _create_bundle(*_args, **_kwargs):
+            called["bundle"] = True
+            return tmp_path / "diagnostic-bundle.zip"
+
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.create_diagnostic_bundle", _create_bundle)
+
+        exit_code = orchestrator._run_phases(state, start_phase=1)
+
+        assert exit_code == ExitCode.SUCCESS
+        assert called["bundle"] is True
+
 
 class TestOutputDirectory:
     """Tests for output directory creation."""
@@ -740,6 +874,17 @@ class TestOutputDirectory:
             create_output_directory(pdf_path)
 
         assert "Cannot create output directory" in str(excinfo.value)
+
+    def test_create_output_dir__should_create_subdirs__when_output_dir_provided(self, tmp_path):
+        """Provided output directory gets required subfolders."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+
+        created_path = create_output_directory(pdf_path, output_dir=output_dir)
+
+        assert created_path == output_dir.resolve()
+        assert (output_dir / "images").exists() is True
+        assert (output_dir / "preprocessed").exists() is True
 
 
 class TestDiagnosticBundle:
@@ -800,6 +945,24 @@ class TestRunNewConversion:
         exit_code = orchestrator.run_new_conversion(pdf_path)
         assert exit_code == ExitCode.FILE_ERROR
 
+    def test_run_new_conversion__should_return_file_error__when_output_dir_fails(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Output directory errors return FILE_ERROR."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: (_ for _ in ()).throw(PermissionError("denied")),
+        )
+
+        orchestrator = Orchestrator()
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.FILE_ERROR
+
     def test_run_new_conversion__should_delegate__when_state_exists(self, tmp_path, monkeypatch):
         """Existing state delegates to handler."""
         pdf_path = tmp_path / "test.pdf"
@@ -834,6 +997,145 @@ class TestRunNewConversion:
         assert exit_code == ExitCode.SUCCESS
         assert called["delegated"] is True
 
+    def test_handle_existing_state__should_resume__when_auto_proceed(self, tmp_path, monkeypatch):
+        """Auto-proceed defaults to resume."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        orchestrator = Orchestrator()
+        called = {"resumed": False}
+
+        def _resume(*_args, **_kwargs):
+            called["resumed"] = True
+            return ExitCode.SUCCESS
+
+        monkeypatch.setattr(orchestrator, "resume_conversion", _resume)
+        exit_code = orchestrator._handle_existing_state(
+            state,
+            pdf_path,
+            output_dir,
+            diagnostics=False,
+            auto_proceed=True,
+            cli_args="",
+        )
+        assert exit_code == ExitCode.SUCCESS
+        assert called["resumed"] is True
+
+    def test_handle_existing_state__should_overwrite__when_user_selects_overwrite(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Overwrite removes state file and restarts conversion."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state_file = output_dir / ".state.json"
+        state_file.write_text("{}")
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        orchestrator = Orchestrator()
+        called = {"restarted": False}
+
+        def _run_new(*_args, **_kwargs):
+            called["restarted"] = True
+            return ExitCode.SUCCESS
+
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "O")
+        monkeypatch.setattr(orchestrator, "run_new_conversion", _run_new)
+
+        exit_code = orchestrator._handle_existing_state(
+            state,
+            pdf_path,
+            output_dir,
+            diagnostics=False,
+            auto_proceed=False,
+            cli_args="",
+        )
+        assert exit_code == ExitCode.SUCCESS
+        assert called["restarted"] is True
+        assert state_file.exists() is False
+
+    def test_handle_existing_state__should_abort__when_input_fails(self, tmp_path, monkeypatch):
+        """EOF/interrupt defaults to abort."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        orchestrator = Orchestrator()
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: (_ for _ in ()).throw(EOFError()))
+
+        exit_code = orchestrator._handle_existing_state(
+            state,
+            pdf_path,
+            output_dir,
+            diagnostics=False,
+            auto_proceed=False,
+            cli_args="",
+        )
+        assert exit_code == ExitCode.USER_ABORT
+
+    def test_handle_existing_state__should_abort__when_user_selects_abort(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Explicit abort returns USER_ABORT."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: "A")
+        orchestrator = Orchestrator()
+
+        exit_code = orchestrator._handle_existing_state(
+            state,
+            pdf_path,
+            output_dir,
+            diagnostics=False,
+            auto_proceed=False,
+            cli_args="",
+        )
+        assert exit_code == ExitCode.USER_ABORT
+
+    def test_handle_existing_state__should_retry_prompt__when_invalid_choice(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Invalid input prompts again until a valid choice."""
+        pdf_path = tmp_path / "test.pdf"
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        responses = iter(["X", "R"])
+        monkeypatch.setattr("builtins.input", lambda *_a, **_k: next(responses))
+
+        orchestrator = Orchestrator()
+        called = {"resumed": False}
+
+        def _resume(*_args, **_kwargs):
+            called["resumed"] = True
+            return ExitCode.SUCCESS
+
+        monkeypatch.setattr(orchestrator, "resume_conversion", _resume)
+
+        exit_code = orchestrator._handle_existing_state(
+            state,
+            pdf_path,
+            output_dir,
+            diagnostics=False,
+            auto_proceed=False,
+            cli_args="",
+        )
+        assert exit_code == ExitCode.SUCCESS
+        assert called["resumed"] is True
+
     def test_run_new_conversion__should_return_pdf_error__when_encrypted(
         self,
         tmp_path,
@@ -858,6 +1160,31 @@ class TestRunNewConversion:
         orchestrator = Orchestrator()
         exit_code = orchestrator.run_new_conversion(pdf_path)
         assert exit_code == ExitCode.PDF_ERROR
+
+    def test_run_new_conversion__should_raise__when_metadata_error_unexpected(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Unexpected metadata errors bubble up."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.extract_metadata",
+            lambda *_a, **_k: (_ for _ in ()).throw(ValueError("bad metadata")),
+        )
+
+        orchestrator = Orchestrator()
+        with pytest.raises(ValueError):
+            orchestrator.run_new_conversion(pdf_path)
 
     def test_run_new_conversion__should_return_pdf_error__when_scanned_pdf(
         self,
@@ -940,6 +1267,58 @@ class TestRunNewConversion:
         orchestrator = Orchestrator()
         exit_code = orchestrator.run_new_conversion(pdf_path)
         assert exit_code == ExitCode.USER_ABORT
+
+    def test_run_new_conversion__should_run_phases__when_preflight_ok(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Successful preflight proceeds to phase execution."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
+        report = PreflightReport(
+            pdf_name=pdf_path.name,
+            file_size_display="1.0 KB",
+            page_count=1,
+            image_count=0,
+            text_extractable=True,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.analyze_pdf", lambda *_a, **_k: report)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.display_preflight_report",
+            lambda *_a, **_k: None,
+        )
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.prompt_user_confirmation",
+            lambda *_a, **_k: True,
+        )
+
+        orchestrator = Orchestrator()
+        called = {"phases": False}
+
+        def _run_phases(*_args, **_kwargs):
+            called["phases"] = True
+            return ExitCode.SUCCESS
+
+        monkeypatch.setattr(orchestrator, "_run_phases", _run_phases)
+
+        exit_code = orchestrator.run_new_conversion(pdf_path)
+        assert exit_code == ExitCode.SUCCESS
+        assert called["phases"] is True
 
 
 class TestRunSinglePhase:

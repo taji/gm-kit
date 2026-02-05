@@ -8,6 +8,7 @@ from typer.testing import CliRunner
 
 import gm_kit.cli as cli
 from gm_kit.pdf_convert.errors import ExitCode
+from gm_kit.validator import ValidationError
 
 
 def test_cli_prompt_text_choice__should_return_valid_value__when_user_retries(monkeypatch):
@@ -95,6 +96,128 @@ def test_cli_prompt_menu_choice__should_return_selected_option__when_enter_press
     assert cli._prompt_menu_choice("Select agent", ["claude", "gemini"]) == "claude"
 
 
+def test_cli_prompt_menu_choice__should_exit__when_escape_pressed(monkeypatch):
+    """Escape exits the menu prompt."""
+    fake_readchar = cast(Any, ModuleType("readchar"))
+    fake_readchar.key = SimpleNamespace(
+        UP="UP",
+        DOWN="DOWN",
+        CTRL_P="CTRL_P",
+        CTRL_N="CTRL_N",
+        ENTER="ENTER",
+        CTRL_C="CTRL_C",
+        ESC="ESC",
+    )
+    fake_readchar.readkey = lambda: fake_readchar.key.ESC
+
+    class FakeConsole:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class FakeTableGrid:
+        def add_row(self, *_args, **_kwargs):
+            return None
+
+    class FakeTable:
+        @staticmethod
+        def grid(*_args, **_kwargs):
+            return FakeTableGrid()
+
+    class FakePanel:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+    class FakeLive:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def update(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setitem(cli.sys.modules, "readchar", fake_readchar)
+    monkeypatch.setitem(cli.sys.modules, "rich", ModuleType("rich"))
+    monkeypatch.setitem(cli.sys.modules, "rich.console", ModuleType("rich.console"))
+    monkeypatch.setitem(cli.sys.modules, "rich.live", ModuleType("rich.live"))
+    monkeypatch.setitem(cli.sys.modules, "rich.panel", ModuleType("rich.panel"))
+    monkeypatch.setitem(cli.sys.modules, "rich.table", ModuleType("rich.table"))
+    monkeypatch.setattr(cli.sys.modules["rich.console"], "Console", FakeConsole, raising=False)
+    monkeypatch.setattr(cli.sys.modules["rich.live"], "Live", FakeLive, raising=False)
+    monkeypatch.setattr(cli.sys.modules["rich.panel"], "Panel", FakePanel, raising=False)
+    monkeypatch.setattr(cli.sys.modules["rich.table"], "Table", FakeTable, raising=False)
+
+    with pytest.raises(cli.typer.Exit) as excinfo:
+        cli._prompt_menu_choice("Select agent", ["claude", "gemini"])
+
+    assert excinfo.value.exit_code == 1
+
+
+def test_cli_prompt_menu_choice__should_move_selection__when_navigation_keys_pressed(
+    monkeypatch,
+):
+    """Arrow keys change selection before enter."""
+    fake_readchar = cast(Any, ModuleType("readchar"))
+    fake_readchar.key = SimpleNamespace(
+        UP="UP",
+        DOWN="DOWN",
+        CTRL_P="CTRL_P",
+        CTRL_N="CTRL_N",
+        ENTER="ENTER",
+        CTRL_C="CTRL_C",
+        ESC="ESC",
+    )
+    keys = iter([fake_readchar.key.DOWN, fake_readchar.key.UP, fake_readchar.key.ENTER])
+    fake_readchar.readkey = lambda: next(keys)
+
+    class FakeConsole:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    class FakeTableGrid:
+        def add_row(self, *_args, **_kwargs):
+            return None
+
+    class FakeTable:
+        @staticmethod
+        def grid(*_args, **_kwargs):
+            return FakeTableGrid()
+
+    class FakePanel:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+    class FakeLive:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def update(self, *_args, **_kwargs):
+            return None
+
+    monkeypatch.setitem(cli.sys.modules, "readchar", fake_readchar)
+    monkeypatch.setitem(cli.sys.modules, "rich", ModuleType("rich"))
+    monkeypatch.setitem(cli.sys.modules, "rich.console", ModuleType("rich.console"))
+    monkeypatch.setitem(cli.sys.modules, "rich.live", ModuleType("rich.live"))
+    monkeypatch.setitem(cli.sys.modules, "rich.panel", ModuleType("rich.panel"))
+    monkeypatch.setitem(cli.sys.modules, "rich.table", ModuleType("rich.table"))
+    monkeypatch.setattr(cli.sys.modules["rich.console"], "Console", FakeConsole, raising=False)
+    monkeypatch.setattr(cli.sys.modules["rich.live"], "Live", FakeLive, raising=False)
+    monkeypatch.setattr(cli.sys.modules["rich.panel"], "Panel", FakePanel, raising=False)
+    monkeypatch.setattr(cli.sys.modules["rich.table"], "Table", FakeTable, raising=False)
+
+    assert cli._prompt_menu_choice("Select agent", ["claude", "gemini"]) == "claude"
+
+
 def test_cli_init__should_use_text_prompts__when_not_tty(monkeypatch, tmp_path):
     """init uses text prompts when stdin/stdout are non-tty."""
     runner = CliRunner()
@@ -124,6 +247,71 @@ def test_cli_init__should_use_text_prompts__when_not_tty(monkeypatch, tmp_path):
     assert result.exit_code == 0
     assert calls["text_prompt"] > 0
     assert "Initializing workspace..." in result.output
+
+
+def test_cli_init__should_exit_with_error__when_validation_fails(monkeypatch, tmp_path):
+    """init fails with ValidationError from run_init."""
+    runner = CliRunner()
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: False)
+    monkeypatch.setattr(cli, "_prompt_text_choice", lambda *_args, **_kwargs: "claude")
+    monkeypatch.setattr(
+        cli,
+        "run_init",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(ValidationError("bad config")),
+    )
+    monkeypatch.setattr(
+        cli,
+        "get_agent_config",
+        lambda _agent: SimpleNamespace(prompt_location="prompts", file_extension=".md"),
+    )
+
+    result = runner.invoke(cli.app, ["init", str(tmp_path)])
+    # Expect: "bad config"
+    assert result.exit_code == 1
+    assert "bad config" in result.output
+
+
+def test_cli_init__should_use_menu_prompts__when_tty(monkeypatch, tmp_path):
+    """init uses menu prompts when TTY and not forced to text."""
+    calls = {"menu": 0}
+    monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
+    monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
+
+    def _menu_choice(*_args, **_kwargs):
+        calls["menu"] += 1
+        return "claude" if calls["menu"] == 1 else "macos/linux"
+
+    monkeypatch.setattr(cli, "_prompt_menu_choice", _menu_choice)
+    monkeypatch.setattr(cli, "run_init", lambda *_a, **_k: tmp_path)
+    monkeypatch.setattr(
+        cli,
+        "get_agent_config",
+        lambda _agent: SimpleNamespace(prompt_location="prompts", file_extension=".md"),
+    )
+    (tmp_path / "prompts").mkdir(parents=True, exist_ok=True)
+
+    cli.init(str(tmp_path), agent=None, os=None, text_input=False)
+    assert calls["menu"] == 2
+
+
+def test_cli_main__should_call_app(monkeypatch):
+    """main delegates to the Typer app."""
+    called = {"app": False}
+    monkeypatch.setattr(cli, "app", lambda: called.__setitem__("app", True))
+
+    cli.main()
+    assert called["app"] is True
+
+
+def test_cli_module__should_run_main__when_executed_as_script(monkeypatch):
+    """__main__ execution runs the CLI entrypoint."""
+    import runpy
+
+    monkeypatch.setattr(cli.sys, "argv", ["gm_kit.cli"])
+
+    with pytest.raises(SystemExit):
+        runpy.run_module("gm_kit.cli", run_name="__main__")
 
 
 def test_cli_pdf_convert__should_exit_with_success__when_status_requested(monkeypatch):
