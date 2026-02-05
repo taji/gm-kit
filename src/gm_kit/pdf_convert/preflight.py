@@ -14,7 +14,6 @@ from typing import List, Optional
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata
 
@@ -69,11 +68,12 @@ class PreflightReport:
 
 def _format_file_size(size_bytes: int) -> str:
     """Format file size in human-readable format."""
-    for unit in ['B', 'KB', 'MB', 'GB']:
-        if size_bytes < 1024:
-            return f"{size_bytes:.1f} {unit}" if unit != 'B' else f"{size_bytes} {unit}"
-        size_bytes /= 1024
-    return f"{size_bytes:.1f} TB"
+    size = float(size_bytes)
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size < 1024:
+            return f"{size:.1f} {unit}" if unit != "B" else f"{int(size)} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
 
 
 def _calculate_font_complexity(font_count: int) -> Complexity:
@@ -147,7 +147,7 @@ def check_text_extractability(pdf_path: Path, threshold: int = 100) -> bool:
     Returns:
         True if PDF has sufficient extractable text
     """
-    import fitz
+    import fitz  # type: ignore[import-untyped]
 
     try:
         doc = fitz.open(str(pdf_path))
@@ -375,11 +375,11 @@ def run_preflight(
     if not report.text_extractable:
         if console is None:
             console = Console()
-        console.print(
+        error_console = Console(file=sys.stderr, soft_wrap=True)
+        error_console.print(
             "[red]ERROR:[/red] Scanned PDF detected - very little extractable text",
-            file=sys.stderr
         )
-        console.print("Recommendation: Use external OCR tool first.", file=sys.stderr)
+        error_console.print("Recommendation: Use external OCR tool first.")
         return None
 
     if prompt_user_confirmation(console, auto_proceed):

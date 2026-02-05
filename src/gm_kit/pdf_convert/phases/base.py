@@ -7,7 +7,7 @@ along with PhaseResult and StepResult for tracking execution results.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional, Dict, Any, TYPE_CHECKING

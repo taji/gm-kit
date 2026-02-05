@@ -152,7 +152,7 @@ def extract_metadata(pdf_path: Path) -> PDFMetadata:
         PermissionError: If PDF file cannot be read
         ValueError: If PDF is encrypted or invalid
     """
-    import fitz  # PyMuPDF
+    import fitz  # type: ignore[import-untyped]  # PyMuPDF
 
     pdf_path = Path(pdf_path)
 

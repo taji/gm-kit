@@ -7,10 +7,10 @@ with configurable behavior for testing different scenarios.
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional, TYPE_CHECKING
 
-from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
+from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
 if TYPE_CHECKING:
@@ -192,11 +192,11 @@ class MockPhaseRegistry:
         config = self._configs.get(phase_num, MockPhaseConfig())
         return MockPhase(phase_num, config)
 
-    def get_all_phases(self) -> List[MockPhase]:
+    def get_all_phases(self) -> List[Phase]:
         """Get all 11 mock phases (0-10).
 
         Returns:
-            List of MockPhase instances
+            List of Phase instances
         """
         return [self.get_phase(i) for i in range(PHASE_MIN, PHASE_MAX + 1)]
 

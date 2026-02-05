@@ -51,6 +51,17 @@ audit:
     uv run --python "3.13.7" --extra dev -- python -m pip install -U pip
     PIPAPI_PYTHON_LOCATION=.venv/bin/python uv tool run --from pip-audit pip-audit --skip-editable
 
+# Run the same steps as the GitHub Actions CI workflow.
+all_ci_actions:
+    uv sync --extra dev
+    just lint
+    just typecheck
+    just test-unit
+    just test-integration
+    just test-parity
+    just bandit
+    just audit
+
 # Build distribution artifacts with Hatch
 build:
     hatch build

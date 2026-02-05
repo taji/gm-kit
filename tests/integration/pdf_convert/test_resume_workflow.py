@@ -68,6 +68,12 @@ def create_partial_state(output_dir: Path, pdf_path: Path, completed_phases: lis
     }
     (output_dir / "metadata.json").write_text(json.dumps(metadata, indent=2))
 
+    pdf_name = pdf_path.stem
+    for phase_num in completed_phases:
+        if phase_num in (4, 5, 6, 8):
+            output_file = output_dir / f"{pdf_name}-phase{phase_num}.md"
+            output_file.write_text(f"# Phase {phase_num} output\n", encoding="utf-8")
+
 
 class TestResumeInterruptedConversion:
     """Tests for resuming interrupted conversion."""

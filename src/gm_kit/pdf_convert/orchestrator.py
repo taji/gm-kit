@@ -7,38 +7,25 @@ from __future__ import annotations
 
 import logging
 import re
-import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from gm_kit.pdf_convert.errors import (
-    ErrorMessages,
-    ExitCode,
-    format_error,
-    get_exit_code_for_error,
-)
-from gm_kit.pdf_convert.metadata import (
-    PDFMetadata,
-    extract_metadata,
-    load_metadata,
-    save_metadata,
-)
+from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
+from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata, save_metadata
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
-from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus
+from gm_kit.pdf_convert.phases.base import Phase
 from gm_kit.pdf_convert.phases.stubs import get_mock_phases
 from gm_kit.pdf_convert.preflight import (
-    PreflightReport,
     analyze_pdf,
     display_preflight_report,
     prompt_user_confirmation,
 )
 from gm_kit.pdf_convert.state import (
-    SCHEMA_VERSION,
     ConversionState,
     ConversionStatus,
     ErrorInfo,
@@ -158,7 +145,7 @@ def create_diagnostic_bundle(
 
     except Exception as e:
         if console:
-            Console(stderr=True).print(format_error(ErrorMessages.BUNDLE_FAILED))
+            Console(stderr=True, soft_wrap=True).print(format_error(ErrorMessages.BUNDLE_FAILED))
         logger.warning(f"Failed to create diagnostic bundle: {e}")
         return None
 
@@ -226,7 +213,7 @@ class Orchestrator:
             phases: List of phases to use (defaults to mock phases)
         """
         self.console = console or Console()
-        self.error_console = Console(stderr=True)
+        self.error_console = Console(stderr=True, soft_wrap=True)
         self.phases = phases or get_mock_phases()
         self._phase_map = {p.phase_num: p for p in self.phases}
 
