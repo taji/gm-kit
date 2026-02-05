@@ -1,5 +1,6 @@
 """Unit tests for orchestrator resume logic (T038) and copyright notice (T056)."""
 
+import re
 from pathlib import Path
 
 import pytest
@@ -376,7 +377,8 @@ class TestShowStatus:
         captured = capsys.readouterr()
 
         # Expect: "Conversion Status: <output_dir>"
-        assert f"Conversion Status: {tmp_path.resolve()}" in captured.out
+        expected_status = rf"Conversion Status:\s*{re.escape(str(tmp_path.resolve()))}"
+        assert re.search(expected_status, captured.out)
         # Expect: "Status: in_progress"
         assert "Status: in_progress" in captured.out
         # Expect: "Phase  Name  Status  Completed" header

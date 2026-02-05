@@ -4,7 +4,8 @@ Uses typer.testing.CliRunner to test argument parsing and routing
 in-process without spawning subprocesses.
 """
 
-from unittest.mock import patch, MagicMock
+import re
+from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
@@ -13,6 +14,11 @@ from gm_kit.pdf_convert.errors import ExitCode, ErrorMessages, format_error
 
 
 runner = CliRunner()
+ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[mK]")
+
+
+def _strip_ansi(text: str) -> str:
+    return ANSI_ESCAPE_RE.sub("", text)
 
 
 class TestFlagCombinations:
@@ -230,7 +236,8 @@ class TestInvalidPhaseValues:
         expected = "Invalid value for '--phase': 'abc' is not a valid integer."
         # Expect: "Invalid value for '--phase': 'abc' is not a valid integer."
         assert result.exit_code != 0
-        assert expected in (result.output or "")
+        clean_output = _strip_ansi(result.output or "")
+        assert expected in clean_output
 
 
 class TestValidFromStepValues:
