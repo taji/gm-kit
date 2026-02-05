@@ -470,7 +470,7 @@ is generally acceptable, but do not redistribute or publish without permission.
 
 Success looks like: Images are extracted with position data, commented links appear at correct locations in markdown output, and licensing cautions are present in the conversion report, user guide, and inline in the markdown.
 
-### E4-07e. PDF→Markdown Command Orchestration **[FEATURE]**
+### E4-07e. PDF→Markdown Command Orchestration **[FEATURE, COMPLETED as specs/005-pdf-convert-orchestration/spec.md]**
 
 Feature description:
 
