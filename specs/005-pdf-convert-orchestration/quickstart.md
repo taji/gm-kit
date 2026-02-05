@@ -137,5 +137,5 @@ pytest tests/integration/pdf_convert/ -v
 ### Adding Real Phase Implementations
 
 When E4-07a/b/c/d are implemented, replace mock phases in:
-- `src/gmkit_cli/pdf_convert/phases/stubs.py` → real implementations
+- `src/gm_kit/pdf_convert/phases/stubs.py` → real implementations
 - Update `PHASES` registry in `orchestrator.py`

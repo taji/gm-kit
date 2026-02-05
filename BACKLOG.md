@@ -428,6 +428,12 @@ Requirements:
 
 Steps covered: 0.6, 7.10, 9.9-9.11
 
+Design note — Phase 9 review interaction has two candidate flows to evaluate:
+1. **Interactive one-at-a-time**: Agent presents each concern individually, collects user response, applies revision, then moves to the next. Tight feedback loop.
+2. **Checklist-based batch**: Agent generates `review-checklist.md` with all concerns, user annotates the file (approvals, corrections, notes), then agent processes all annotations in one pass. Better for users who want to review holistically before committing changes.
+
+These flows may coexist: the interactive flow for the default agent-driven path, and the checklist flow as an alternative for users who prefer batch review. The `review-checklist.md` output file could serve double duty — as both the batch-review input artifact and the post-conversion QA record.
+
 Success looks like: User can review agent findings, confirm or correct proposed changes, and have corrections applied to the final output.
 
 ### E4-07d. PDF→Markdown Image Link Injection **[FEATURE]**
@@ -522,6 +528,54 @@ Testing approach:
 - Mocks replaced by real implementations when E4-07a/b/c/d are complete
 
 Success looks like: User can invoke `/gmkit.pdf-to-markdown` with a PDF path, see a pre-flight complexity report, confirm to proceed, and have the pipeline execute with proper state tracking and resumability.
+
+### E4-08. Workspace-Level Active Conversion Tracking **[FEATURE]**
+
+Feature description:
+
+Store the active conversion directory in `.gmkit/active-conversion.json` so that `--resume`, `--phase`, `--from-step`, and `--status` can infer the target directory without the user specifying it explicitly. Similar to how spec-kit tracks the active feature folder.
+
+Requirements:
+- When a new conversion starts, write the output directory path to `.gmkit/active-conversion.json`
+- `gmkit pdf-convert --resume` (no path) reads from active conversion state
+- `gmkit pdf-convert --phase N` (no path) reads from active conversion state
+- `gmkit pdf-convert --from-step N.N` (no path) reads from active conversion state
+- `gmkit pdf-convert --status` (no path) reads from active conversion state
+- Handle multiple conversions: decide whether to track only the most recent, or support multiple with a selection prompt
+- Handle stale references: if the tracked directory was deleted or moved, show a clear error
+- Explicit path always overrides the inferred path
+
+Dependencies: E4-07e (command orchestration must be complete)
+
+Success looks like: User can run `gmkit pdf-convert my-module.pdf`, then later run `gmkit pdf-convert --resume` without specifying the directory, and it resumes the correct conversion.
+
+### E4-09. Font Size/Weight/Style in Heading-Level Inference **[INVESTIGATION]**
+
+Feature description:
+
+Evaluate whether font size, weight, and style variants (not just family name) are needed for accurate heading-level inference during Phase 7 (Font Label Assignment) and Phase 8 (Heading Insertion). Currently FR-015 uses base font name only. The spec notes this may need revision after testing with real PDFs.
+
+Requirements:
+- Test heading inference with real RPG PDFs using family name only vs. family+size+weight+style
+- Determine if size/weight/style improves heading-level accuracy (e.g., distinguishing `Arial 18pt Bold` as h1 from `Arial 12pt Regular` as body)
+
+### E4-10. Ruff Ruleset Expansion + Refactor Checks **[FEATURE]**
+
+Feature description:
+Enable a focused Ruff ruleset for the CLI codebase (E/W/F/I/B/UP/SIM + PLR), and address any new lint findings. Keep security scanning in Bandit rather than enabling Ruff security rules.
+
+Requirements:
+- Configure `pyproject.toml` Ruff rule selection for the focused set plus refactor rules (`PLR`).
+- Run `just lint` and fix all exposed issues.
+
+Success looks like: Ruff lint passes with the expanded ruleset and no new lint errors.
+- If needed, update `metadata.py` to extract and store font size/weight/style in the font family data
+- Update FR-015 in spec.md based on findings
+- Update `font-family-mapping.json` schema if additional font attributes are tracked
+
+Dependencies: E4-07a (code-driven pipeline must be functional to test with real PDFs)
+
+Success looks like: A documented decision on whether font attributes beyond family name are needed, with metadata.py and the spec updated accordingly.
 
 ---
 

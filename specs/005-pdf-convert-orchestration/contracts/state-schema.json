@@ -80,6 +80,11 @@
     "diagnostics_enabled": {
       "type": "boolean",
       "description": "Whether --diagnostics flag was set"
+    },
+    "config": {
+      "type": "object",
+      "description": "Additional CLI configuration options",
+      "additionalProperties": true
     }
   },
   "$defs": {

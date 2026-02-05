@@ -33,10 +33,16 @@ def run_init(temp_path: str, agent: Optional[str] = None, os_type: Optional[str]
     template_mgr.copy_hello_template(workspace)
     _copy_constitution(asset_root_path, workspace)
 
-    # Generate prompt for the selected agent
+    # Generate prompts for all command templates for the selected agent
     template_mgr.generate_prompt(agent_config, workspace)
 
     # Generate script for the selected OS
     script_gen.generate(os_validated, workspace)
 
     return workspace
+
+
+def get_installed_commands(asset_root_path: Path) -> list:
+    """Return list of command prompt names that will be installed."""
+    template_mgr = TemplateManager(asset_root_path)
+    return template_mgr.list_command_prompts()

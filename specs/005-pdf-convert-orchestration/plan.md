@@ -15,7 +15,7 @@ Implement the `/gmkit.pdf-to-markdown` slash command and `gmkit pdf-convert` CLI
 **Testing**: pytest with pexpect for interactive CLI testing, mocks for E4-07a/b/c/d components
 **Target Platform**: macOS/Linux (bash), Windows (PowerShell)
 **Project Type**: Single project - extends existing gmkit CLI
-**Performance Goals**: Pre-flight analysis completes in <10 seconds for PDFs under 50 pages
+**Performance Goals**: Pre-flight analysis completes in <2 seconds for 2-page reference PDF (~0.2s/page baseline)
 **Constraints**: No network access required after installation; all operations local
 **Scale/Scope**: Single-user CLI tool; handles PDFs up to ~500 pages (with chunking)
 
@@ -32,7 +32,7 @@ Implement the `/gmkit.pdf-to-markdown` slash command and `gmkit pdf-convert` CLI
 | V. Observability/Simplicity | PASS | State file provides debuggability; YAGNI - mocks now, real later |
 | VI. AI Agent Integration | PASS | Prompt file for supported agents (claude, codex-cli, gemini, qwen) |
 | VII. Interactive CLI Testing | PASS | pexpect for pre-flight confirmation and user prompts |
-| VIII. Cross-Platform | PASS | Bash and PowerShell script templates |
+| VIII. Cross-Platform | PASS | Python pathlib handles cross-platform paths natively |
 
 **Gate Result**: PASS - No violations requiring justification.
 
@@ -52,7 +52,7 @@ specs/005-pdf-convert-orchestration/
 │   ├── metadata-schema.json
 │   └── phase-interface.md
 ├── checklists/
-│   └── requirements.md  # Spec validation checklist
+│   └── qa-release-gate.md  # Spec validation checklist
 └── tasks.md             # Phase 2 output (via /speckit.tasks)
 ```
 
@@ -96,11 +96,6 @@ tests/
         ├── test_phase_interface.py
         └── test_state_schema.py
 
-.gmkit/scripts/
-├── bash/
-│   └── pdf-convert-setup.sh    # NEW: Folder structure setup
-└── ps/
-    └── pdf-convert-setup.ps1   # NEW: PowerShell equivalent
 ```
 
 **Structure Decision**: Extends existing single-project structure. New `pdf_convert/` subpackage follows library-first principle - self-contained with CLI exposure via `commands/pdf_convert.py`.

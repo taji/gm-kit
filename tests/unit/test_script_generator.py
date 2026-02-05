@@ -1,12 +1,20 @@
 import os
 from pathlib import Path
 
-import gm_kit
 from gm_kit.script_generator import ScriptGenerator
 
 
+def _make_asset_root(tmp_path: Path) -> Path:
+    asset_root = tmp_path / "assets"
+    (asset_root / "scripts" / "bash").mkdir(parents=True)
+    (asset_root / "scripts" / "powershell").mkdir(parents=True)
+    (asset_root / "scripts" / "bash" / "say-hello.sh").write_text("#!/usr/bin/env bash\necho hi\n")
+    (asset_root / "scripts" / "powershell" / "say-hello.ps1").write_text("Write-Host hi\n")
+    return asset_root
+
+
 def test_generate_scripts_copies_and_sets_permissions(tmp_path):
-    asset_root = Path(gm_kit.__file__).resolve().parent / "assets"
+    asset_root = _make_asset_root(tmp_path)
     generator = ScriptGenerator(asset_root)
 
     bash_path = generator.generate("macos/linux", tmp_path)

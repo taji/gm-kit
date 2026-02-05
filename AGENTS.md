@@ -118,6 +118,23 @@ Fix all issues automatically where possible.
 - Name pytest functions with the pattern `test_<Subject>__should_<ExpectedOutcome>__when_<Condition>`.
 - Keep the subject descriptive (e.g., `surgebench_cli`), the expected outcome explicit (e.g., `should_emit_error_modal`), and the condition clear (e.g., `when_invalid_vcv_file`).
 - Apply consistently across unit and integration tests so logs clearly show intent when tests pass/fail.
+- The test name is the **contract**; the test body **implements** that contract. The `should_<ExpectedOutcome>` MUST match what the assertions actually verify (e.g., `should_return_success` if asserting `exit_code == 0`, not a vague `should_accept_flag`).
+- **Success tests**: Assert the return value or exit code. Do not redundantly check output strings when the return value already proves success.
+- **Failure tests**: Assert both the exit code/exception AND the specific error message, to confirm the code fails for the right reason. Comment the expected error message above the assertion (e.g., `# Expect: "ERROR: Cannot combine --resume, --phase, --from-step, or --status"`).
+- **Assertions must be unconditional**: Avoid `if` statements around assertions; tests should fail loudly when expected artifacts or output are missing.
+
+## 4.6 Test Boundary Rules
+- **Unit tests** (`tests/unit/`) MUST NOT spawn subprocesses, make network calls, or touch the filesystem beyond `tmp_path`. They test functions and classes in isolation with mocked dependencies.
+- **Integration tests** (`tests/integration/`) MAY spawn subprocesses, exercise real I/O, and test cross-module workflows.
+- For CLI testing in unit tests, use `typer.testing.CliRunner` to invoke commands in-process. Mock the underlying service layer (e.g., `Orchestrator`) so tests verify argument parsing and routing logic only.
+- Reserve `subprocess.run` for integration tests that validate end-to-end CLI behavior.
+- Unit tests must mock external libraries (e.g., PDF parsers) and avoid reading real fixture files; use fakes or `tmp_path` inputs instead.
+- Unit tests must not read package assets (e.g., `src/gm_kit/assets`) directly; build minimal assets under `tmp_path` or patch dependencies to avoid relying on installed files.
+- Do not skip tests due to missing fixtures; missing fixtures should fail loudly so the gap is visible.
+- Avoid conditional assertions (e.g., `if file.exists()`); assert required artifacts exist before inspecting content.
+- When asserting errors, compare the exact error string and include a `# Expect: "<full error>"` comment above the assertion.
+- In integration tests, assert `returncode == 0` on success paths to prevent silent failures.
+- For help/usage tests, assert the `Usage:` line (and error line when applicable).
 
 ## 5. Type Checking
 Use MyPy to enforce typing standards:
