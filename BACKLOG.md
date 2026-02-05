@@ -518,6 +518,8 @@ Implementation approach (top-down):
 
 Steps covered: 0.1-0.5 (Pre-flight Analysis code steps), orchestration of all phases. Note: Step 0.6 (user confirmation) is owned by E4-07c; E4-07e calls into E4-07c for that interaction.
 
+Spec: `specs/005-pdf-convert-orchestration/spec.md`
+
 Entry points:
 - `/gmkit.pdf-to-markdown` slash command (prompt file that invokes CLI)
 - `gmkit pdf-convert` CLI (direct invocation)
