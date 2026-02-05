@@ -122,7 +122,7 @@ This approach is intended to:
 - PowerShell (`pwsh`) is required on Linux to run bash vs PowerShell parity tests.
 
 ### Dev Tools
-- Agent install helpers live in `devtools/scripts/` (`agents.registry.sh`, `provision_agents.sh`, `remove_agents.sh` ).
+- Agent install helpers live in `devtools/scripts/` (`agents.registry.sh`, `provision_agents.sh`, `remove_agents.sh`).
 
 ### Reference Docs
 - Spec-Kit guidelines: `docs/team/speckit_guidelines.md`
