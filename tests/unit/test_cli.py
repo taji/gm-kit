@@ -6,7 +6,7 @@ from typing import Any, cast
 import pytest
 from typer.testing import CliRunner
 
-import gm_kit.cli as cli
+from gm_kit import cli
 from gm_kit.pdf_convert.errors import ExitCode
 from gm_kit.validator import ValidationError
 
@@ -274,6 +274,7 @@ def test_cli_init__should_exit_with_error__when_validation_fails(monkeypatch, tm
 
 def test_cli_init__should_use_menu_prompts__when_tty(monkeypatch, tmp_path):
     """init uses menu prompts when TTY and not forced to text."""
+    expected_menu_calls = 2
     calls = {"menu": 0}
     monkeypatch.setattr(cli.sys.stdin, "isatty", lambda: True)
     monkeypatch.setattr(cli.sys.stdout, "isatty", lambda: True)
@@ -292,7 +293,7 @@ def test_cli_init__should_use_menu_prompts__when_tty(monkeypatch, tmp_path):
     (tmp_path / "prompts").mkdir(parents=True, exist_ok=True)
 
     cli.init(str(tmp_path), agent=None, os=None, text_input=False)
-    assert calls["menu"] == 2
+    assert calls["menu"] == expected_menu_calls
 
 
 def test_cli_main__should_call_app(monkeypatch):

@@ -74,8 +74,14 @@ def _prompt_menu_choice(label: str, choices: list[str]) -> str:
 @app.command()
 def init(
     temp_path: str = typer.Argument(..., help="Path to temp workspace"),
-    agent: str = typer.Option(None, help="Agent name (claude, codex-cli, gemini, qwen)"),
-    os: str = typer.Option(None, help="Target OS (macos/linux, windows)"),
+    agent: str | None = typer.Option(
+        None,
+        help="Agent name (claude, codex-cli, gemini, qwen)",
+    ),
+    os: str | None = typer.Option(
+        None,
+        help="Target OS (macos/linux, windows)",
+    ),
     text_input: bool = typer.Option(
         False,
         "--text-input",

@@ -7,12 +7,13 @@ import pytest
 
 from gm_kit.pdf_convert.metadata import (
     PDFMetadata,
-    extract_metadata,
-    save_metadata,
-    load_metadata,
-    _safe_string,
     _parse_pdf_date,
+    _safe_string,
+    extract_metadata,
+    load_metadata,
+    save_metadata,
 )
+
 
 class _FakePage:
     def __init__(self, images, fonts):

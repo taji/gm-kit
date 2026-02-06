@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from gm_kit.pdf_convert.errors import ErrorMessages, format_error
 
+from gm_kit.pdf_convert.errors import ErrorMessages, format_error
 
 # Test PDF path
 TEST_PDF_PATH = Path(__file__).parent.parent.parent.parent / (
