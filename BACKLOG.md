@@ -385,6 +385,8 @@ Requirements:
 - Modular phase functions that can be composed into a pipeline
 - CLI interface for running individual phases or full pipeline
 - Phase-by-phase markdown output for diagnostics
+- Font signatures must include family + size + weight + style
+- Test coverage for same-family-different-style headings (e.g., H1 vs H2 using same family with different weight/style)
 - Regression testing: Any anomalies discovered during integration testing that require code changes to a step must be accompanied by new unit tests covering the specific anomaly
 
 Phases covered: 1, 2, most of 3-8, scaffolding for 9-10
@@ -424,6 +426,7 @@ Requirements:
 - Before/after display for proposed changes
 - Smart analysis presentation (e.g., header frequency, multi-per-page detection)
 - Correction capture and application
+- Annotated-PDF review flow for font label review (labels in annotations mirror JSON labels; agent parses annotations to update JSON)
 - Integration with E4-07a and E4-07b pipelines
 
 Steps covered: 0.6, 7.10, 9.9-9.11
@@ -543,7 +546,7 @@ Requirements:
 - `gmkit pdf-convert --phase N` (no path) reads from active conversion state
 - `gmkit pdf-convert --from-step N.N` (no path) reads from active conversion state
 - `gmkit pdf-convert --status` (no path) reads from active conversion state
-- Handle multiple conversions: decide whether to track only the most recent, or support multiple with a selection prompt
+- Handle multiple conversions: default to most-recent active conversion with no prompt; only prompt when the most-recent path is invalid and other active conversions exist. Optional explicit `--choose` can force selection.
 - Handle stale references: if the tracked directory was deleted or moved, show a clear error
 - Explicit path always overrides the inferred path
 
@@ -551,15 +554,17 @@ Dependencies: E4-07e (command orchestration must be complete)
 
 Success looks like: User can run `gmkit pdf-convert my-module.pdf`, then later run `gmkit pdf-convert --resume` without specifying the directory, and it resumes the correct conversion.
 
-### E4-09. Font Size/Weight/Style in Heading-Level Inference **[INVESTIGATION]**
+### E4-09. Font Size/Weight/Style in Heading-Level Inference **[FEATURE, COMPLETED]**
 
 Feature description:
 
-Evaluate whether font size, weight, and style variants (not just family name) are needed for accurate heading-level inference during Phase 7 (Font Label Assignment) and Phase 8 (Heading Insertion). Currently FR-015 uses base font name only. The spec notes this may need revision after testing with real PDFs.
+Research finding: heading-level inference must use a full font signature (family + size + weight + style), not family-only. Evidence: the Homebrewery fixture (`tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf`) uses the same font family for headings with different weight/style per level, so family-only is insufficient.
 
-Requirements:
-- Test heading inference with real RPG PDFs using family name only vs. family+size+weight+style
-- Determine if size/weight/style improves heading-level accuracy (e.g., distinguishing `Arial 18pt Bold` as h1 from `Arial 12pt Regular` as body)
+Implementation owner: E4-07a (Code-driven pipeline).
+
+Dependencies: E4-07a (code-driven pipeline must be functional to test with real PDFs)
+
+Success looks like: Research conclusion captured; implementation details live in E4-07a.
 
 ### E4-10. Ruff Ruleset Expansion + Refactor Checks **[FEATURE, COMPLETED]**
 
@@ -571,13 +576,6 @@ Requirements:
 - Run `just lint` and fix all exposed issues.
 
 Success looks like: Ruff lint passes with the expanded ruleset and no new lint errors.
-- If needed, update `metadata.py` to extract and store font size/weight/style in the font family data
-- Update FR-015 in spec.md based on findings
-- Update `font-family-mapping.json` schema if additional font attributes are tracked
-
-Dependencies: E4-07a (code-driven pipeline must be functional to test with real PDFs)
-
-Success looks like: A documented decision on whether font attributes beyond family name are needed, with metadata.py and the spec updated accordingly.
 
 ---
 
@@ -586,6 +584,20 @@ Success looks like: A documented decision on whether font attributes beyond fami
 ### E5-01. Arcane Library Schema Definition
 Feature description:
 Spec the authoritative schema for Synopsis, Background, Word to the GM, Pacing/Transitions, Intro Page (title, hooks, character cards, transition), and the one-page encounter layout (Approach, Developments, Dramatic Question, Challenge/Social, Character Card links, GM Guidance, Transition). Include guidance for Character Cards themselves.
+
+### E5-02. Active Project Tracking for Artifact Generation **[FEATURE]**
+Feature description:
+Allow artifact-generation commands (campaign/scenario/encounter/npc/etc.) to infer the active project context so users don’t have to pass paths each time. This mirrors E4-08’s active conversion tracking but for scenario/campaign workflows.
+
+Requirements:
+- When a campaign/scenario is created or selected, write its root path to `.gmkit/active-project.json`
+- Commands like `/gmkit.campaign`, `/gmkit.scenario`, `/gmkit.npc`, `/gmkit.encounter` (and CLI equivalents) infer the project context when no path is provided
+- Default to the most-recent active project with no prompt
+- Only prompt when the most-recent project path is invalid and other active projects exist
+- Explicit path always overrides the inferred path
+- Keep this state separate from `.gmkit/active-conversion.json`
+
+Success looks like: Users can run artifact-generation commands without specifying paths, and the system targets the correct campaign/scenario by default.
 
 Success looks like: templates every command will target going forward.
 
