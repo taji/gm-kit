@@ -40,6 +40,7 @@
 - What worked well: Ghostscript image stripping is fast and effective; text extraction quality was excellent after preprocessing
 - What broke: Direct multimodal PDF read on 10-page image-heavy chunks
 - Surprises: The 93% file size reduction demonstrates how much of RPG PDF size is artwork vs text content
+- Heading quirk: Some titles are split into multiple stacked spans (e.g., "DO YOU HEAR" + "THE CALL OF CTHULHU?"), so TOC matching should merge adjacent spans with the same font signature before comparing.
 
 ## Content Summary (Pages 10-19)
 - **Page 10**: Game system overview, skill rolls, difficulty levels (Regular/Hard/Extreme), pushing rolls
