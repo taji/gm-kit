@@ -248,6 +248,7 @@ class TestStatusCommand:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": "src"},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -266,6 +267,7 @@ class TestStatusCommand:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": "src"},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -309,6 +311,7 @@ class TestStatusCommand:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": "src"},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
