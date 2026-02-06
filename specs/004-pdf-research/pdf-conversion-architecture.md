@@ -390,8 +390,13 @@ The label inference system pre-fills heading/structure labels to minimize user e
 *Primary method - TOC matching (with H2 offset):*
 1. Extract TOC entries with their levels (from step 3.1 or 3.2)
 2. Search for each TOC entry's text in the document body
-3. Identify which font (family + size + style) that text uses
+3. Identify which font signature (family + size + weight + style) that text uses
 4. Assign label with offset: TOC level 1 → H2, TOC level 2 → H3, TOC level 3 → H4, etc.
+
+**Multi-span TOC matching (common in titles):**
+- Some titles are split across multiple spans/lines (e.g., stacked words).
+- Before declaring a TOC miss, merge adjacent spans that share font+size+weight+style and are vertically aligned within a small gap.
+- Normalize text for matching (trim, collapse whitespace, strip punctuation, uppercase), then compare TOC entries against the merged string.
 
 *Fallback heuristics (when TOC doesn't cover all fonts):*
 
@@ -539,11 +544,17 @@ TTRPG modules contain domain-specific terms (monster names, locations, game term
 | 7.7 | Detect table structures | Agent |
 | 7.8 | Detect inline/embedded headings within spans | Code |
 | 7.9 | Update font-family-mapping.json with ALL detection findings | Code |
+| 7.9a | Generate annotated PDF for label review | Code |
 | 7.10 | Review font-family labels, prompt user if clarification needed | User |
 
 **Output:** Updated `font-family-mapping.json` with detection labels and notes
 
 **Decision:** Step 7.8 (inline heading detection) runs before 7.9 so findings update JSON before user review.
+
+**User Review Workflow (preferred):**
+- The JSON remains an agent-only artifact.
+- The agent generates an annotated PDF for review; each note includes the signature id and label value (matching the JSON label field), plus font/size/style and signature_text examples.
+- The user edits the `label:` value directly in the annotation. The agent parses annotations, updates JSON, then re-applies headings.
 
 ### Phase 8: Hierarchy Application
 

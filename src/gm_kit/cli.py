@@ -123,8 +123,8 @@ def pdf_convert(  # noqa: PLR0913
         "--output", "-o",
         help="Output directory [default: ./<pdf-basename>/]",
     ),
-    resume: str = typer.Option(
-        None,
+    resume: bool = typer.Option(
+        False,
         "--resume", "-r",
         help="Resume interrupted conversion in directory",
     ),
@@ -138,8 +138,8 @@ def pdf_convert(  # noqa: PLR0913
         "--from-step",
         help="Re-run from specific step (e.g., 5.3)",
     ),
-    status: str = typer.Option(
-        None,
+    status: bool = typer.Option(
+        False,
         "--status", "-s",
         help="Show conversion status for directory",
     ),
@@ -164,72 +164,18 @@ def pdf_convert(  # noqa: PLR0913
         gmkit pdf-convert --resume ./converted/
         gmkit pdf-convert --status ./converted/
     """
-    from pathlib import Path
+    from gm_kit.pdf_convert.cli_helpers import run_pdf_convert_command
 
-    from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
-    from gm_kit.pdf_convert.orchestrator import Orchestrator
-
-    # Build CLI args string for diagnostics
-    cli_args = " ".join(sys.argv[1:])
-
-    # Check for mutually exclusive flags
-    operation_flags = [resume, phase is not None, from_step, status]
-    if sum(bool(f) for f in operation_flags) > 1:
-        typer.echo(format_error(ErrorMessages.EXCLUSIVE_FLAGS), err=True)
-        raise typer.Exit(code=ExitCode.FILE_ERROR)
-
-    orchestrator = Orchestrator()
-
-    # Handle different operation modes
-    if status:
-        exit_code = orchestrator.show_status(Path(status))
-        raise typer.Exit(code=exit_code)
-
-    if resume:
-        exit_code = orchestrator.resume_conversion(
-            Path(resume),
-            auto_proceed=yes,
-        )
-        raise typer.Exit(code=exit_code)
-
-    if phase is not None:
-        if not pdf_path and not output:
-            typer.echo("ERROR: --phase requires a directory path", err=True)
-            raise typer.Exit(code=ExitCode.FILE_ERROR)
-        dir_path = Path(output or pdf_path)
-        exit_code = orchestrator.run_single_phase(
-            dir_path,
-            phase,
-            auto_proceed=yes,
-        )
-        raise typer.Exit(code=exit_code)
-
-    if from_step:
-        if not pdf_path and not output:
-            typer.echo("ERROR: --from-step requires a directory path", err=True)
-            raise typer.Exit(code=ExitCode.FILE_ERROR)
-        dir_path = Path(output or pdf_path)
-        exit_code = orchestrator.run_from_step(
-            dir_path,
-            from_step,
-            auto_proceed=yes,
-        )
-        raise typer.Exit(code=exit_code)
-
-    # New conversion - pdf_path is required
-    if not pdf_path:
-        typer.echo("ERROR: PDF path is required for new conversion", err=True)
-        typer.echo("Usage: gmkit pdf-convert <pdf-path> [OPTIONS]", err=True)
-        raise typer.Exit(code=ExitCode.FILE_ERROR)
-
-    exit_code = orchestrator.run_new_conversion(
-        Path(pdf_path),
-        output_dir=Path(output) if output else None,
+    run_pdf_convert_command(
+        pdf_path=pdf_path,
+        output=output,
+        resume=resume,
+        phase=phase,
+        from_step=from_step,
+        status=status,
         diagnostics=diagnostics,
-        auto_proceed=yes,
-        cli_args=cli_args,
+        yes=yes,
     )
-    raise typer.Exit(code=exit_code)
 
 
 def main() -> None:

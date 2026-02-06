@@ -14,6 +14,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from gm_kit.pdf_convert.active_conversion import update_active_conversion
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata, save_metadata
@@ -257,6 +258,8 @@ class Orchestrator:
         except PermissionError as e:
             self.error_console.print(str(e))
             return ExitCode.FILE_ERROR
+
+        update_active_conversion(output_dir, output_dir)
 
         # Check for existing state
         existing_state = load_state(output_dir)

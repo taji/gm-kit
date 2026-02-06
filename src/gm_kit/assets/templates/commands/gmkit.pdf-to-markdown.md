@@ -84,13 +84,14 @@ When this command is invoked:
 - Action: Check file permissions and try again
 
 **If conversion interrupted:**
-- Resume with: `gmkit pdf-convert --resume <output-dir>`
+- Resume with: `gmkit pdf-convert --resume <output-dir>` or `gmkit pdf-convert --resume`
+- When no directory is provided, gmkit uses `.gmkit/active-conversion.json`
 - The pipeline saves progress after each step
 
 **Retry guidance:**
 - If a phase fails, retry up to 3 times before escalating
-- Use `--phase N` to re-run a specific phase
-- Use `--from-step N.N` to resume from a specific step
+- Use `--phase N` to re-run a specific phase (uses active conversion if no path given)
+- Use `--from-step N.N` to resume from a specific step (uses active conversion if no path given)
 
 ## Options
 
@@ -99,8 +100,8 @@ When this command is invoked:
 | `--output <dir>` | Specify output directory |
 | `--diagnostics` | Create diagnostic bundle for debugging |
 | `--yes` | Non-interactive mode (skip prompts) |
-| `--resume <dir>` | Resume interrupted conversion |
-| `--status <dir>` | Check conversion progress |
+| `--resume` | Resume interrupted conversion (uses active conversion if no path given) |
+| `--status` | Check conversion progress (uses active conversion if no path given) |
 | `--phase N` | Re-run specific phase |
 | `--from-step N.N` | Resume from specific step |
 

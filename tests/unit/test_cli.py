@@ -350,6 +350,33 @@ def test_cli_pdf_convert__should_return_exit_code__when_error_simulated_with_res
     assert result.exit_code == ExitCode.STATE_ERROR
 
 
+def test_cli_pdf_convert__should_use_active_conversion__when_resume_without_path(
+    monkeypatch,
+    tmp_path,
+):
+    """--resume without a path uses active conversion state."""
+    from gm_kit.pdf_convert.active_conversion import update_active_conversion
+
+    runner = CliRunner()
+    output_dir = tmp_path / "output"
+    output_dir.mkdir()
+    update_active_conversion(tmp_path, output_dir)
+
+    class StubOrchestrator:
+        def resume_conversion(self, path, auto_proceed=False):
+            assert path == output_dir
+            return ExitCode.SUCCESS
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "gm_kit.pdf_convert.orchestrator.Orchestrator",
+        StubOrchestrator,
+    )
+
+    result = runner.invoke(cli.app, ["pdf-convert", "--resume"])
+    assert result.exit_code == ExitCode.SUCCESS
+
+
 def test_cli_pdf_convert__should_error__when_pdf_path_missing():
     """Missing pdf_path returns FILE_ERROR and usage."""
     runner = CliRunner()
