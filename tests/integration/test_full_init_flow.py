@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from gm_kit.init import run_init
 import gm_kit
+from gm_kit.init import run_init
 
 
 def _read(path: Path) -> str:

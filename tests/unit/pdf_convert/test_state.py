@@ -7,15 +7,15 @@ import pytest
 
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 from gm_kit.pdf_convert.state import (
+    SCHEMA_VERSION,
     ConversionState,
     ConversionStatus,
     ErrorInfo,
-    SCHEMA_VERSION,
-    save_state,
-    load_state,
-    validate_state_for_resume,
     _acquire_lock,
     _release_lock,
+    load_state,
+    save_state,
+    validate_state_for_resume,
 )
 
 

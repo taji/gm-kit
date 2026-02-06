@@ -7,8 +7,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from gm_kit.pdf_convert.errors import ErrorMessages, format_error
 
+from gm_kit.pdf_convert.errors import ErrorMessages, format_error
 
 # Test PDF path
 TEST_PDF_PATH = Path(__file__).parent.parent.parent.parent / (
@@ -94,6 +94,7 @@ class TestResumeInterruptedConversion:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=120,
         )
 
@@ -125,6 +126,7 @@ class TestResumeInterruptedConversion:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=120,
         )
 
@@ -151,6 +153,7 @@ class TestResumeErrorCases:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -171,6 +174,7 @@ class TestResumeErrorCases:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -204,6 +208,7 @@ class TestResumeErrorCases:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -241,6 +246,7 @@ class TestPhaseRerun:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=60,
         )
 
@@ -264,6 +270,7 @@ class TestPhaseRerun:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -301,6 +308,7 @@ class TestPhaseRerun:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=60,
         )
 
@@ -330,6 +338,7 @@ class TestFromStepResume:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=30,
         )
 
@@ -354,6 +363,7 @@ class TestFromStepResume:
             capture_output=True,
             text=True,
             env={**os.environ, "PYTHONPATH": src_path},
+            cwd=str(tmp_path),
             timeout=120,
         )
 

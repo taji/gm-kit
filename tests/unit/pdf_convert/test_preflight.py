@@ -6,21 +6,21 @@ from types import SimpleNamespace
 
 import pytest
 
+from gm_kit.pdf_convert.metadata import PDFMetadata
 from gm_kit.pdf_convert.preflight import (
+    Complexity,
     PreflightReport,
     TOCApproach,
-    Complexity,
-    _format_file_size,
     _calculate_font_complexity,
     _calculate_overall_complexity,
     _determine_toc_approach,
+    _format_file_size,
     analyze_pdf,
     check_text_extractability,
     display_preflight_report,
     prompt_user_confirmation,
     run_preflight,
 )
-from gm_kit.pdf_convert.metadata import PDFMetadata
 
 
 def _build_metadata(**overrides):

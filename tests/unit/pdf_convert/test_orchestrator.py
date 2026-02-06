@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from rich.console import Console
 
+from gm_kit.pdf_convert.errors import ExitCode
 from gm_kit.pdf_convert.metadata import PDFMetadata
 from gm_kit.pdf_convert.orchestrator import (
     Orchestrator,
@@ -14,14 +15,13 @@ from gm_kit.pdf_convert.orchestrator import (
     generate_copyright_notice,
     insert_copyright_notice,
 )
-from gm_kit.pdf_convert.preflight import PreflightReport, TOCApproach, Complexity
-from gm_kit.pdf_convert.state import ConversionState, ConversionStatus, save_state, load_state
-from gm_kit.pdf_convert.errors import ExitCode
 from gm_kit.pdf_convert.phases.base import PhaseStatus
 from gm_kit.pdf_convert.phases.stubs import (
     MockPhaseConfig,
     MockPhaseRegistry,
 )
+from gm_kit.pdf_convert.preflight import Complexity, PreflightReport, TOCApproach
+from gm_kit.pdf_convert.state import ConversionState, ConversionStatus, load_state, save_state
 
 
 class TestResumeLogic:
@@ -63,7 +63,7 @@ class TestResumeLogic:
         orchestrator = Orchestrator(phases=mock_phases)
 
         # Resume conversion
-        exit_code = orchestrator.resume_conversion(tmp_path, auto_proceed=True)
+        orchestrator.resume_conversion(tmp_path, auto_proceed=True)
 
         # Should only execute phases 3-10 (not 0-2)
         assert 0 not in executed_phases

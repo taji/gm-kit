@@ -2,8 +2,6 @@
 
 import zipfile
 
-import pytest
-
 from gm_kit.pdf_convert.orchestrator import create_diagnostic_bundle, sanitize_filename
 from gm_kit.pdf_convert.state import ConversionState
 

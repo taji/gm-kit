@@ -17,7 +17,7 @@ format-imports:
 
 # Lint code with ruff
 lint:
-    uv run --python "3.13.7" --extra dev -- ruff check src
+    uv run --python "3.13.7" --extra dev -- ruff check src tests
 
 # Type check with mypy
 typecheck:
