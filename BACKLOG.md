@@ -388,10 +388,27 @@ Requirements:
 - Font signatures must include family + size + weight + style
 - Test coverage for same-family-different-style headings (e.g., H1 vs H2 using same family with different weight/style)
 - Regression testing: Any anomalies discovered during integration testing that require code changes to a step must be accompanied by new unit tests covering the specific anomaly
+- Replace E4-07e stubs with real implementations (currently `src/gm_kit/pdf_convert/phases/stubs.py` + `get_mock_phases()` in `src/gm_kit/pdf_convert/orchestrator.py`)
+- Preserve existing orchestration surface: `gmkit pdf-convert` CLI + orchestrator/state/preflight wiring already exist; E4-07a fills in real phase logic
+- Update font signature schema wherever it is persisted or exchanged (metadata extraction + font mapping inputs)
 
 Phases covered: 1, 2, most of 3-8, scaffolding for 9-10
 
-Success looks like: A tested Python package that executes all Code-category steps reliably and produces intermediate outputs for each phase.
+Success looks like: A tested Python package that executes all Code-category steps reliably, produces Phase 8 markdown (hierarchy applied) as the primary deliverable, includes integration tests validating intermediate phase outputs, and provides stub integration points for Agent/User steps.
+
+### E4-07a-i. Diagnostic Log File **[FEATURE]**
+
+Feature description:
+
+Add a pipeline log file that is captured during conversion and included in the diagnostic bundle when `--diagnostics` is enabled.
+
+Requirements:
+- Write a single log file per conversion (location under the conversion output directory)
+- Include the log file in `diagnostic-bundle.zip`
+- Log should capture phase start/end, warnings, and errors
+- Logging must be deterministic for tests (no timestamps required in assertions)
+
+Success looks like: A log file is produced for conversions and included in the diagnostics bundle.
 
 ### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE]**
 

@@ -270,6 +270,8 @@ Completion requirements vary by task type:
 ## Active Technologies
 - Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit (001-ci-walking-skeleton)
 - N/A (CI configuration only) (001-ci-walking-skeleton)
+- Python 3.13.7 + typer, rich, PyMuPDF (fitz), pymarkdownlnt (006-code-pdf-pipeline)
+- Files on local workspace (.state.json, per-phase artifacts, manifests) (006-code-pdf-pipeline)
 
 ## Recent Changes
 - 001-ci-walking-skeleton: Added Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit
