@@ -214,6 +214,13 @@ class ErrorMessages:
         "Use only one operation mode",
     )
 
+    # Active conversion missing
+    ACTIVE_CONVERSION_MISSING = (
+        "ERROR",
+        "No active conversion found",
+        "Use: gmkit pdf-convert <pdf-path> to start or pass a directory path",
+    )
+
 
 def format_error(
     error: tuple,

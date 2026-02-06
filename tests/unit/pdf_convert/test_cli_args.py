@@ -25,6 +25,7 @@ class TestFlagCombinations:
     """Tests for flag combinations."""
 
     def test_pdf_convert_cli__should_return_success__when_output_flag_provided(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """Can specify both pdf_path and --output."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -42,6 +43,7 @@ class TestFlagCombinations:
         assert result.exit_code == 0
 
     def test_pdf_convert_cli__should_return_success__when_yes_flag_provided(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """Can specify pdf_path and --yes."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -56,6 +58,7 @@ class TestFlagCombinations:
         assert result.exit_code == 0
 
     def test_pdf_convert_cli__should_return_success__when_diagnostics_flag_provided(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """Can specify pdf_path and --diagnostics."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -70,6 +73,7 @@ class TestFlagCombinations:
         assert result.exit_code == 0
 
     def test_pdf_convert_cli__should_return_success__when_compatible_flags_combined(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """Can use --output, --yes, and --diagnostics together."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -90,6 +94,7 @@ class TestMutuallyExclusiveFlags:
     """Tests for mutually exclusive flag combinations."""
 
     def test_pdf_convert_cli__should_reject__when_resume_and_phase_combined(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--resume and --phase cannot be used together."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -102,6 +107,7 @@ class TestMutuallyExclusiveFlags:
         assert expected in (result.output or "")
 
     def test_pdf_convert_cli__should_reject__when_resume_and_from_step_combined(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--resume and --from-step cannot be used together."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -113,12 +119,12 @@ class TestMutuallyExclusiveFlags:
         assert result.exit_code != 0
         assert expected in (result.output or "")
 
-    def test_pdf_convert_cli__should_reject__when_resume_and_status_combined(self, tmp_path):
+    def test_pdf_convert_cli__should_reject__when_resume_and_status_combined(self):
         """--resume and --status cannot be used together."""
         result = runner.invoke(app, [
             "pdf-convert",
-            "--resume", str(tmp_path),
-            "--status", str(tmp_path),
+            "--resume",
+            "--status",
         ])
         expected = format_error(ErrorMessages.EXCLUSIVE_FLAGS)
         # Expect: "ERROR: Cannot combine --resume, --phase, --from-step, or --status\n  Use only one operation mode"
@@ -126,6 +132,7 @@ class TestMutuallyExclusiveFlags:
         assert expected in (result.output or "")
 
     def test_pdf_convert_cli__should_reject__when_phase_and_from_step_combined(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase and --from-step cannot be used together."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -138,6 +145,7 @@ class TestMutuallyExclusiveFlags:
         assert expected in (result.output or "")
 
     def test_pdf_convert_cli__should_reject__when_phase_and_status_combined(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase and --status cannot be used together."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -154,6 +162,7 @@ class TestValidPhaseValues:
     """Tests for valid --phase values (T044)."""
 
     def test_phase_flag__should_return_success__when_zero(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase accepts 0 (pre-flight phase)."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -169,6 +178,7 @@ class TestValidPhaseValues:
         assert result.exit_code == 0
 
     def test_phase_flag__should_return_success__when_ten(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase accepts 10 (max phase)."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -184,6 +194,7 @@ class TestValidPhaseValues:
         assert result.exit_code == 0
 
     def test_phase_flag__should_return_success__when_five(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase accepts middle values like 5."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -203,6 +214,7 @@ class TestInvalidPhaseValues:
     """Tests for invalid --phase values."""
 
     def test_phase_flag__should_reject__when_negative(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase rejects negative numbers."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -215,6 +227,7 @@ class TestInvalidPhaseValues:
         assert expected in (result.output or "")
 
     def test_phase_flag__should_reject__when_above_ten(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase rejects values > 10."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -227,6 +240,7 @@ class TestInvalidPhaseValues:
         assert expected in (result.output or "")
 
     def test_phase_flag__should_reject__when_non_integer(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--phase rejects non-integer values."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -244,6 +258,7 @@ class TestValidFromStepValues:
     """Tests for valid --from-step values (T045)."""
 
     def test_from_step_flag__should_return_success__when_valid_format(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--from-step accepts valid N.N format."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -259,6 +274,7 @@ class TestValidFromStepValues:
         assert result.exit_code == 0
 
     def test_from_step_flag__should_return_success__when_phase_zero_step(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--from-step accepts 0.1 format."""
         with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
             mock_orch = MagicMock()
@@ -278,6 +294,7 @@ class TestInvalidFromStepValues:
     """Tests for invalid --from-step values."""
 
     def test_from_step_flag__should_reject__when_single_number(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--from-step rejects single number format."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -290,6 +307,7 @@ class TestInvalidFromStepValues:
         assert expected in (result.output or "")
 
     def test_from_step_flag__should_reject__when_triple_format(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--from-step rejects triple format like 5.3.1."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -302,6 +320,7 @@ class TestInvalidFromStepValues:
         assert expected in (result.output or "")
 
     def test_from_step_flag__should_reject__when_text_input(self, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
         """--from-step rejects text input."""
         result = runner.invoke(app, [
             "pdf-convert",
@@ -317,14 +336,17 @@ class TestInvalidFromStepValues:
 class TestPhaseRequiresDirectory:
     """Tests for --phase requiring directory path."""
 
-    def test_phase_flag__should_fail__when_no_path_provided(self):
-        """--phase without any path fails."""
+    def test_phase_flag__should_fail__when_no_path_provided(self, monkeypatch, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
+        """--phase without any path fails when no active conversion exists."""
+        # Force a clean workspace with no .gmkit/active-conversion.json.
+        monkeypatch.chdir(tmp_path)
         result = runner.invoke(app, [
             "pdf-convert",
             "--phase", "5",
         ])
-        expected = "ERROR: --phase requires a directory path"
-        # Expect: "ERROR: --phase requires a directory path"
+        expected = format_error(ErrorMessages.ACTIVE_CONVERSION_MISSING)
+        # Expect: "ERROR: No active conversion found\n  Use: gmkit pdf-convert <pdf-path> to start or pass a directory path"
         assert result.exit_code != 0
         assert expected in (result.output or "")
 
@@ -332,13 +354,16 @@ class TestPhaseRequiresDirectory:
 class TestFromStepRequiresDirectory:
     """Tests for --from-step requiring directory path."""
 
-    def test_from_step_flag__should_fail__when_no_path_provided(self):
-        """--from-step without any path fails."""
+    def test_from_step_flag__should_fail__when_no_path_provided(self, monkeypatch, tmp_path):
+        # tmp_path is a pytest fixture providing an isolated temp directory.
+        """--from-step without any path fails when no active conversion exists."""
+        # Force a clean workspace with no .gmkit/active-conversion.json.
+        monkeypatch.chdir(tmp_path)
         result = runner.invoke(app, [
             "pdf-convert",
             "--from-step", "5.3",
         ])
-        expected = "ERROR: --from-step requires a directory path"
-        # Expect: "ERROR: --from-step requires a directory path"
+        expected = format_error(ErrorMessages.ACTIVE_CONVERSION_MISSING)
+        # Expect: "ERROR: No active conversion found\n  Use: gmkit pdf-convert <pdf-path> to start or pass a directory path"
         assert result.exit_code != 0
         assert expected in (result.output or "")
