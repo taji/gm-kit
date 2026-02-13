@@ -6,10 +6,12 @@ along with PhaseResult and StepResult for tracking execution results.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from gm_kit.pdf_convert.constants import PHASE_COUNT, PHASE_MAX, PHASE_MIN, PHASE_NAMES
@@ -265,6 +267,63 @@ class Phase(ABC):
             output_file=output_file,
             message=message,
         )
+
+    def _log_phase_start(self, output_dir: Path) -> None:
+        """Log phase header with ASCII box format.
+
+        Writes a formatted phase header to the conversion.log file
+        using UTF-8 encoding.
+
+        Args:
+            output_dir: Directory containing conversion.log
+        """
+        log_path = output_dir / "conversion.log"
+        timestamp = datetime.now().isoformat()
+
+        header = f"""─────────────────────────────────────────────────────────
+  Phase {self.phase_num}: {self.name}
+  Started: {timestamp}
+─────────────────────────────────────────────────────────
+"""
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(header + "\n")
+        except OSError as e:
+            logger = logging.getLogger("gm_kit.pdf_convert")
+            logger.warning(f"Could not write phase header to log: {e}")
+
+    def _log_step(self, step: StepResult, output_dir: Path) -> None:
+        """Log step completion with visual indicator.
+
+        Writes a formatted step entry to the conversion.log file
+        using UTF-8 encoding with appropriate visual indicator.
+
+        Args:
+            step: The step result to log
+            output_dir: Directory containing conversion.log
+        """
+        log_path = output_dir / "conversion.log"
+
+        # Visual indicators for different statuses
+        indicators = {
+            PhaseStatus.SUCCESS: "✓",
+            PhaseStatus.WARNING: "⚠",
+            PhaseStatus.ERROR: "✗",
+            PhaseStatus.SKIPPED: "⏸",
+        }
+        symbol = indicators.get(step.status, "▶")
+
+        entry = f"""  {symbol} Step {step.step_id}: {step.description}
+    Status: {step.status.value.upper()}
+    Message: {step.message or "N/A"}
+    Duration: {step.duration_ms}ms
+"""
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(entry + "\n")
+        except OSError as e:
+            logger = logging.getLogger("gm_kit.pdf_convert")
+            logger.warning(f"Could not write step entry to log: {e}")
 
 
 class PhaseRegistry:

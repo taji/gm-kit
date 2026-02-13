@@ -17,6 +17,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from gm_kit.pdf_convert.active_conversion import update_active_conversion
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
+from gm_kit.pdf_convert.logging_config import reset_output_streams, setup_conversion_logging
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata, save_metadata
 from gm_kit.pdf_convert.phases.base import Phase, get_phase_registry
 from gm_kit.pdf_convert.phases.stubs import get_mock_phases
@@ -119,6 +120,7 @@ def create_diagnostic_bundle(
         "toc-extracted.txt",
         "images/image-manifest.json",
         "conversion-report.md",
+        "conversion.log",
         f"{pdf_name}-phase4.md",
         f"{pdf_name}-phase5.md",
         f"{pdf_name}-phase6.md",
@@ -275,6 +277,9 @@ class Orchestrator:
             return ExitCode.FILE_ERROR
 
         update_active_conversion(output_dir, output_dir)
+
+        # Initialize conversion logging
+        setup_conversion_logging(output_dir)
 
         # Check for existing state
         existing_state = load_state(output_dir)
@@ -686,6 +691,9 @@ class Orchestrator:
         self.console.print()
         self.console.print("[green]Conversion completed successfully![/green]")
 
+        # Reset stdout/stderr to original streams
+        reset_output_streams()
+
         return ExitCode.SUCCESS
 
     def _run_single_phase(
@@ -711,6 +719,11 @@ class Orchestrator:
         state.set_current_phase(phase_num)
         save_state(state)
 
+        # Log phase start
+        output_dir = Path(state.output_dir)
+        if hasattr(phase, "_log_phase_start"):
+            phase._log_phase_start(output_dir)
+
         # Execute phase
         try:
             result = phase.execute(state)
@@ -728,6 +741,11 @@ class Orchestrator:
             save_state(state)
             self.error_console.print(f"ERROR: Phase {phase_num} failed: {e}")
             return ExitCode.PDF_ERROR
+
+        # Log each step
+        if hasattr(phase, "_log_step"):
+            for step in result.steps:
+                phase._log_step(step, output_dir)
 
         # Handle result
         if result.is_error:
