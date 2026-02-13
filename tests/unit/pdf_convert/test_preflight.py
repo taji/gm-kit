@@ -478,12 +478,35 @@ class TestPromptUserConfirmation:
         console = Console(record=True)
         assert prompt_user_confirmation(console=console) is True
 
+    def test_prompt_user_confirmation__should_handle_external_callout_path__when_outside_output_parent(
+        self,
+        monkeypatch,
+        tmp_path,
+    ):
+        """External callout config path should not raise during display rendering."""
+        monkeypatch.setattr("builtins.input", lambda _prompt: "A")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        external_path = Path("/tmp/external-callouts.json")
+
+        from rich.console import Console
+
+        console = Console(record=True)
+        assert (
+            prompt_user_confirmation(
+                console=console,
+                gm_callout_config_file_path=str(external_path),
+                output_dir=output_dir,
+            )
+            is True
+        )
+
 
 class TestRunPreflight:
     """Tests for run_preflight."""
 
-    def test_run_preflight__should_return_none__when_scanned_pdf_detected(self, monkeypatch):
-        """Scanned PDFs return None with warning output."""
+    def test_run_preflight__should_return_report__when_text_not_extractable(self, monkeypatch):
+        """run_preflight returns report even when text is not extractable."""
         report = PreflightReport(
             pdf_name="test.pdf",
             file_size_display="1.0 MB",
@@ -499,7 +522,13 @@ class TestRunPreflight:
             "gm_kit.pdf_convert.preflight.display_preflight_report",
             lambda *_args, **_kwargs: None,
         )
-        assert run_preflight(Path("test.pdf")) is None
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.preflight.prompt_user_confirmation",
+            lambda *_args, **_kwargs: True,
+        )
+        result = run_preflight(Path("test.pdf"))
+        assert result is not None
+        assert result.text_extractable is False
 
     def test_run_preflight__should_return_report__when_user_proceeds(self, monkeypatch):
         """Returns report when user confirms."""

@@ -31,6 +31,14 @@ test-unit:
 test-integration:
     uv run --python "3.13.7" --extra dev -- pytest tests/integration
 
+# Download required PDF fixtures that are not committed (licensing constraints).
+download-test-fixtures:
+    bash tests/fixtures/pdf_convert/download_b2_fixture.sh
+
+# Download optional/private PDF fixtures for local-only verification.
+download-optional-test-fixtures:
+    bash tests/fixtures/pdf_convert/download_cofc_fixture.sh
+
 # Run parity tests only
 test-parity:
     uv run --python "3.13.7" --extra dev -- pytest tests/integration/test_script_parity.py
@@ -54,6 +62,7 @@ audit:
 # Run the same steps as the GitHub Actions CI workflow.
 all_ci_actions:
     uv sync --extra dev
+    just download-test-fixtures
     just lint
     just typecheck
     just test-unit

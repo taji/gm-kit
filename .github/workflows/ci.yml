@@ -28,6 +28,10 @@ jobs:
           just --version
         working-directory: ${{ github.workspace }}
 
+      - name: Download required test fixtures
+        run: just download-test-fixtures
+        working-directory: ${{ github.workspace }}
+
       - name: Install PowerShell (pwsh)
         run: |
           sudo apt-get update

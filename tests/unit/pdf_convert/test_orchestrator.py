@@ -16,10 +16,7 @@ from gm_kit.pdf_convert.orchestrator import (
     insert_copyright_notice,
 )
 from gm_kit.pdf_convert.phases.base import PhaseStatus
-from gm_kit.pdf_convert.phases.stubs import (
-    MockPhaseConfig,
-    MockPhaseRegistry,
-)
+from gm_kit.pdf_convert.phases.stubs import MockPhaseConfig, MockPhaseRegistry
 from gm_kit.pdf_convert.preflight import Complexity, PreflightReport, TOCApproach
 from gm_kit.pdf_convert.state import ConversionState, ConversionStatus, load_state, save_state
 
@@ -53,6 +50,7 @@ class TestResumeLogic:
             def execute(self, state):
                 executed_phases.append(self.phase_num)
                 from gm_kit.pdf_convert.phases.base import PhaseResult, PhaseStatus
+
                 return PhaseResult(
                     phase_num=self.phase_num,
                     name=f"Phase {self.phase_num}",
@@ -96,6 +94,7 @@ class TestResumeLogic:
             def execute(self, state):
                 executed_phases.append(self.phase_num)
                 from gm_kit.pdf_convert.phases.base import PhaseResult, PhaseStatus
+
                 return PhaseResult(
                     phase_num=self.phase_num,
                     name=f"Phase {self.phase_num}",
@@ -153,6 +152,7 @@ class TestResumeLogic:
 
         # Use mock phases to avoid actual execution
         from gm_kit.pdf_convert.phases.stubs import get_mock_phases
+
         orchestrator = Orchestrator(phases=get_mock_phases())
 
         orchestrator.resume_conversion(tmp_path, auto_proceed=True)
@@ -261,6 +261,7 @@ class TestReRunSinglePhase:
         save_state(state)
 
         from gm_kit.pdf_convert.phases.stubs import get_mock_phases
+
         orchestrator = Orchestrator(phases=get_mock_phases())
 
         # Phase 0 should work
@@ -275,6 +276,44 @@ class TestReRunSinglePhase:
 
         exit_code = orchestrator.run_single_phase(tmp_path, phase_num=0)
         assert exit_code == ExitCode.STATE_ERROR
+
+    def test_rerun_phase__should_execute_only_requested_phase__when_phase_valid(self, tmp_path):
+        """Re-running a single phase executes only that phase."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            current_phase=5,
+            current_step="5.1",
+            completed_phases=[0, 1, 2, 3, 4],
+        )
+        save_state(state)
+
+        executed_phases: list[int] = []
+
+        class TrackingPhase:
+            def __init__(self, phase_num: int) -> None:
+                self.phase_num = phase_num
+
+            def execute(self, state: ConversionState):
+                executed_phases.append(self.phase_num)
+                from gm_kit.pdf_convert.phases.base import PhaseResult, PhaseStatus
+
+                return PhaseResult(
+                    phase_num=self.phase_num,
+                    name=f"Phase {self.phase_num}",
+                    status=PhaseStatus.SUCCESS,
+                )
+
+        mock_phases = [TrackingPhase(i) for i in range(11)]
+        orchestrator = Orchestrator(phases=mock_phases)
+
+        exit_code = orchestrator.run_single_phase(tmp_path, phase_num=5)
+
+        assert exit_code == ExitCode.SUCCESS
+        assert executed_phases == [5]
 
 
 class TestFromStepResume:
@@ -701,7 +740,9 @@ class TestPhaseFailure:
         assert saved_state.error is not None
         assert "font extraction" in saved_state.error.message.lower()
 
-    def test_phase_failure__should_record_suggestion__when_phase_returns_error(self, tmp_path, capsys):
+    def test_phase_failure__should_record_suggestion__when_phase_returns_error(
+        self, tmp_path, capsys
+    ):
         """Failed phase records a re-run suggestion in state."""
         pdf_path = tmp_path / "test.pdf"
         pdf_path.write_bytes(b"%PDF-1.4 test content")
@@ -723,7 +764,9 @@ class TestPhaseFailure:
         assert saved_state.error.suggestion is not None
         assert "--phase 2" in saved_state.error.suggestion
 
-    def test_phase_failure__should_skip_later_phases__when_phase_returns_error(self, tmp_path, capsys):
+    def test_phase_failure__should_skip_later_phases__when_phase_returns_error(
+        self, tmp_path, capsys
+    ):
         """Phases after the failed phase are not executed."""
         pdf_path = tmp_path / "test.pdf"
         pdf_path.write_bytes(b"%PDF-1.4 test content")
@@ -761,11 +804,14 @@ class TestPhaseFailure:
         save_state(state)
 
         registry = MockPhaseRegistry()
-        registry.configure(5, MockPhaseConfig(
-            status=PhaseStatus.ERROR,
-            error_message="Bad character at offset 4092",
-            fail_at_step=2,
-        ))
+        registry.configure(
+            5,
+            MockPhaseConfig(
+                status=PhaseStatus.ERROR,
+                error_message="Bad character at offset 4092",
+                fail_at_step=2,
+            ),
+        )
         orchestrator = self._make_orchestrator_with_phases(registry)
 
         exit_code = orchestrator._run_phases(state, start_phase=5)
@@ -775,7 +821,9 @@ class TestPhaseFailure:
         assert saved_state.status == ConversionStatus.FAILED
         assert "4092" in saved_state.error.message
 
-    def test_phase_failure__should_continue_pipeline__when_phase_returns_warning(self, tmp_path, capsys):
+    def test_phase_failure__should_continue_pipeline__when_phase_returns_warning(
+        self, tmp_path, capsys
+    ):
         """Pipeline continues when a phase returns WARNING status."""
         pdf_path = tmp_path / "test.pdf"
         pdf_path.write_bytes(b"%PDF-1.4 test content")
@@ -801,7 +849,9 @@ class TestPhaseFailure:
         for i in range(1, 11):
             assert i in saved_state.completed_phases
 
-    def test_phase_failure__should_display_warning__when_phase_returns_warning(self, tmp_path, capsys):
+    def test_phase_failure__should_display_warning__when_phase_returns_warning(
+        self, tmp_path, capsys
+    ):
         """Warning message from a phase is displayed to user."""
         pdf_path = tmp_path / "test.pdf"
         pdf_path.write_bytes(b"%PDF-1.4 test content")
@@ -847,7 +897,9 @@ class TestPhaseFailure:
             called["bundle"] = True
             return tmp_path / "diagnostic-bundle.zip"
 
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.create_diagnostic_bundle", _create_bundle)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_diagnostic_bundle", _create_bundle
+        )
 
         exit_code = orchestrator._run_phases(state, start_phase=1)
 
@@ -983,10 +1035,11 @@ class TestRunNewConversion:
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: state)
 
         orchestrator = Orchestrator()
-        called = {"delegated": False}
+        called = {"delegated": False, "args": ()}
 
         def _handle_existing_state(*_a, **_k):
             called["delegated"] = True
+            called["args"] = _a
             return ExitCode.SUCCESS
 
         monkeypatch.setattr(
@@ -995,9 +1048,15 @@ class TestRunNewConversion:
             _handle_existing_state,
         )
 
-        exit_code = orchestrator.run_new_conversion(pdf_path)
+        exit_code = orchestrator.run_new_conversion(
+            pdf_path,
+            gm_keyword=["Keeper", "Referee"],
+            gm_callout_config_file="custom-callouts.json",
+        )
         assert exit_code == ExitCode.SUCCESS
         assert called["delegated"] is True
+        assert called["args"][6] == ["Keeper", "Referee"]
+        assert called["args"][7] == "custom-callouts.json"
 
     def test_handle_existing_state__should_resume__when_auto_proceed(self, tmp_path, monkeypatch):
         """Auto-proceed defaults to resume."""
@@ -1039,10 +1098,11 @@ class TestRunNewConversion:
         state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
 
         orchestrator = Orchestrator()
-        called = {"restarted": False}
+        called = {"restarted": False, "args": ()}
 
         def _run_new(*_args, **_kwargs):
             called["restarted"] = True
+            called["args"] = _args
             return ExitCode.SUCCESS
 
         monkeypatch.setattr("builtins.input", lambda *_a, **_k: "O")
@@ -1055,10 +1115,14 @@ class TestRunNewConversion:
             diagnostics=False,
             auto_proceed=False,
             cli_args="",
+            gm_keyword=["Keeper"],
+            gm_callout_config_file="custom-callouts.json",
         )
         assert exit_code == ExitCode.SUCCESS
         assert called["restarted"] is True
         assert state_file.exists() is False
+        assert called["args"][5] == ["Keeper"]
+        assert called["args"][6] == "custom-callouts.json"
 
     def test_handle_existing_state__should_abort__when_input_fails(self, tmp_path, monkeypatch):
         """EOF/interrupt defaults to abort."""
@@ -1215,12 +1279,12 @@ class TestRunNewConversion:
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.analyze_pdf", lambda *_a, **_k: report)
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.display_preflight_report",
-            lambda *_a, **_k: None,
+            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.run_preflight", lambda *_a, **_k: report
         )
 
         orchestrator = Orchestrator()
@@ -1238,32 +1302,19 @@ class TestRunNewConversion:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
         metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
-        report = PreflightReport(
-            pdf_name=pdf_path.name,
-            file_size_display="1.0 KB",
-            page_count=1,
-            image_count=0,
-            text_extractable=True,
-            toc_approach=TOCApproach.NONE,
-            font_complexity=Complexity.LOW,
-            overall_complexity=Complexity.LOW,
-        )
 
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.create_output_directory",
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.analyze_pdf", lambda *_a, **_k: report)
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.display_preflight_report",
-            lambda *_a, **_k: None,
+            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
         )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.prompt_user_confirmation",
-            lambda *_a, **_k: False,
+            "gm_kit.pdf_convert.orchestrator.run_preflight",
+            lambda *_a, **_k: None,
         )
 
         orchestrator = Orchestrator()
@@ -1297,16 +1348,13 @@ class TestRunNewConversion:
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.analyze_pdf", lambda *_a, **_k: report)
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.display_preflight_report",
-            lambda *_a, **_k: None,
+            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
         )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.prompt_user_confirmation",
-            lambda *_a, **_k: True,
+            "gm_kit.pdf_convert.orchestrator.run_preflight",
+            lambda *_a, **_k: report,
         )
 
         orchestrator = Orchestrator()
@@ -1321,6 +1369,56 @@ class TestRunNewConversion:
         exit_code = orchestrator.run_new_conversion(pdf_path)
         assert exit_code == ExitCode.SUCCESS
         assert called["phases"] is True
+
+    def test_run_new_conversion__should_pass_callout_config_to_preflight__when_provided(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Preflight receives user-supplied callout config path."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
+        report = PreflightReport(
+            pdf_name=pdf_path.name,
+            file_size_display="1.0 KB",
+            page_count=1,
+            image_count=0,
+            text_extractable=True,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
+        callout_path = tmp_path / "custom-callouts.json"
+        callout_path.write_text("[]", encoding="utf-8")
+        captured = {"path": None}
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.create_output_directory",
+            lambda *_a, **_k: output_dir,
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
+        )
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+
+        def _run_preflight(_pdf_path, _console, _auto_proceed, _output_dir, cfg_path):
+            captured["path"] = cfg_path
+            return report
+
+        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.run_preflight", _run_preflight)
+
+        orchestrator = Orchestrator()
+        monkeypatch.setattr(orchestrator, "_run_phases", lambda *_a, **_k: ExitCode.SUCCESS)
+
+        exit_code = orchestrator.run_new_conversion(
+            pdf_path, gm_callout_config_file=str(callout_path)
+        )
+        assert exit_code == ExitCode.SUCCESS
+        assert captured["path"] == str(callout_path)
 
 
 class TestRunSinglePhase:

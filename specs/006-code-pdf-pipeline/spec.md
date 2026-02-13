@@ -60,10 +60,31 @@ As a QA reviewer, I want heading inference to use a full font signature (family 
 | PDFs with missing or incomplete TOC entries | WARNING: continue with font-based inference only | Integration (Homebrewery no-TOC fixture) |
 | Corrupted or partially readable PDF files | ERROR: halt with diagnostic message | Unit test (mock) |
 | Missing phase input file (e.g., `--phase 5` without Phase 4 output) | ERROR: "Phase input file not found - run previous phase first" | Unit test (mock missing file) |
+| PDF contains HTML tags or markdown-sensitive characters in body text | Phase 5 MUST wrap HTML tags and markdown special characters in backticks to prevent markdown rendering issues | Integration (Homebrewery fixture with HTML content) |
+| Callout config file is empty or contains `[]` | Pipeline proceeds with no callout detection from config; keyword-based detection still applies | Unit test |
+| Callout config file has invalid JSON | WARNING: log parse error and continue without config-based callout detection | Unit test |
+| Callout config `start_text`/`end_text` not found in PDF content | No callout regions matched; no error raised | Integration test |
+| PDF contains tables | Table cell data extracted as flat text lines with no structural information; no table reconstruction attempted | Integration (Homebrewery fixture) |
+
+### Deferred: Table Detection and Reconstruction
+
+Table detection (step 7.7) and table conversion (step 8.7) are **deferred to E4-07b** (agent-driven pipeline). Investigation during E4-07a implementation confirmed that reconstructing table structure from PDF text extraction alone is not feasible without spatial analysis or multimodal OCR. PyMuPDF extracts table cells as individual text lines with no row/column information, producing a flat list of values.
+
+**Investigation findings:**
+- Table headers and data cells appear as a flat sequence with no structural cues
+- Reconstructing row/column relationships requires spatial coordinate analysis (cell bounding boxes) or visual/multimodal OCR
+- This is inherently a judgment task better suited to agent steps than deterministic code
+
+**E4-07a behavior:** Tables pass through the pipeline as flat text. No placeholder insertion or structural markers are added. Phase 8 outputs table content as plain paragraphs.
+
+**Future options (for E4-07b or later):**
+- Agent step 7.7: Detect table regions using spatial analysis or multimodal prompts
+- Agent step 8.7: Convert detected tables to markdown table syntax
+- Multimodal OCR: Use page images + AI vision to reconstruct table structure (see `specs/004-pdf-research/pdf-conversion-architecture.md` for architecture discussion)
 
 ### Terminology: Non-Fatal Anomalies
 
-**Non-fatal anomalies** are conditions that trigger a WARNING status (as defined in the architecture's Error Conditions table) rather than an ERROR. The pipeline continues execution and records the anomaly in phase results. Examples: missing TOC, pervasive two-column issues, lint violations exceeding threshold. See `specs/004-pdf-research/pdf-conversion-architecture.md` §Error Conditions for the complete list.
+**Non-fatal anomalies** are conditions that trigger a WARNING status (as defined in the architecture's Error Conditions table) rather than an ERROR. The pipeline continues execution and records the anomaly in phase results. Examples: missing TOC, lint violations exceeding threshold. See `specs/004-pdf-research/pdf-conversion-architecture.md` §Error Conditions for the complete list.
 
 ## Requirements *(mandatory)*
 
@@ -78,6 +99,8 @@ As a QA reviewer, I want heading inference to use a full font signature (family 
 - **FR-007**: System MUST replace the existing E4-07e stub phases with real implementations while preserving the current orchestration surface.
 - **FR-008**: System MUST include unit tests for individual modules and integration tests that validate intermediate phase outputs (phase4.md through phase8.md) for correctness and phase-to-phase compatibility, including same-family-different-style heading scenarios.
 - **FR-009**: System MUST add regression tests when integration anomalies require code changes.
+- **FR-010**: System MUST support a `callout_config.json` file that allows users to define custom callout boundaries (start/end text fragments) for GM callout detection. If no config file is provided via `--gm-callout-config-file`, the system creates an empty default in the output directory during pre-flight (Phase 0).
+- **FR-011**: System MUST use callout definitions from `callout_config.json` during Phase 7 (structural detection) to identify font signatures associated with callout regions, and apply blockquote formatting to those signatures during Phase 8 (heading insertion).
 
 ### Deliverable Scope
 
@@ -89,17 +112,54 @@ The following artifacts are produced during pipeline execution. Full details in 
 
 | Phase | Key Outputs | E4-07a Status |
 |-------|-------------|---------------|
-| 0 | `metadata.json`, pre-flight report (console) | Complete |
+| 0 | `metadata.json`, `callout_config.json` (default if not provided), pre-flight report (console) | Complete |
 | 1 | `images/` folder, `images/image-manifest.json` | Complete |
 | 2 | `preprocessed/<filename>-no-images.pdf` | Complete |
 | 3 | `toc-extracted.txt`, `font-family-mapping.json` | Complete (agent step 3.2 stubbed) |
 | 4 | `<filename>-phase4.md` | Complete (agent step 4.6 stubbed) |
 | 5 | `<filename>-phase5.md` | Complete |
 | 6 | `<filename>-phase6.md` | Complete (agent step 6.4 stubbed) |
-| 7 | Updated `font-family-mapping.json` | Complete (agent/user steps stubbed) |
+| 7 | Updated `font-family-mapping.json` (with callout labels from config) | Complete (agent/user steps stubbed) |
 | 8 | `<filename>-phase8.md` | Complete (agent steps stubbed) |
 | 9 | Validated markdown | Partial (agent/user steps stubbed) |
 | 10 | `conversion-report.md`, `diagnostic-bundle.zip` | Partial (agent steps stubbed) |
+
+**Enhanced Conversion Report (Phase 10)**:
+The conversion report includes detailed tracking and performance metrics:
+
+- **Phase Details Table**: Lists each completed phase with three columns:
+  - **Phase**: Phase number and name
+  - **Changes Made**: Summary of transformations applied in that phase
+  - **What to Compare**: Guidance on what to look for when reviewing phase outputs against input documents
+
+- **Performance Section**: Timing metrics including:
+  - **Conversion Started**: ISO8601 timestamp when pipeline began
+  - **Conversion Completed**: ISO8601 timestamp when pipeline finished
+  - **Total Duration**: Elapsed time in HH:MM:SS format
+
+This allows operators to track how phase documents are changing from input to final output and monitor conversion performance.
+
+### Font Signature Marker Workflow
+
+The pipeline uses a marker-based approach to connect font analysis (Phase 3) with heading application (Phase 8):
+
+**Marker Format**: `«sigXXX:text»`
+- Example: `«sig001:The Homebrewery V3»`
+
+**Workflow**:
+1. **Phase 3** generates `font-family-mapping.json` with unique signature IDs (sig001, sig002, etc.) and heading labels (H1, H2, H3)
+2. **Phase 4** extracts text and wraps consecutive spans with the same font signature: `«sig001:The Homebrewery V3»`
+3. **Phase 5** performs character-level cleanup (icon font removal, footer stripping) while **preserving markers**
+4. **Phase 6** performs word/token-level cleanup (hyphenation fixes, bullet normalization) while **preserving markers**
+5. **Phase 7** loads `callout_config.json` and matches start/end text boundaries against extracted content. Font signatures whose content falls within a callout region are labeled (e.g., `callout_gm`, `callout_sidebar`) in `font-family-mapping.json`.
+6. **Phase 8** reads `*-phase6.md` (not `*-phase4.md`!), parses markers, looks up the signature ID in the JSON, and replaces with markdown: `# The Homebrewery V3` for headings, or `> text` for callout-labeled signatures. Multi-line callout blocks continue blockquote formatting across normal lines and empty lines. A callout block ends only when a heading is encountered, a different callout label begins, a non-callout marker line is encountered, a configured `end_text` marker is detected for that callout label, or EOF is reached.
+
+**Important**: Phase 8's input is `*-phase6.md`, not `*-phase4.md`. Phases 5 and 6 perform essential cleanup on the text while preserving the font signature markers. The marker-preserving cleanup ensures Phase 8 receives cleaned text without losing font identity information needed for heading/callout detection.
+
+**Collision Handling**:
+- Existing « and » characters in PDF text are escaped as `\«` and `\»` during Phase 4
+- Pattern matching in Phase 8 uses strict regex: `«(sig[a-z0-9]+):([^»]+)»`
+- Escaped characters are restored after marker processing
 
 **Full pipeline**: All outputs above, with Phase 8 markdown as the primary deliverable for E4-07a.
 
@@ -128,6 +188,7 @@ The plan MUST reference the following sections in `specs/004-pdf-research/pdf-co
 ### Key Entities *(include if feature involves data)*
 
 - **Font Signature**: A heading-identifying record containing font family, size, weight, and style.
+- **Callout Config**: A JSON file (`callout_config.json`) defining custom callout boundaries via start/end text fragments. Used during Phase 7 to identify callout regions and label matching font signatures.
 - **Phase Output**: Diagnostic artifact produced by a single pipeline phase.
 - **Conversion Report**: Summary of pipeline outcomes, anomalies, and completion status.
 - **Phase Result**: Structured status and metadata for a phase execution.
@@ -187,7 +248,7 @@ PDF fixtures for integration testing are located in `tests/fixtures/pdf_convert/
 - No extractable text (scanned PDF) → mock text extraction to return < 100 chars
 
 **Fixture gaps** (create if integration coverage needed):
-- Multi-column layout PDF → for two-column reading order tests
+- Complex layout PDF → for advanced spatial analysis tests (if needed in future)
 - Large PDF (50+ pages) → for chunking/performance tests
 
 ### Non-Functional Requirements

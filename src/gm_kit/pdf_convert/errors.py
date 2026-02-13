@@ -19,6 +19,7 @@ class ExitCode(IntEnum):
         STATE_ERROR: State/resume errors - corrupt state, missing phase input (4)
         DEPENDENCY_ERROR: Dependency errors - missing required modules (5)
     """
+
     SUCCESS = 0
     USER_ABORT = 1
     FILE_ERROR = 2
@@ -29,6 +30,7 @@ class ExitCode(IntEnum):
 
 # Error message templates per FR-029 through FR-041
 # Format: (prefix, message, suggestion)
+
 
 class ErrorMessages:
     """Error message constants per FR-029 through FR-041.
@@ -221,6 +223,16 @@ class ErrorMessages:
         "Use: gmkit pdf-convert <pdf-path> to start or pass a directory path",
     )
 
+    # Invalid --gm-callout-boundary arguments
+    INVALID_CALLOUT_BOUNDARY = (
+        "ERROR",
+        "The --gm-callout-boundary option requires an even number"
+        " of arguments (start and end text pairs)",
+        "Please provide start and end text for each callout boundary,"
+        " e.g., --gm-callout-boundary 'Start1' 'End1'"
+        " --gm-callout-boundary 'Start2' 'End2'",
+    )
+
 
 def format_error(
     error: tuple,
@@ -257,25 +269,65 @@ def get_exit_code_for_error(error: tuple) -> ExitCode:
     Returns:
         Appropriate ExitCode
     """
+    explicit_mappings = (
+        (
+            {
+                ErrorMessages.PHASE_INPUT_MISSING,
+                ErrorMessages.FONT_MAPPING_ERROR,
+                ErrorMessages.STATE_MISSING,
+                ErrorMessages.STATE_CORRUPT,
+                ErrorMessages.STATE_VERSION,
+                ErrorMessages.OUTPUT_MISSING,
+            },
+            ExitCode.STATE_ERROR,
+        ),
+        (
+            {
+                ErrorMessages.INVALID_PHASE,
+                ErrorMessages.INVALID_STEP,
+                ErrorMessages.EXCLUSIVE_FLAGS,
+                ErrorMessages.ACTIVE_CONVERSION_MISSING,
+                ErrorMessages.PDF_NOT_FOUND,
+                ErrorMessages.OUTPUT_DIR_ERROR,
+                ErrorMessages.PDF_PERMISSION,
+                ErrorMessages.LOCK_CONTENTION,
+                ErrorMessages.DISK_FULL,
+            },
+            ExitCode.FILE_ERROR,
+        ),
+        (
+            {
+                ErrorMessages.SCANNED_PDF,
+                ErrorMessages.TEXT_PDF_ERROR,
+                ErrorMessages.NO_TEXT,
+                ErrorMessages.PDF_ENCRYPTED,
+            },
+            ExitCode.PDF_ERROR,
+        ),
+    )
+    for known_errors, code in explicit_mappings:
+        if error in known_errors:
+            return code
+
+    if error == ErrorMessages.DEPENDENCY_MISSING:
+        return ExitCode.DEPENDENCY_ERROR
+
     prefix = error[0]
 
     if prefix == "ABORT":
         return ExitCode.USER_ABORT
 
-    # Determine based on message content
+    # Determine based on message content.
     message = error[1].lower()
-
-    if any(word in message for word in ["permission", "not found", "cannot open"]):
-        return ExitCode.FILE_ERROR
-
-    if any(word in message for word in ["pdf", "scanned", "extracted", "encrypted"]):
-        return ExitCode.PDF_ERROR
-
-    if any(word in message for word in ["state", "resume", "phase input", "output"]):
-        return ExitCode.STATE_ERROR
-
-    if "installation" in message or "module" in message:
-        return ExitCode.DEPENDENCY_ERROR
+    keyword_mappings = (
+        (("permission", "not found", "cannot open"), ExitCode.FILE_ERROR),
+        (("pdf", "scanned", "extracted", "encrypted"), ExitCode.PDF_ERROR),
+        (("state", "resume", "phase input", "output"), ExitCode.STATE_ERROR),
+        (("installation", "module"), ExitCode.DEPENDENCY_ERROR),
+    )
+    for keywords, code in keyword_mappings:
+        if any(word in message for word in keywords):
+            return code
 
     # Default to FILE_ERROR for unmatched errors
     return ExitCode.FILE_ERROR

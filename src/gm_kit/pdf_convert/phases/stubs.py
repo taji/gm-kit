@@ -30,6 +30,7 @@ class MockPhaseConfig:
         step_count: Number of steps to simulate
         fail_at_step: Step number to fail at (0 = don't fail)
     """
+
     status: PhaseStatus = PhaseStatus.SUCCESS
     delay_ms: int = 0
     error_message: str | None = None

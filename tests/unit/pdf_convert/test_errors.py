@@ -1,5 +1,7 @@
 """Unit tests for pdf_convert error helpers."""
 
+import pytest
+
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error, get_exit_code_for_error
 
 
@@ -53,3 +55,43 @@ def test_get_exit_code_for_error__should_return_state_error__when_state_keywords
     """State-related messages map to STATE_ERROR."""
     exit_code = get_exit_code_for_error(("ERROR", "State file missing", None))
     assert exit_code == ExitCode.STATE_ERROR
+
+
+@pytest.mark.parametrize(
+    ("error", "expected_exit", "expected_prefix"),
+    [
+        (ErrorMessages.PDF_NOT_FOUND, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.SCANNED_PDF, ExitCode.PDF_ERROR, "ERROR"),
+        (ErrorMessages.USER_CANCELLED, ExitCode.USER_ABORT, "ABORT"),
+        (ErrorMessages.OUTPUT_DIR_ERROR, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.TEXT_PDF_ERROR, ExitCode.PDF_ERROR, "ERROR"),
+        (ErrorMessages.NO_TOC, ExitCode.FILE_ERROR, "WARNING"),
+        (ErrorMessages.NO_TEXT, ExitCode.PDF_ERROR, "ERROR"),
+        (ErrorMessages.PHASE_INPUT_MISSING, ExitCode.STATE_ERROR, "ERROR"),
+        (ErrorMessages.FONT_MAPPING_ERROR, ExitCode.STATE_ERROR, "ERROR"),
+        (ErrorMessages.NO_HEADINGS, ExitCode.FILE_ERROR, "WARNING"),
+        (ErrorMessages.MANY_VIOLATIONS, ExitCode.FILE_ERROR, "WARNING"),
+        (ErrorMessages.BUNDLE_FAILED, ExitCode.FILE_ERROR, "WARNING"),
+        (ErrorMessages.PDF_PERMISSION, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.PDF_ENCRYPTED, ExitCode.PDF_ERROR, "ERROR"),
+        (ErrorMessages.STATE_MISSING, ExitCode.STATE_ERROR, "ERROR"),
+        (ErrorMessages.STATE_CORRUPT, ExitCode.STATE_ERROR, "ERROR"),
+        (ErrorMessages.STATE_VERSION, ExitCode.STATE_ERROR, "ERROR"),
+        (ErrorMessages.DISK_FULL, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.LOCK_CONTENTION, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.OUTPUT_MISSING, ExitCode.STATE_ERROR, "ERROR"),
+        (ErrorMessages.DEPENDENCY_MISSING, ExitCode.DEPENDENCY_ERROR, "ERROR"),
+        (ErrorMessages.INVALID_PHASE, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.INVALID_STEP, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.EXCLUSIVE_FLAGS, ExitCode.FILE_ERROR, "ERROR"),
+        (ErrorMessages.ACTIVE_CONVERSION_MISSING, ExitCode.FILE_ERROR, "ERROR"),
+    ],
+)
+def test_get_exit_code_for_error__should_map_architecture_conditions(
+    error,
+    expected_exit,
+    expected_prefix,
+):
+    """Error messages map to expected exit codes and prefixes."""
+    assert error[0] == expected_prefix
+    assert get_exit_code_for_error(error) == expected_exit

@@ -14,11 +14,22 @@ import pytest
 TEST_PDF_PATH = Path(__file__).parent.parent.parent.parent / (
     "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf"
 )
+B2_PDF_PATH = Path(__file__).parent.parent.parent.parent / (
+    "tests/fixtures/pdf_convert/Dungeon Module B2, The Keep on the Borderlands.pdf"
+)
+COFC_PDF_PATH = Path(__file__).parent.parent.parent.parent / (
+    "tests/fixtures/pdf_convert/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf"
+)
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[mK]")
 
 
 def _strip_ansi(text: str) -> str:
     return ANSI_ESCAPE_RE.sub("", text)
+
+
+def _require_fixture(path: Path, label: str) -> None:
+    if not path.exists():
+        pytest.skip(f"{label} fixture not available: {path}")
 
 
 @pytest.fixture
@@ -128,6 +139,130 @@ class TestNewConversion:
         assert result.returncode == 0
         expected_dir = tmp_path / "test-document"
         assert expected_dir.exists()
+
+    def test_phase_flag__should_run_only_requested_phase__when_phase_specified(
+        self, tmp_path, gmkit_cli
+    ):
+        """gmkit pdf-convert --phase executes only the requested phase."""
+        output_dir = tmp_path / "output"
+
+        # Run full pipeline once to establish state and phase artifacts
+        result = subprocess.run(
+            gmkit_cli + [
+                "pdf-convert",
+                str(TEST_PDF_PATH),
+                "--output", str(output_dir),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": "src"},
+            timeout=120,
+        )
+
+        assert result.returncode == 0
+
+        pdf_name = TEST_PDF_PATH.stem
+        phase5_path = output_dir / f"{pdf_name}-phase5.md"
+        phase6_path = output_dir / f"{pdf_name}-phase6.md"
+
+        assert phase5_path.exists()
+        assert phase6_path.exists()
+
+        # Remove Phase 6 output; re-running Phase 5 should not recreate it
+        phase6_path.unlink()
+        assert not phase6_path.exists()
+
+        phase_result = subprocess.run(
+            gmkit_cli + [
+                "pdf-convert",
+                "--phase", "5",
+                str(output_dir),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": "src"},
+            timeout=60,
+        )
+
+        assert phase_result.returncode == 0
+        assert phase5_path.exists()
+        assert not phase6_path.exists()
+
+    def test_heading_signatures__should_differ__when_weight_or_style_changes(
+        self, tmp_path, gmkit_cli
+    ):
+        """Font signatures include weight/style (same family+size differ)."""
+        _require_fixture(B2_PDF_PATH, "B2")
+        output_dir = tmp_path / "output"
+
+        result = subprocess.run(
+            gmkit_cli + [
+                "pdf-convert",
+                str(B2_PDF_PATH),
+                "--output", str(output_dir),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": "src"},
+            timeout=120,
+        )
+
+        assert result.returncode == 0
+
+        mapping_path = output_dir / "font-family-mapping.json"
+        assert mapping_path.exists()
+
+        with open(mapping_path, encoding="utf-8") as f:
+            mapping = json.load(f)
+
+        signatures = mapping.get("signatures", [])
+        candidates_by_family_size = {}
+        for sig in signatures:
+            family = sig.get("family")
+            size = sig.get("size")
+            weight = sig.get("weight")
+            style = sig.get("style")
+            if family is None or size is None:
+                continue
+            key = (family, size)
+            candidates_by_family_size.setdefault(key, set()).add((weight, style))
+
+        # Expect at least one family+size with multiple weight/style variants
+        assert any(len(variants) > 1 for variants in candidates_by_family_size.values())
+
+    def test_cofc_fixture__should_create_font_mapping__when_fixture_available(
+        self, tmp_path, gmkit_cli
+    ):
+        """Optional CoC fixture should run pipeline and emit font mapping."""
+        _require_fixture(COFC_PDF_PATH, "CoC")
+        output_dir = tmp_path / "output"
+
+        result = subprocess.run(
+            gmkit_cli + [
+                "pdf-convert",
+                str(COFC_PDF_PATH),
+                "--output", str(output_dir),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+            env={**os.environ, "PYTHONPATH": "src"},
+            timeout=180,
+        )
+
+        assert result.returncode == 0
+
+        mapping_path = output_dir / "font-family-mapping.json"
+        assert mapping_path.exists()
+
+        with open(mapping_path, encoding="utf-8") as f:
+            mapping = json.load(f)
+
+        signatures = mapping.get("signatures", [])
+        assert len(signatures) > 0
 
 
 class TestCLIErrorHandling:

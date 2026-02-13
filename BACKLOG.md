@@ -391,12 +391,19 @@ Requirements:
 - Replace E4-07e stubs with real implementations (currently `src/gm_kit/pdf_convert/phases/stubs.py` + `get_mock_phases()` in `src/gm_kit/pdf_convert/orchestrator.py`)
 - Preserve existing orchestration surface: `gmkit pdf-convert` CLI + orchestrator/state/preflight wiring already exist; E4-07a fills in real phase logic
 - Update font signature schema wherever it is persisted or exchanged (metadata extraction + font mapping inputs)
+- Support user-defined callout boundaries via `callout_config.json` (start/end text fragments with optional label). Auto-create empty default in output directory during Phase 0 pre-flight if not provided via `--gm-callout-config-file`. Phase 7 loads config and maps matching font signatures to callout labels; Phase 8 applies blockquote formatting to callout-labeled signatures.
+- Support custom GM callout keywords via repeatable `--gm-keyword` CLI option for keyword-based callout detection in Phase 7.
 
 Phases covered: 1, 2, most of 3-8, scaffolding for 9-10
 
+Deferred to E4-07b:
+- **Table detection and reconstruction (steps 7.7, 8.7)**: Investigated during E4-07a implementation. PyMuPDF extracts table cells as flat text lines with no row/column structural information. Reconstructing table structure requires spatial coordinate analysis or multimodal OCR, making it inherently a judgment task suited to agent steps rather than deterministic code. Tables pass through the E4-07a pipeline as flat text with no placeholders. See `specs/006-code-pdf-pipeline/spec.md` §Deferred: Table Detection and Reconstruction for full findings. Future option: multimodal OCR using page images + AI vision (discuss in `specs/004-pdf-research/pdf-conversion-architecture.md`).
+
 Success looks like: A tested Python package that executes all Code-category steps reliably, produces Phase 8 markdown (hierarchy applied) as the primary deliverable, includes integration tests validating intermediate phase outputs, and provides stub integration points for Agent/User steps.
 
-### E4-07a-i. Diagnostic Log File **[FEATURE]**
+**Status: COMPLETED** (2026-02-13) - All 49 Code-category steps implemented, complexity refactoring complete, 440 tests passing.
+
+### E4-07a-i. Diagnostic Log File **[FEATURE, COMPLETED]**
 
 Feature description:
 
@@ -408,7 +415,93 @@ Requirements:
 - Log should capture phase start/end, warnings, and errors
 - Logging must be deterministic for tests (no timestamps required in assertions)
 
+Logging Format Specification:
+
+Visual Hierarchy:
+- Phases displayed in ASCII box with phase number, name, and timestamp
+- Steps displayed as indented entries with visual indicators
+- Clear visual distinction between phases and steps
+
+Phase Header Format:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Phase {N}: {Phase Name}                                  │
+│ Started: {ISO8601 timestamp}                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+Step Entry Format:
+```
+  ▶ Step {N.M}: {Step Description}
+    Status: {SUCCESS|WARNING|ERROR|SKIPPED}
+    Message: {status message}
+    Duration: {ms}ms
+```
+
+Visual Indicators:
+- ▶ (play icon): Step execution start
+- ✓ (checkmark): Step completed successfully
+- ⚠ (warning): Step completed with warnings
+- ✗ (X): Step failed with error
+- ⏸ (pause): Step skipped
+
+Error/Warnings in Log:
+```
+  ⚠ Step {N.M}: {Description}
+    Status: WARNING
+    Message: {warning message}
+
+  ✗ Step {N.M}: {Description}
+    Status: ERROR
+    Message: {error message}
+    Fatal: Pipeline halted
+```
+
+Implementation Notes:
+- Base Phase class provides _log_phase_start() method for consistent phase headers
+- Base PipelineStep class provides _log_step() method for consistent step formatting
+- Logging methods should write to both console (if interactive) and log file
+- Timestamp format: ISO8601 (e.g., "2026-02-13T10:30:00")
+- All phases and steps self-log via base class methods to ensure consistency
+- Log file location: {output_dir}/conversion.log
+
+Example Log Output:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Phase 3: TOC & Font Extraction                          │
+│ Started: 2026-02-13T10:00:00                           │
+└─────────────────────────────────────────────────────────┘
+
+  ▶ Step 3.1: Extract embedded TOC
+    Status: SUCCESS
+    Message: Found 12 TOC entries
+    Duration: 150ms
+    
+  ▶ Step 3.2: Parse visual TOC page (AGENT)
+    Status: SKIPPED
+    Message: Stub: Agent step will be implemented in E4-07b
+    Duration: 0ms
+    
+  ⚠ Step 3.5: Detect candidate headings
+    Status: WARNING
+    Message: No clear heading candidates identified
+    Duration: 45ms
+
+┌─────────────────────────────────────────────────────────┐
+│ Phase 4: Text Extraction                                │
+│ Started: 2026-02-13T10:00:15                           │
+└─────────────────────────────────────────────────────────┘
+
+  ✗ Step 4.1: Load font-family-mapping.json
+    Status: ERROR
+    Message: font-family-mapping.json not found - run Phase 3 first
+    Duration: 5ms
+    Fatal: Pipeline halted
+```
+
 Success looks like: A log file is produced for conversions and included in the diagnostics bundle.
+
+**Status: COMPLETED** (2026-02-13) - UTF-8 logging with horizontal line format, TeeOutput for stdout/stderr capture, 17 unit tests, integrated with diagnostic bundle.
 
 ### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE]**
 
@@ -426,6 +519,8 @@ Requirements:
 - Testing via contract testing, rubric evaluation, golden file comparison, structural validation
 
 Steps covered: 3.2, 4.6, 6.4, 7.7, 8.6-8.8, 9.1-9.5, 9.7-9.8, 10.2-10.3
+
+Note: Steps 7.7 (table detection) and 8.7 (table conversion) were investigated during E4-07a and confirmed to require agent-level judgment. PyMuPDF cannot reconstruct table structure from text extraction alone. Consider multimodal OCR (page images + AI vision) as an implementation approach for these steps.
 
 Success looks like: Agent prompts that reliably produce outputs meeting defined contracts and rubrics, integrated with the Code pipeline.
 

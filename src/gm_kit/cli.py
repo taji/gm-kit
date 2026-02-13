@@ -25,7 +25,7 @@ def _prompt_text_choice(label: str, choices: list[str]) -> str:
     choice_list = ", ".join(choices)
     prompt = f"{label} ({choice_list})"
     while True:
-        value = typer.prompt(prompt).strip().lower()
+        value = str(typer.prompt(prompt)).strip().lower()
         if value in choices:
             return value
         typer.echo(f"Invalid choice: {value}. Choose from: {choice_list}")
@@ -40,8 +40,7 @@ def _prompt_menu_choice(label: str, choices: list[str]) -> str:
         from rich.table import Table
     except ModuleNotFoundError as exc:
         typer.echo(
-            "Menu prompts require readchar and rich. "
-            "Use --text-input or install dependencies."
+            "Menu prompts require readchar and rich. Use --text-input or install dependencies."
         )
         raise typer.Exit(code=1) from exc
     console = Console()
@@ -126,12 +125,14 @@ def pdf_convert(  # noqa: PLR0913
     ),
     output: str = typer.Option(
         None,
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Output directory [default: ./<pdf-basename>/]",
     ),
     resume: bool = typer.Option(
         False,
-        "--resume", "-r",
+        "--resume",
+        "-r",
         help="Resume interrupted conversion in directory",
     ),
     phase: int = typer.Option(
@@ -146,7 +147,8 @@ def pdf_convert(  # noqa: PLR0913
     ),
     status: bool = typer.Option(
         False,
-        "--status", "-s",
+        "--status",
+        "-s",
         help="Show conversion status for directory",
     ),
     diagnostics: bool = typer.Option(
@@ -156,8 +158,22 @@ def pdf_convert(  # noqa: PLR0913
     ),
     yes: bool = typer.Option(
         False,
-        "--yes", "-y",
+        "--yes",
+        "-y",
         help="Non-interactive mode (accept defaults)",
+    ),
+    gm_keyword: list[str] = typer.Option(  # noqa: B008
+        None,
+        "--gm-keyword",
+        help="Custom keyword to detect GM callouts",
+    ),
+    gm_callout_config_file: str = typer.Option(  # noqa: B008
+        None,
+        "--gm-callout-config-file",
+        help=(
+            "Path to a JSON file defining custom callout boundaries"
+            ' (e.g., `[{"start_text": "Start", "end_text": "End"}]`).'
+        ),
     ),
 ) -> None:
     """Convert PDF to Markdown.
@@ -181,6 +197,8 @@ def pdf_convert(  # noqa: PLR0913
         status=status,
         diagnostics=diagnostics,
         yes=yes,
+        gm_keyword=gm_keyword,
+        gm_callout_config_file=gm_callout_config_file,
     )
 
 

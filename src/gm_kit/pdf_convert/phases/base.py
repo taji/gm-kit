@@ -6,13 +6,15 @@ along with PhaseResult and StepResult for tracking execution results.
 
 from __future__ import annotations
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from gm_kit.pdf_convert.constants import PHASE_NAMES
+from gm_kit.pdf_convert.constants import PHASE_COUNT, PHASE_MAX, PHASE_MIN, PHASE_NAMES
 
 if TYPE_CHECKING:
     from gm_kit.pdf_convert.state import ConversionState
@@ -20,10 +22,11 @@ if TYPE_CHECKING:
 
 class PhaseStatus(str, Enum):
     """Status of a phase or step execution."""
-    SUCCESS = "success"   # Completed without issues
-    WARNING = "warning"   # Completed with non-fatal warnings
-    ERROR = "error"       # Failed, may be recoverable
-    SKIPPED = "skipped"   # Intentionally skipped (e.g., resume)
+
+    SUCCESS = "success"  # Completed without issues
+    WARNING = "warning"  # Completed with non-fatal warnings
+    ERROR = "error"  # Failed, may be recoverable
+    SKIPPED = "skipped"  # Intentionally skipped (e.g., resume)
 
 
 @dataclass
@@ -38,6 +41,7 @@ class StepResult:
         output_file: Path to output file if applicable
         message: Additional info or error message
     """
+
     step_id: str
     description: str
     status: PhaseStatus
@@ -89,6 +93,7 @@ class PhaseResult:
         warnings: Non-fatal warning messages
         errors: Error messages if failed
     """
+
     phase_num: int
     name: str
     status: PhaseStatus
@@ -169,7 +174,6 @@ class PhaseResult:
         )
 
 
-
 class Phase(ABC):
     """Abstract base class for pipeline phases.
 
@@ -182,6 +186,16 @@ class Phase(ABC):
     def phase_num(self) -> int:
         """Return the phase number (0-10)."""
         ...
+
+    @property
+    def has_agent_steps(self) -> bool:
+        """Return True if phase contains agent steps that need prompts."""
+        return False
+
+    @property
+    def has_user_steps(self) -> bool:
+        """Return True if phase contains user interaction steps."""
+        return False
 
     @property
     def name(self) -> str:
@@ -253,3 +267,177 @@ class Phase(ABC):
             output_file=output_file,
             message=message,
         )
+
+    def _log_phase_start(self, output_dir: Path) -> None:
+        """Log phase header with ASCII box format.
+
+        Writes a formatted phase header to the conversion.log file
+        using UTF-8 encoding.
+
+        Args:
+            output_dir: Directory containing conversion.log
+        """
+        log_path = output_dir / "conversion.log"
+        timestamp = datetime.now().isoformat()
+
+        header = f"""─────────────────────────────────────────────────────────
+  Phase {self.phase_num}: {self.name}
+  Started: {timestamp}
+─────────────────────────────────────────────────────────
+"""
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(header + "\n")
+        except OSError as e:
+            logger = logging.getLogger("gm_kit.pdf_convert")
+            logger.warning(f"Could not write phase header to log: {e}")
+
+    def _log_step(self, step: StepResult, output_dir: Path) -> None:
+        """Log step completion with visual indicator.
+
+        Writes a formatted step entry to the conversion.log file
+        using UTF-8 encoding with appropriate visual indicator.
+
+        Args:
+            step: The step result to log
+            output_dir: Directory containing conversion.log
+        """
+        log_path = output_dir / "conversion.log"
+
+        # Visual indicators for different statuses
+        indicators = {
+            PhaseStatus.SUCCESS: "✓",
+            PhaseStatus.WARNING: "⚠",
+            PhaseStatus.ERROR: "✗",
+            PhaseStatus.SKIPPED: "⏸",
+        }
+        symbol = indicators.get(step.status, "▶")
+
+        entry = f"""  {symbol} Step {step.step_id}: {step.description}
+    Status: {step.status.value.upper()}
+    Message: {step.message or "N/A"}
+    Duration: {step.duration_ms}ms
+"""
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(entry + "\n")
+        except OSError as e:
+            logger = logging.getLogger("gm_kit.pdf_convert")
+            logger.warning(f"Could not write step entry to log: {e}")
+
+
+class PhaseRegistry:
+    """Registry for pipeline phases.
+
+    Provides a central registry for all phase implementations,
+    replacing the mock phase registry for production use.
+    """
+
+    def __init__(self) -> None:
+        """Initialize empty registry."""
+        self._phases: dict[int, Phase] = {}
+
+    def register(self, phase: Phase) -> None:
+        """Register a phase implementation.
+
+        Args:
+            phase: Phase instance to register
+
+        Raises:
+            ValueError: If phase number is invalid or already registered
+        """
+        if not PHASE_MIN <= phase.phase_num <= PHASE_MAX:
+            raise ValueError(
+                f"Phase number {phase.phase_num} out of range [{PHASE_MIN}, {PHASE_MAX}]"
+            )
+        if phase.phase_num in self._phases:
+            raise ValueError(f"Phase {phase.phase_num} already registered")
+        self._phases[phase.phase_num] = phase
+
+    def get_phase(self, phase_num: int) -> Phase | None:
+        """Get a phase by number.
+
+        Args:
+            phase_num: Phase number (0-10)
+
+        Returns:
+            Phase instance or None if not registered
+        """
+        return self._phases.get(phase_num)
+
+    def get_all_phases(self) -> list[Phase]:
+        """Get all registered phases in order.
+
+        Returns:
+            List of Phase instances sorted by phase number
+        """
+        return [self._phases[i] for i in sorted(self._phases.keys())]
+
+    def is_complete(self) -> bool:
+        """Check if all phases (0-10) are registered.
+
+        Returns:
+            True if all phases registered, False otherwise
+        """
+        return len(self._phases) == PHASE_COUNT
+
+
+# Global registry instance
+_phase_registry: PhaseRegistry | None = None
+
+
+def get_phase_registry() -> PhaseRegistry:
+    """Get the global phase registry.
+
+    Creates and initializes the registry on first call.
+
+    Returns:
+        PhaseRegistry with all phases registered
+    """
+    global _phase_registry
+    if _phase_registry is None:
+        _phase_registry = _create_registry()
+    return _phase_registry
+
+
+def _create_registry() -> PhaseRegistry:
+    """Create and populate the phase registry.
+
+    Imports and registers all phase implementations.
+
+    Returns:
+        Populated PhaseRegistry
+    """
+    registry = PhaseRegistry()
+
+    # Import phases here to avoid circular imports
+    # Phases will be registered as they're implemented
+    try:
+        from gm_kit.pdf_convert.phases.phase0 import Phase0
+        from gm_kit.pdf_convert.phases.phase1 import Phase1
+        from gm_kit.pdf_convert.phases.phase2 import Phase2
+        from gm_kit.pdf_convert.phases.phase3 import Phase3
+        from gm_kit.pdf_convert.phases.phase4 import Phase4
+        from gm_kit.pdf_convert.phases.phase5 import Phase5
+        from gm_kit.pdf_convert.phases.phase6 import Phase6
+        from gm_kit.pdf_convert.phases.phase7 import Phase7
+        from gm_kit.pdf_convert.phases.phase8 import Phase8
+        from gm_kit.pdf_convert.phases.phase9 import Phase9
+        from gm_kit.pdf_convert.phases.phase10 import Phase10
+
+        registry.register(Phase0())
+        registry.register(Phase1())
+        registry.register(Phase2())
+        registry.register(Phase3())
+        registry.register(Phase4())
+        registry.register(Phase5())
+        registry.register(Phase6())
+        registry.register(Phase7())
+        registry.register(Phase8())
+        registry.register(Phase9())
+        registry.register(Phase10())
+    except ImportError:
+        # During initial development, phases may not exist yet
+        pass
+
+    return registry

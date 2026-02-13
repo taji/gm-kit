@@ -43,7 +43,6 @@ Each phase defines explicit error conditions that halt processing. Errors are re
 | 2 | Image removal fails | `ERROR: Failed to create text-only PDF` | Check PyMuPDF installation |
 | 3 | No TOC found (embedded or visual) | `WARNING: No TOC found - hierarchy may be incomplete` | Continue with font-based detection only |
 | 4 | Text extraction yields empty result | `ERROR: No text extracted from PDF` | Verify PDF has selectable text |
-| 4 | Two-column issues > 50% of pages | `WARNING: Pervasive two-column issues detected - expect manual review` | User informed, continues with warning |
 | 5-6 | Input markdown file missing | `ERROR: Phase input file not found - run previous phase first` | Resume from earlier checkpoint |
 | 7 | Font-family JSON missing or invalid | `ERROR: font-family-mapping.json not found or malformed` | Re-run Phase 3 |
 | 8 | TOC map empty and no font labels | `WARNING: No heading sources available - flat document structure` | Continue without hierarchy |
@@ -77,7 +76,8 @@ Criticality indicates the impact on conversion quality if an agent step fails af
 | 8.8 | Apply blockquote formatting to callouts | Medium | Flag for user - callouts may be plain text |
 | 8.9 | Insert figure/map placeholders | Low | Skip - figure placeholders omitted |
 | 9.1-9.5 | Quality checks (completeness, structure, flow, tables, callouts) | High | Halt - quality assessment required |
-| 9.7-9.8 | Review TOC issues + two-column reading order | Medium | Flag for user - issues may remain |
+| 9.7 | Review TOC issues | Medium | Flag for user - issues may remain |
+| 9.8 | Review two-column reading order issues | Medium | Flag for user - issues may remain |
 | 10.2-10.3 | Quality ratings + document remaining issues | Low | Skip - report incomplete but conversion done |
 
 **Retry Prompt Enhancement:**
@@ -465,15 +465,13 @@ Agent judgment in Phase 8 handles ambiguous cases (boxed text without keywords, 
 | 4.2 | Chunk PDF into smaller files if needed | Code |
 | 4.3 | Detect candidate headers/footers (flags only, no removal) | Code |
 | 4.4 | Extract text from each chunk to markdown | Code |
-| 4.5 | Merge chunk markdown files in page order | Code |
-| 4.6 | Resolve split sentences at chunk boundaries | Agent |
-| 4.7 | Detect two-column reading order issues (early warning) | Code |
+| 4.5 | Resolve split sentences at chunk boundaries | Agent |
 
 **Output:** Merged markdown file (e.g., `<filename>-phase4.md`)
 
 **Note:** Header/footer removal deferred to Phase 9 for user confirmation.
 
-**Note:** Step 4.7 provides early detection of two-column issues. If pervasive (>15%), warns user before investing effort in later phases. Actual fix/review remains in Phase 9.
+**Note on Two-Column Layout:** PyMuPDF extracts text in correct reading order automatically, preserving the natural left-to-right, top-to-bottom flow even in two-column layouts. The short-line heuristic (step 4.7 in earlier versions) was removed because it produced false positives on RPG PDFs with stat blocks, tables, and short paragraphs. If two-column reading order issues are encountered in future PDFs, the recommended approach is spatial analysis (clustering text blocks by x-coordinate) rather than line-length heuristics.
 
 ### Phase 5: Character-Level Fixes
 
@@ -542,6 +540,14 @@ TTRPG modules contain domain-specific terms (monster names, locations, game term
 | 7.5 | Detect GM/Keeper note keywords | Code |
 | 7.6 | Detect read-aloud text markers | Code |
 | 7.7 | Detect table structures | Agent |
+
+**Future Consideration: Multimodal Table Reconstruction (Image-based OCR)**
+Current table detection relies on textual heuristics. For highly complex or visually-driven tables, especially those that defy text-based structural inference, an advanced approach involving multimodal AI agents could be explored. This would involve:
+1.  **Spatial Table Detection:** Identifying table bounding boxes within the PDF using image analysis techniques.
+2.  **Image Extraction:** Rendering the detected table regions as high-resolution images.
+3.  **Multimodal OCR:** Passing these table images to a multimodal AI (e.g., Gemini) with a prompt to perform OCR and reconstruct the table structure into Markdown.
+
+This approach offers higher fidelity for complex tables but introduces challenges related to image processing, model cost/latency, and accurate spatial detection. It is a future enhancement to be considered as agents become more sophisticated and efficient.
 | 7.8 | Detect inline/embedded headings within spans | Code |
 | 7.9 | Update font-family-mapping.json with ALL detection findings | Code |
 | 7.9a | Generate annotated PDF for label review | Code |
@@ -610,14 +616,12 @@ Before:                              After:
 | 9.5 | Callout formatting check | Agent |
 | 9.6 | Run markdown linter (pymarkdownlnt) and flag violations | Code |
 | 9.7 | Review TOC validation issues (gaps, duplicates) | Agent |
-| 9.8 | Two-column reading order: detect issues, fix if isolated (<15%), flag if pervasive (>15%) | Agent |
-| 9.9 | Present header/footer candidates with smart analysis, user confirms removal | User |
-| 9.10 | Present remaining issues (including lint violations) to user with suggested fixes | User |
-| 9.11 | User confirms or provides corrections | User |
+| 9.8 | Review two-column reading order issues and flag anomalies | Agent |
+| 9.9 | Present header/footer candidates and remaining issues (including lint violations) to user | User |
+| 9.10 | Capture user feedback on proposed fixes | User |
+| 9.11 | User confirms and applies corrections | User |
 
 **Output:** Final validated markdown
-
-**Decision:** Two-column fix (9.8) uses threshold - isolated issues fixed by agent, pervasive issues flagged for user decision.
 
 **Decision:** Header/footer removal (9.9) deferred from Phase 4 to allow smart analysis and user confirmation.
 
@@ -680,7 +684,7 @@ These tests validate agent prompts during development and CI. Production users d
 
 ### Markdown Linting - Production Step
 
-Unlike agent testing, markdown linting (step 9.6) runs during production conversions as a user-facing quality check. Lint violations are surfaced to the user in step 9.10.
+Unlike agent testing, markdown linting (step 9.6) runs during production conversions as a user-facing quality check. Lint violations are surfaced to the user in step 9.9.
 
 Tool: `pymarkdownlnt`
 
@@ -797,10 +801,10 @@ gmkit pdf-convert --status <conversion-dir>      # Check progress
 | 5.2 before 5.3 | Hyphenation fix needs line breaks intact to detect `word-\n` pattern |
 | 5.5 always normalizes quotes | Consistency over aesthetics; agent is primary audience |
 | 4.3 detects only, 9.9 removes | User confirmation prevents accidental content loss |
-| 4.7 early two-column detection | Warn user early if pervasive issues; avoid wasted effort in later phases |
+| Removed 4.7 two-column detection | PyMuPDF extracts text in correct order automatically; short-line heuristic caused false positives on RPG content. If needed in future, use spatial (x-coordinate) analysis not line-length heuristics |
 | 7.9 before 7.10 | Inline heading detection informs JSON before user review |
 | 8.1 split spans first | Embedded headings must be isolated before heading levels applied |
-| 9.8 uses threshold | Isolated issues (<15%) fixed; pervasive flagged for user |
+| 9.8 review-only | Two-column reading-order issues are flagged for review; no automatic threshold-based fixes |
 | pymarkdownlnt for linting | Pure Python, pip installable, configurable rules |
 | Explicit error conditions | Learned from spec-kit: clear "If X: ERROR" patterns aid debugging |
 | Agent retry with max 3 | Learned from spec-kit: validation checkpoints with bounded retries |

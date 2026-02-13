@@ -17,14 +17,11 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from gm_kit.pdf_convert.active_conversion import update_active_conversion
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
+from gm_kit.pdf_convert.logging_config import reset_output_streams, setup_conversion_logging
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata, save_metadata
-from gm_kit.pdf_convert.phases.base import Phase
+from gm_kit.pdf_convert.phases.base import Phase, get_phase_registry
 from gm_kit.pdf_convert.phases.stubs import get_mock_phases
-from gm_kit.pdf_convert.preflight import (
-    analyze_pdf,
-    display_preflight_report,
-    prompt_user_confirmation,
-)
+from gm_kit.pdf_convert.preflight import run_preflight
 from gm_kit.pdf_convert.state import (
     ConversionState,
     ConversionStatus,
@@ -123,6 +120,7 @@ def create_diagnostic_bundle(
         "toc-extracted.txt",
         "images/image-manifest.json",
         "conversion-report.md",
+        "conversion.log",
         f"{pdf_name}-phase4.md",
         f"{pdf_name}-phase5.md",
         f"{pdf_name}-phase6.md",
@@ -205,25 +203,42 @@ class Orchestrator:
         self,
         console: Console | None = None,
         phases: list[Phase] | None = None,
+        use_mock: bool = False,
     ) -> None:
         """Initialize orchestrator.
 
         Args:
             console: Rich console for output
-            phases: List of phases to use (defaults to mock phases)
+            phases: List of phases to use (defaults to real phases from registry)
+            use_mock: If True, use mock phases instead of real implementations
         """
         self.console = console or Console()
         self.error_console = Console(stderr=True, soft_wrap=True)
-        self.phases = phases or get_mock_phases()
+
+        if phases:
+            self.phases = phases
+        elif use_mock:
+            self.phases = get_mock_phases()
+        else:
+            # Use real phase registry
+            registry = get_phase_registry()
+            if registry.is_complete():
+                self.phases = registry.get_all_phases()
+            else:
+                # Fallback to mock if registry incomplete (during development)
+                self.phases = get_mock_phases()
+
         self._phase_map = {p.phase_num: p for p in self.phases}
 
-    def run_new_conversion(  # noqa: PLR0911
+    def run_new_conversion(  # noqa: PLR0911, PLR0913
         self,
         pdf_path: Path,
         output_dir: Path | None = None,
         diagnostics: bool = False,
         auto_proceed: bool = False,
         cli_args: str = "",
+        gm_keyword: list[str] | None = None,
+        gm_callout_config_file: str | None = None,
     ) -> ExitCode:
         """Start a new PDF conversion.
 
@@ -233,6 +248,8 @@ class Orchestrator:
             diagnostics: Enable diagnostic bundle
             auto_proceed: Skip user confirmation prompts
             cli_args: CLI arguments string for diagnostics
+            gm_keyword: Custom keywords for GM callout detection
+            gm_callout_config_file: Path to a JSON file defining custom callout boundaries
 
         Returns:
             Exit code
@@ -261,11 +278,21 @@ class Orchestrator:
 
         update_active_conversion(output_dir, output_dir)
 
+        # Initialize conversion logging
+        setup_conversion_logging(output_dir)
+
         # Check for existing state
         existing_state = load_state(output_dir)
         if existing_state is not None:
             return self._handle_existing_state(
-                existing_state, pdf_path, output_dir, diagnostics, auto_proceed, cli_args
+                existing_state,
+                pdf_path,
+                output_dir,
+                diagnostics,
+                auto_proceed,
+                cli_args,
+                gm_keyword,
+                gm_callout_config_file,
             )
 
         # Run pre-flight analysis (Phase 0)
@@ -280,33 +307,43 @@ class Orchestrator:
         # Save metadata
         save_metadata(metadata, output_dir)
 
-        # Analyze and display pre-flight report
-        report = analyze_pdf(pdf_path)
-        display_preflight_report(report, self.console)
+        # Run pre-flight analysis (Phase 0)
+        report = run_preflight(
+            pdf_path,
+            self.console,
+            auto_proceed,
+            output_dir,
+            gm_callout_config_file,
+        )
 
-        # Check for scanned PDF
+        if report is None:  # User aborted during pre-flight
+            self.console.print(format_error(ErrorMessages.USER_CANCELLED))
+            return ExitCode.USER_ABORT
+
+        # Check for scanned PDF from report
         if not report.text_extractable:
             self.error_console.print(format_error(ErrorMessages.SCANNED_PDF))
             return ExitCode.PDF_ERROR
 
-        # User confirmation
-        if not prompt_user_confirmation(self.console, auto_proceed):
-            self.console.print(format_error(ErrorMessages.USER_CANCELLED))
-            return ExitCode.USER_ABORT
-
         # Create initial state
+        # Note: gm_callout_config_file will be set by Phase 0 if not provided
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(output_dir),
             diagnostics_enabled=diagnostics,
-            config={"cli_args": cli_args, "auto_proceed": auto_proceed},
+            config={
+                "cli_args": cli_args,
+                "auto_proceed": auto_proceed,
+                "gm_keyword": gm_keyword,
+                "gm_callout_config_file": gm_callout_config_file,
+            },
         )
 
         # Save initial state
         save_state(state)
 
-        # Run remaining phases
-        return self._run_phases(state, start_phase=1)
+        # Run all phases starting from Phase 0
+        return self._run_phases(state, start_phase=0)
 
     def _handle_existing_state(  # noqa: PLR0913
         self,
@@ -316,6 +353,8 @@ class Orchestrator:
         diagnostics: bool,
         auto_proceed: bool,
         cli_args: str,
+        gm_keyword: list[str] | None = None,
+        gm_callout_config_file: str | None = None,
     ) -> ExitCode:
         """Handle case where output directory has existing state.
 
@@ -326,6 +365,8 @@ class Orchestrator:
             diagnostics: Enable diagnostic bundle
             auto_proceed: Skip user confirmation prompts
             cli_args: CLI arguments string
+            gm_keyword: Custom keywords for GM callout detection
+            gm_callout_config_file: Path to a JSON file defining custom callout boundaries
 
         Returns:
             Exit code
@@ -371,7 +412,13 @@ class Orchestrator:
             # Delete existing state and start fresh
             (output_dir / ".state.json").unlink(missing_ok=True)
             return self.run_new_conversion(
-                pdf_path, output_dir, diagnostics, auto_proceed, cli_args
+                pdf_path,
+                output_dir,
+                diagnostics,
+                auto_proceed,
+                cli_args,
+                gm_keyword,
+                gm_callout_config_file,
             )
 
         # Resume
@@ -644,6 +691,9 @@ class Orchestrator:
         self.console.print()
         self.console.print("[green]Conversion completed successfully![/green]")
 
+        # Reset stdout/stderr to original streams
+        reset_output_streams()
+
         return ExitCode.SUCCESS
 
     def _run_single_phase(
@@ -669,6 +719,11 @@ class Orchestrator:
         state.set_current_phase(phase_num)
         save_state(state)
 
+        # Log phase start
+        output_dir = Path(state.output_dir)
+        if hasattr(phase, "_log_phase_start"):
+            phase._log_phase_start(output_dir)
+
         # Execute phase
         try:
             result = phase.execute(state)
@@ -686,6 +741,11 @@ class Orchestrator:
             save_state(state)
             self.error_console.print(f"ERROR: Phase {phase_num} failed: {e}")
             return ExitCode.PDF_ERROR
+
+        # Log each step
+        if hasattr(phase, "_log_step"):
+            for step in result.steps:
+                phase._log_step(step, output_dir)
 
         # Handle result
         if result.is_error:

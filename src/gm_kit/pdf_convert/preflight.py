@@ -6,7 +6,6 @@ Analyzes PDF files before conversion and displays results to user.
 from __future__ import annotations
 
 import logging
-import sys
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -27,16 +26,18 @@ IMAGE_COMPLEXITY_HIGH_MIN = 50
 
 class TOCApproach(str, Enum):
     """How to handle table of contents."""
+
     EMBEDDED = "embedded"  # PDF has embedded outline
-    VISUAL = "visual"      # Need agent to parse visual TOC page
-    NONE = "none"          # No TOC detected
+    VISUAL = "visual"  # Need agent to parse visual TOC page
+    NONE = "none"  # No TOC detected
 
 
 class Complexity(str, Enum):
     """Complexity rating for PDF conversion."""
-    LOW = "low"           # Simple PDF, minimal user review needed
-    MODERATE = "moderate" # Average complexity
-    HIGH = "high"         # Complex layout, expect more user involvement
+
+    LOW = "low"  # Simple PDF, minimal user review needed
+    MODERATE = "moderate"  # Average complexity
+    HIGH = "high"  # Complex layout, expect more user involvement
 
 
 @dataclass
@@ -58,6 +59,7 @@ class PreflightReport:
         user_involvement_phases: Phases requiring user input
         copyright_notice: Copyright from metadata if found
     """
+
     pdf_name: str
     file_size_display: str
     page_count: int
@@ -262,14 +264,14 @@ def display_preflight_report(
     table.add_row(
         "Images",
         str(report.image_count),
-        "Will be extracted to images/" if report.image_count > 0 else ""
+        "Will be extracted to images/" if report.image_count > 0 else "",
     )
 
     # Text
     table.add_row(
         "Text",
         "extractable" if report.text_extractable else "none",
-        "Native text found" if report.text_extractable else "Scanned PDF"
+        "Native text found" if report.text_extractable else "Scanned PDF",
     )
 
     # TOC
@@ -278,33 +280,19 @@ def display_preflight_report(
         TOCApproach.VISUAL: "Parse visual TOC",
         TOCApproach.NONE: "",
     }
-    table.add_row(
-        "TOC",
-        report.toc_approach.value,
-        toc_note[report.toc_approach]
-    )
+    table.add_row("TOC", report.toc_approach.value, toc_note[report.toc_approach])
 
     # Fonts
-    table.add_row(
-        "Fonts",
-        f"{report.font_complexity.value} complexity",
-        ""
-    )
+    table.add_row("Fonts", f"{report.font_complexity.value} complexity", "")
 
     # Copyright
     copyright_display = f'"{report.copyright_notice}"' if report.copyright_notice else "Not found"
     table.add_row(
-        "Copyright",
-        copyright_display[:40],
-        "Found in metadata" if report.copyright_notice else ""
+        "Copyright", copyright_display[:40], "Found in metadata" if report.copyright_notice else ""
     )
 
     # Overall complexity
-    table.add_row(
-        "Complexity",
-        report.overall_complexity.value,
-        ""
-    )
+    table.add_row("Complexity", report.overall_complexity.value, "")
 
     console.print(table)
     console.print()
@@ -325,12 +313,16 @@ def display_preflight_report(
 def prompt_user_confirmation(
     console: Console | None = None,
     auto_proceed: bool = False,
+    gm_callout_config_file_path: str | None = None,
+    output_dir: Path | None = None,  # Make output_dir optional here
 ) -> bool:
     """Prompt user to proceed with conversion.
 
     Args:
         console: Rich console to use
         auto_proceed: If True, skip prompt and return True (--yes flag)
+        gm_callout_config_file_path: Path to the GM callout config file (if created/found)
+        output_dir: The output directory (used for relative paths)
 
     Returns:
         True if user wants to proceed, False to abort
@@ -341,20 +333,58 @@ def prompt_user_confirmation(
     if console is None:
         console = Console()
 
+    console.print("\n" + "=" * 62)
+    console.print("  Confirm Conversion Start", style="bold")
+    console.print("=" * 62)
+    console.print()
+
+    if gm_callout_config_file_path and output_dir:
+        config_path = Path(gm_callout_config_file_path)
+        try:
+            display_path = config_path.relative_to(output_dir.parent)
+        except ValueError:
+            # Config may be outside workspace/output hierarchy; fall back to absolute path.
+            display_path = config_path
+        console.print("[yellow]Callout Configuration:[/yellow]")
+        console.print(
+            "  A callout configuration file has been created or"
+            f" found at: [cyan]{display_path}[/cyan]"
+        )
+        console.print(
+            "  You may edit this file to define custom callout"
+            " boundaries (see in-file comments for format)."
+        )
+        console.print(
+            "  After editing, press '[bold green]R[/bold green]'"
+            " (Resume) to proceed using your updated config."
+        )
+        console.print()
+
     console.print("Options:")
-    console.print("  A) Proceed with conversion")
-    console.print("  B) Abort")
+    console.print("  [bold green]A[/bold green]) Proceed with conversion")
+    console.print("  [bold red]B[/bold red]) Abort")
+    if gm_callout_config_file_path:
+        console.print(
+            "  [bold yellow]R[/bold yellow]) Resume after editing"
+            " callout_config.json (or any other prep work)"
+        )
     console.print()
 
     while True:
         try:
-            choice = input("Your choice [A/B]: ").strip().upper()
-            if choice in ('A', 'PROCEED', 'YES', 'Y'):
+            choice = (
+                input("Your choice [A/B" + ("/R" if gm_callout_config_file_path else "") + "]: ")
+                .strip()
+                .upper()
+            )
+            if choice in ("A", "PROCEED", "YES", "Y"):
                 return True
-            elif choice in ('B', 'ABORT', 'NO', 'N'):
+            elif choice in ("B", "ABORT", "NO", "N"):
                 return False
+            elif gm_callout_config_file_path and choice in ("R", "RESUME"):
+                return True  # User wants to resume, so proceed
             else:
-                console.print("Please enter A or B")
+                console.print(f"Please enter A, B{' or R' if gm_callout_config_file_path else ''}")
         except (EOFError, KeyboardInterrupt):
             return False
 
@@ -363,6 +393,8 @@ def run_preflight(
     pdf_path: Path,
     console: Console | None = None,
     auto_proceed: bool = False,
+    output_dir: Path | None = None,
+    gm_callout_config_file_path: str | None = None,
 ) -> PreflightReport | None:
     """Run complete pre-flight analysis and display results.
 
@@ -370,6 +402,8 @@ def run_preflight(
         pdf_path: Path to PDF file
         console: Rich console for output
         auto_proceed: Skip confirmation prompt if True
+        output_dir: The output directory (needed for callout config path)
+        gm_callout_config_file_path: Path to the GM callout config file
 
     Returns:
         PreflightReport if user proceeds, None if aborted
@@ -377,17 +411,15 @@ def run_preflight(
     report = analyze_pdf(pdf_path)
     display_preflight_report(report, console)
 
-    if not report.text_extractable:
-        if console is None:
-            console = Console()
-        error_console = Console(file=sys.stderr, soft_wrap=True)
-        error_console.print(
-            "[red]ERROR:[/red] Scanned PDF detected - very little extractable text",
-        )
-        error_console.print("Recommendation: Use external OCR tool first.")
-        return None
+    # Scanned PDF check moved to orchestrator (Phase 0)
+    # The preflight report itself is still returned for the orchestrator to decide.
 
-    if prompt_user_confirmation(console, auto_proceed):
+    if prompt_user_confirmation(
+        console,
+        auto_proceed,
+        gm_callout_config_file_path=gm_callout_config_file_path,
+        output_dir=output_dir,
+    ):
         return report
     else:
         return None

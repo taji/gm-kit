@@ -50,9 +50,7 @@ class TemplateManager:
         else:
             dest = dest_dir / f"{base_name}.toml"
             if not dest.exists():
-                description = COMMAND_DESCRIPTIONS.get(
-                    base_name, f"GM-Kit command: {base_name}"
-                )
+                description = COMMAND_DESCRIPTIONS.get(base_name, f"GM-Kit command: {base_name}")
                 toml_text = self._build_toml(content, description)
                 dest.write_text(toml_text)
             self.validate_toml(dest)
@@ -69,9 +67,4 @@ class TemplateManager:
 
     @staticmethod
     def _build_toml(markdown_content: str, description: str) -> str:
-        return (
-            f'description = "{description}"\n\n'
-            'prompt = """\n'
-            f"{markdown_content}\n"
-            '"""\n'
-        )
+        return f'description = "{description}"\n\nprompt = """\n{markdown_content}\n"""\n'
