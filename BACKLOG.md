@@ -413,6 +413,90 @@ Requirements:
 - Log should capture phase start/end, warnings, and errors
 - Logging must be deterministic for tests (no timestamps required in assertions)
 
+Logging Format Specification:
+
+Visual Hierarchy:
+- Phases displayed in ASCII box with phase number, name, and timestamp
+- Steps displayed as indented entries with visual indicators
+- Clear visual distinction between phases and steps
+
+Phase Header Format:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Phase {N}: {Phase Name}                                  │
+│ Started: {ISO8601 timestamp}                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+Step Entry Format:
+```
+  ▶ Step {N.M}: {Step Description}
+    Status: {SUCCESS|WARNING|ERROR|SKIPPED}
+    Message: {status message}
+    Duration: {ms}ms
+```
+
+Visual Indicators:
+- ▶ (play icon): Step execution start
+- ✓ (checkmark): Step completed successfully
+- ⚠ (warning): Step completed with warnings
+- ✗ (X): Step failed with error
+- ⏸ (pause): Step skipped
+
+Error/Warnings in Log:
+```
+  ⚠ Step {N.M}: {Description}
+    Status: WARNING
+    Message: {warning message}
+
+  ✗ Step {N.M}: {Description}
+    Status: ERROR
+    Message: {error message}
+    Fatal: Pipeline halted
+```
+
+Implementation Notes:
+- Base Phase class provides _log_phase_start() method for consistent phase headers
+- Base PipelineStep class provides _log_step() method for consistent step formatting
+- Logging methods should write to both console (if interactive) and log file
+- Timestamp format: ISO8601 (e.g., "2026-02-13T10:30:00")
+- All phases and steps self-log via base class methods to ensure consistency
+- Log file location: {output_dir}/conversion.log
+
+Example Log Output:
+```
+┌─────────────────────────────────────────────────────────┐
+│ Phase 3: TOC & Font Extraction                          │
+│ Started: 2026-02-13T10:00:00                           │
+└─────────────────────────────────────────────────────────┘
+
+  ▶ Step 3.1: Extract embedded TOC
+    Status: SUCCESS
+    Message: Found 12 TOC entries
+    Duration: 150ms
+    
+  ▶ Step 3.2: Parse visual TOC page (AGENT)
+    Status: SKIPPED
+    Message: Stub: Agent step will be implemented in E4-07b
+    Duration: 0ms
+    
+  ⚠ Step 3.5: Detect candidate headings
+    Status: WARNING
+    Message: No clear heading candidates identified
+    Duration: 45ms
+
+┌─────────────────────────────────────────────────────────┐
+│ Phase 4: Text Extraction                                │
+│ Started: 2026-02-13T10:00:15                           │
+└─────────────────────────────────────────────────────────┘
+
+  ✗ Step 4.1: Load font-family-mapping.json
+    Status: ERROR
+    Message: font-family-mapping.json not found - run Phase 3 first
+    Duration: 5ms
+    Fatal: Pipeline halted
+```
+
 Success looks like: A log file is produced for conversions and included in the diagnostics bundle.
 
 ### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE]**

@@ -42,20 +42,17 @@ class Phase3(Phase):
     def has_agent_steps(self) -> bool:
         return True  # Step 3.2: Parse visual TOC page
 
-    def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912, PLR0915, C901
-        """Execute TOC and font extraction steps.
+    def _extract_toc(self, pdf_path: Path, output_dir: Path, result: PhaseResult) -> list[dict]:
+        """Step 3.1: Extract embedded TOC from PDF.
 
         Args:
-            state: Current conversion state
+            pdf_path: Path to the PDF file
+            output_dir: Output directory for saving TOC file
+            result: Phase result for adding warnings
 
         Returns:
-            PhaseResult with extraction results
+            List of TOC entries
         """
-        result = self.create_result()
-        pdf_path = Path(state.pdf_path)
-        output_dir = Path(state.output_dir)
-
-        # Step 3.1: Extract embedded TOC
         toc_entries = []
         try:
             doc = fitz.open(pdf_path)
@@ -106,17 +103,18 @@ class Phase3(Phase):
             )
             result.add_warning(f"TOC extraction error: {e}")
 
-        # Step 3.2: Parse visual TOC page (AGENT STEP - STUBBED)
-        result.add_step(
-            StepResult(
-                step_id="3.2",
-                description="Parse visual TOC page (AGENT)",
-                status=PhaseStatus.SUCCESS,
-                message="Stub: Agent step will be implemented in E4-07b",
-            )
-        )
+        return toc_entries
 
-        # Step 3.3: Sample fonts from body text
+    def _sample_fonts(self, pdf_path: Path, result: PhaseResult) -> list[dict] | None:
+        """Step 3.3: Sample fonts from body text.
+
+        Args:
+            pdf_path: Path to the PDF file
+            result: Phase result for adding errors
+
+        Returns:
+            List of font signatures, or None if error
+        """
         font_signatures: list[dict] = []
         try:
             doc = fitz.open(pdf_path)
@@ -124,22 +122,23 @@ class Phase3(Phase):
             # Sample fonts from first few pages
             for page_num in range(min(5, len(doc))):
                 page = doc[page_num]
-                blocks = page.get_text("dict")["blocks"]
+                text_dict = page.get_text("dict")  # type: ignore[no-untyped-call]
+                blocks: list[dict] = text_dict.get("blocks", [])  # type: ignore[no-untyped-call]
 
                 for block in blocks:
                     if "lines" in block:
-                        for line in block["lines"]:
-                            for span in line["spans"]:
+                        for line in block.get("lines", []):  # type: ignore[no-untyped-call]
+                            for span in line.get("spans", []):  # type: ignore[no-untyped-call]
                                 font_info = {
-                                    "family": span.get("font", "Unknown"),
-                                    "size": round(span.get("size", 0), 1),
-                                    "flags": span.get("flags", 0),
-                                    "text_sample": span.get("text", "")[:50],
+                                    "family": span.get("font", "Unknown"),  # type: ignore[no-untyped-call]
+                                    "size": round(span.get("size", 0), 1),  # type: ignore[no-untyped-call]
+                                    "flags": span.get("flags", 0),  # type: ignore[no-untyped-call]
+                                    "text_sample": span.get("text", "")[:50],  # type: ignore[no-untyped-call]
                                 }
 
                                 # Extract weight/style from flags
                                 # flags: 1=bold, 2=italic
-                                flags = span.get("flags", 0)
+                                flags = span.get("flags", 0)  # type: ignore[no-untyped-call]
                                 font_info["weight"] = "bold" if flags & 1 else "normal"
                                 font_info["style"] = "italic" if flags & 2 else "normal"
 
@@ -169,6 +168,8 @@ class Phase3(Phase):
                 )
             )
 
+            return font_signatures
+
         except Exception as e:
             result.add_step(
                 StepResult(
@@ -179,10 +180,18 @@ class Phase3(Phase):
                 )
             )
             result.add_error(f"Font sampling failed: {e}")
-            result.complete()
-            return result
+            return None
 
-        # Step 3.4: Build frequency map
+    def _build_frequency_map(self, font_signatures: list[dict], result: PhaseResult) -> dict | None:
+        """Step 3.4: Build frequency map from font signatures.
+
+        Args:
+            font_signatures: List of font signatures
+            result: Phase result for adding errors
+
+        Returns:
+            Frequency map dictionary, or None if error
+        """
         try:
             # Group by full signature (family + size + weight + style)
             frequency_map = {}
@@ -210,6 +219,8 @@ class Phase3(Phase):
                 )
             )
 
+            return frequency_map
+
         except Exception as e:
             result.add_step(
                 StepResult(
@@ -220,8 +231,15 @@ class Phase3(Phase):
                 )
             )
             result.add_error(f"Frequency map build failed: {e}")
+            return None
 
-        # Step 3.5: Detect candidate headings (code-only heuristic)
+    def _detect_candidate_headings(self, frequency_map: dict, result: PhaseResult) -> None:
+        """Step 3.5: Detect candidate headings from frequency map.
+
+        Args:
+            frequency_map: Frequency map dictionary (modified in place)
+            result: Phase result for adding warnings
+        """
         try:
             # Sort by size (descending) - larger fonts are likely headings
             sorted_sigs = sorted(
@@ -255,7 +273,19 @@ class Phase3(Phase):
             )
             result.add_warning(f"Heading detection error: {e}")
 
-        # Step 3.6: Generate font-family-mapping.json
+    def _generate_font_mapping(
+        self, frequency_map: dict, output_dir: Path, result: PhaseResult
+    ) -> dict | None:
+        """Step 3.6: Generate font-family-mapping.json.
+
+        Args:
+            frequency_map: Frequency map dictionary
+            output_dir: Output directory for saving mapping file
+            result: Phase result for adding errors
+
+        Returns:
+            Mapping dictionary, or None if error
+        """
         try:
             signatures: list[dict] = []
             for _sig_key, sig_data in frequency_map.items():
@@ -308,6 +338,8 @@ class Phase3(Phase):
             )
             result.output_file = str(mapping_path)
 
+            return mapping
+
         except Exception as e:
             result.add_step(
                 StepResult(
@@ -318,8 +350,19 @@ class Phase3(Phase):
                 )
             )
             result.add_error(f"Failed to generate font mapping: {e}")
+            return None
 
-        # Step 3.7: Detect footer, watermark, and page number signatures
+    def _run_footer_watermark_detection(
+        self, pdf_path: Path, mapping: dict, output_dir: Path, result: PhaseResult
+    ) -> None:
+        """Step 3.7: Detect footer, watermark, and page number signatures.
+
+        Args:
+            pdf_path: Path to the PDF file
+            mapping: Font family mapping dictionary
+            output_dir: Output directory for saving config
+            result: Phase result for adding warnings
+        """
         try:
             footer_analysis = self._analyze_footer_watermarks(pdf_path, mapping, output_dir)
 
@@ -364,7 +407,17 @@ class Phase3(Phase):
             )
             result.add_warning(f"Footer/watermark detection error: {e}")
 
-        # Step 3.8: Detect icon font signatures
+    def _run_icon_font_detection(
+        self, pdf_path: Path, mapping: dict, output_dir: Path, result: PhaseResult
+    ) -> None:
+        """Step 3.8: Detect icon font signatures.
+
+        Args:
+            pdf_path: Path to the PDF file
+            mapping: Font family mapping dictionary
+            output_dir: Output directory for saving config
+            result: Phase result for adding warnings
+        """
         try:
             icon_analysis = self._analyze_icon_fonts(pdf_path, mapping, output_dir)
 
@@ -399,6 +452,61 @@ class Phase3(Phase):
                 )
             )
             result.add_warning(f"Icon font detection error: {e}")
+
+    def execute(self, state: ConversionState) -> PhaseResult:
+        """Execute TOC and font extraction steps.
+
+        Args:
+            state: Current conversion state
+
+        Returns:
+            PhaseResult with extraction results
+        """
+        result = self.create_result()
+        pdf_path = Path(state.pdf_path)
+        output_dir = Path(state.output_dir)
+
+        # Step 3.1: Extract embedded TOC
+        self._extract_toc(pdf_path, output_dir, result)
+
+        # Step 3.2: Parse visual TOC page (AGENT STEP - STUBBED)
+        result.add_step(
+            StepResult(
+                step_id="3.2",
+                description="Parse visual TOC page (AGENT)",
+                status=PhaseStatus.SUCCESS,
+                message="Stub: Agent step will be implemented in E4-07b",
+            )
+        )
+
+        # Step 3.3: Sample fonts from body text
+        font_signatures = self._sample_fonts(pdf_path, result)
+        if font_signatures is None:
+            result.complete()
+            return result
+
+        # Step 3.4: Build frequency map
+        frequency_map_result = self._build_frequency_map(font_signatures, result)
+        if frequency_map_result is None:
+            result.complete()
+            return result
+        frequency_map: dict = frequency_map_result
+
+        # Step 3.5: Detect candidate headings
+        self._detect_candidate_headings(frequency_map, result)
+
+        # Step 3.6: Generate font-family-mapping.json
+        mapping_result = self._generate_font_mapping(frequency_map, output_dir, result)
+        if mapping_result is None:
+            result.complete()
+            return result
+        mapping: dict = mapping_result
+
+        # Step 3.7: Detect footer, watermark, and page number signatures
+        self._run_footer_watermark_detection(pdf_path, mapping, output_dir, result)
+
+        # Step 3.8: Detect icon font signatures
+        self._run_icon_font_detection(pdf_path, mapping, output_dir, result)
 
         result.complete()
         return result
@@ -587,7 +695,158 @@ class Phase3(Phase):
 
         return False
 
-    def _analyze_icon_fonts(self, pdf_path: Path, mapping: dict, output_dir: Path) -> dict:  # noqa: PLR0912, C901
+    def _check_is_icon_font_name(self, family: str) -> bool:
+        """Check if font family name matches known icon font patterns.
+
+        Args:
+            family: Font family name (lowercase)
+
+        Returns:
+            True if font name indicates an icon font
+        """
+        icon_patterns = [
+            "fontawesome",
+            "material",
+            "glyphicons",
+            "icomoon",
+            "icon",
+            "symbol",
+            "wingdings",
+            "webdings",
+        ]
+        return any(pattern in family for pattern in icon_patterns)
+
+    def _check_has_private_use_chars(self, texts: list[str]) -> bool:
+        """Check if any text contains private-use-area Unicode characters.
+
+        Args:
+            texts: List of text strings to check
+
+        Returns:
+            True if any text contains U+E000-U+F8FF characters
+        """
+        for text in texts:
+            for char in text:
+                if "\ue000" <= char <= "\uf8ff":
+                    return True
+        return False
+
+    def _check_is_short_content(self, texts: list[str]) -> bool:
+        """Check if content is mostly very short (glyphs).
+
+        Args:
+            texts: List of text strings to check
+
+        Returns:
+            True if average length is <= 2 characters
+        """
+        ICON_MAX_LENGTH = 2
+        if not texts:
+            return False
+        avg_length = sum(len(t) for t in texts) / len(texts)
+        return avg_length <= ICON_MAX_LENGTH
+
+    def _analyze_single_icon_signature(
+        self,
+        sig_id: str,
+        texts: list[str],
+        mapping: dict,
+    ) -> dict | None:
+        """Analyze a single signature for icon font characteristics.
+
+        Args:
+            sig_id: Signature ID
+            texts: List of text content for this signature
+            mapping: Font family mapping
+
+        Returns:
+            Icon signature dict or None if not an icon font
+        """
+        # Get font family name
+        family = ""
+        for sig in mapping.get("signatures", []):
+            if sig.get("id") == sig_id:
+                family = sig.get("family", "").lower()
+                break
+
+        is_icon_font_name = self._check_is_icon_font_name(family)
+        has_private_use_chars = self._check_has_private_use_chars(texts)
+        is_short_content = self._check_is_short_content(texts)
+
+        # High confidence: matches icon font name OR has private use chars
+        if is_icon_font_name or has_private_use_chars:
+            reason = []
+            if is_icon_font_name:
+                reason.append(f"font name: {family}")
+            if has_private_use_chars:
+                reason.append("private-use Unicode")
+            return {
+                "sig_id": sig_id,
+                "font_family": family,
+                "confidence": "high",
+                "reason": "; ".join(reason),
+                "sample": texts[0] if texts else "",
+            }
+        elif is_short_content:
+            # Medium confidence: very short content only
+            return {
+                "sig_id": sig_id,
+                "font_family": family,
+                "confidence": "medium",
+                "reason": "very short content (likely glyphs)",
+                "sample": texts[0] if texts else "",
+            }
+        return None
+
+    def _collect_sig_content_from_pdf(self, pdf_path: Path, mapping: dict) -> dict[str, list[str]]:
+        """Collect text content per signature from PDF.
+
+        Args:
+            pdf_path: Path to the PDF file
+            mapping: Font family mapping
+
+        Returns:
+            Dictionary mapping sig_id to list of text content
+        """
+        import fitz
+
+        doc = fitz.open(pdf_path)
+        sig_content: dict[str, list[str]] = {}
+        FONT_SIZE_TOLERANCE = 0.5
+
+        # Build lookup
+        sig_lookup: dict[tuple, str] = {}
+        for sig in mapping.get("signatures", []):
+            key = (sig.get("family", ""), sig.get("size", 0))
+            sig_lookup[key] = sig.get("id", "")
+
+        for page in doc:
+            text_dict = page.get_text("dict")  # type: ignore[no-untyped-call]
+            blocks: list[dict] = text_dict.get("blocks", [])  # type: ignore[no-untyped-call]
+
+            for block in blocks:
+                if "lines" not in block:
+                    continue
+                for line in block.get("lines", []):  # type: ignore[no-untyped-call]
+                    for span in line.get("spans", []):  # type: ignore[no-untyped-call]
+                        font_name = span.get("font", "Unknown")  # type: ignore[no-untyped-call]
+                        font_size = span.get("size", 0)  # type: ignore[no-untyped-call]
+                        text = span.get("text", "")  # type: ignore[no-untyped-call]
+
+                        # Find matching signature
+                        matched_sig_id = None
+                        for (fam, size), sig_id in sig_lookup.items():
+                            if fam == font_name and abs(size - font_size) < FONT_SIZE_TOLERANCE:
+                                matched_sig_id = sig_id
+                                break
+
+                        if matched_sig_id:
+                            sig_content.setdefault(matched_sig_id, []).append(text)
+
+        doc.close()
+        return sig_content
+
+    def _analyze_icon_fonts(self, pdf_path: Path, mapping: dict, output_dir: Path) -> dict:
         """Analyze PDF for icon font signatures.
 
         Icon fonts are detected by:
@@ -603,124 +862,15 @@ class Phase3(Phase):
         Returns:
             Dictionary with detected icon signature IDs
         """
-        import fitz
-
-        # Known icon font patterns
-        ICON_FONT_PATTERNS = [
-            "fontawesome",
-            "material",
-            "glyphicons",
-            "icomoon",
-            "icon",
-            "symbol",
-            "wingdings",
-            "webdings",
-        ]
-
-        doc = fitz.open(pdf_path)
-        total_pages = doc.page_count
-
-        # Build lookup from signature attributes to sig_id
-        sig_lookup: dict[tuple, str] = {}
-        for sig in mapping.get("signatures", []):
-            key = (sig.get("family", ""), sig.get("size", 0))
-            sig_lookup[key] = sig.get("id", "")
-
-        # Track signature occurrences and their content
-        sig_content: dict[str, list[str]] = {}  # sig_id -> list of text content
-
-        for page_idx in range(total_pages):
-            page = doc[page_idx]
-            blocks = page.get_text("dict")["blocks"]  # type: ignore[index]
-
-            for block in blocks:
-                if "lines" not in block:
-                    continue
-
-                for line in block["lines"]:  # type: ignore[index]
-                    for span in line["spans"]:  # type: ignore[index]
-                        font_name = span.get("font", "Unknown")  # type: ignore[attr-defined]
-                        font_size = span.get("size", 0)  # type: ignore[attr-defined]
-                        text = span.get("text", "")  # type: ignore[attr-defined]
-
-                        # Find matching signature ID
-                        FONT_SIZE_TOLERANCE = 0.5
-                        matched_sig_id = None
-                        for (fam, size), sig_id in sig_lookup.items():
-                            if fam == font_name and abs(size - font_size) < FONT_SIZE_TOLERANCE:
-                                matched_sig_id = sig_id
-                                break
-
-                        if not matched_sig_id:
-                            continue
-
-                        if matched_sig_id not in sig_content:
-                            sig_content[matched_sig_id] = []
-
-                        sig_content[matched_sig_id].append(text)
-
-        doc.close()
+        # Collect text content per signature
+        sig_content = self._collect_sig_content_from_pdf(pdf_path, mapping)
 
         # Analyze signatures for icon font characteristics
         icon_sigs = []
-
         for sig_id, texts in sig_content.items():
-            # Get font family name
-            family = ""
-            for sig in mapping.get("signatures", []):
-                if sig.get("id") == sig_id:
-                    family = sig.get("family", "").lower()
-                    break
-
-            # Check for known icon font names
-            is_icon_font_name = any(pattern in family for pattern in ICON_FONT_PATTERNS)
-
-            # Check for private-use-area characters (U+E000-U+F8FF)
-            has_private_use_chars = False
-            for text in texts:
-                for char in text:
-                    if "\ue000" <= char <= "\uf8ff":
-                        has_private_use_chars = True
-                        break
-                if has_private_use_chars:
-                    break
-
-            # Check if content is mostly empty or very short (glyphs)
-            avg_length = sum(len(t) for t in texts) / len(texts) if texts else 0
-            ICON_MAX_LENGTH = 2
-            is_short_content = avg_length <= ICON_MAX_LENGTH
-
-            # Determine if this is an icon font signature
-            # High confidence: matches icon font name OR has private use chars
-            # Medium confidence: very short content only
-            if is_icon_font_name or has_private_use_chars:
-                confidence = "high"
-                reason = []
-                if is_icon_font_name:
-                    reason.append(f"font name: {family}")
-                if has_private_use_chars:
-                    reason.append("private-use Unicode")
-
-                icon_sigs.append(
-                    {
-                        "sig_id": sig_id,
-                        "font_family": family,
-                        "confidence": confidence,
-                        "reason": "; ".join(reason),
-                        "sample": texts[0] if texts else "",
-                    }
-                )
-            elif is_short_content:
-                # Short content alone is lower confidence
-                icon_sigs.append(
-                    {
-                        "sig_id": sig_id,
-                        "font_family": family,
-                        "confidence": "medium",
-                        "reason": "very short content (likely glyphs)",
-                        "sample": texts[0] if texts else "",
-                    }
-                )
+            icon_sig = self._analyze_single_icon_signature(sig_id, texts, mapping)
+            if icon_sig:
+                icon_sigs.append(icon_sig)
 
         result = {"icon_signatures": icon_sigs}
 

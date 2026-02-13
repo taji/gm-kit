@@ -77,7 +77,251 @@ class Phase8(Phase):
     def has_agent_steps(self) -> bool:
         return True  # Steps 8.6-8.8: Table conversion, quote formatting, figure placeholders
 
-    def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912, PLR0915, C901
+    def _load_callout_end_markers(self, state: ConversionState) -> dict[str, str]:
+        """Load callout configuration to get end_text markers for each callout type.
+
+        Args:
+            state: Current conversion state
+
+        Returns:
+            Dictionary mapping callout label to end text marker
+        """
+        callout_end_markers: dict[str, str] = {}
+        gm_callout_config_file = state.config.get("gm_callout_config_file")
+        if gm_callout_config_file:
+            try:
+                with open(gm_callout_config_file, encoding="utf-8") as f:
+                    callout_config = json.load(f)
+                for definition in callout_config:
+                    label = definition.get("label", "callout_gm")
+                    end_text = definition.get("end_text")
+                    if end_text:
+                        callout_end_markers[label] = end_text
+            except Exception as e:
+                logger.warning(f"Failed to load callout config: {e}")
+        return callout_end_markers
+
+    def _process_single_line(  # noqa: PLR0913
+        self,
+        line: str,
+        line_idx: int,
+        total_lines: int,
+        sig_id_to_label_map: dict[str, str],
+        callout_end_markers: dict[str, str],
+        heading_count: dict[str, int],
+        callout_count: list[int],
+        callout_blocks_with_warnings: list[str],
+    ) -> tuple[str, str | None]:
+        """Process a single line and return the processed line and updated callout state.
+
+        Args:
+            line: The line to process
+            line_idx: Index of the current line
+            total_lines: Total number of lines in the document
+            sig_id_to_label_map: Mapping from signature ID to label
+            callout_end_markers: Mapping from callout label to end text marker
+            heading_count: Mutable dict to track heading counts
+            callout_count: Mutable list with single int to track callout count
+            callout_blocks_with_warnings: Mutable list to track unclosed callouts
+
+        Returns:
+            Tuple of (processed_line, updated_active_callout_label)
+        """
+        processed_line = line
+        active_callout_label: str | None = None
+        is_last_line = line_idx == total_lines - 1
+
+        # Check for font markers in the line
+        match = FONT_MARKER_PATTERN.search(line)
+        if match:
+            sig_id = match.group(1)
+            label = sig_id_to_label_map.get(sig_id)
+
+            if label and label.startswith("H"):
+                processed_line = self._apply_heading_formatting(line, label, heading_count)
+                # Headings break callout blocks
+                active_callout_label = None
+
+            elif label and label.startswith("callout_"):
+                processed_line, active_callout_label = self._apply_callout_formatting(
+                    line, label, active_callout_label, callout_count, callout_end_markers
+                )
+
+            else:
+                # If not a heading or a callout, just unescape the text in the marker
+                processed_line = FONT_MARKER_PATTERN.sub(
+                    lambda m: _unescape_marker_chars(m.group(2)), line
+                )
+                # Non-callout content breaks callout blocks
+                active_callout_label = None
+
+        else:
+            # No font marker in this line, but inside callout block
+            # Continue blockquote for lines within an active callout block
+            # This includes empty lines - they get blockquoted too
+            # Note: active_callout_label will be set by caller based on current state
+            pass
+
+        # Check for EOF with unclosed callout
+        if is_last_line and active_callout_label:
+            callout_blocks_with_warnings.append(active_callout_label)
+            active_callout_label = None
+
+        return processed_line, active_callout_label
+
+    def _apply_heading_formatting(
+        self,
+        line: str,
+        label: str,
+        heading_count: dict[str, int],
+    ) -> str:
+        """Apply heading formatting to a line with a heading marker.
+
+        Args:
+            line: The line containing the heading marker
+            label: The label (e.g., "H1", "H2")
+            heading_count: Mutable dict to track heading counts
+
+        Returns:
+            The formatted heading line
+        """
+        level = int(label[1])
+        heading_prefix = "#" * level
+
+        def make_heading_replacer(hp: str) -> Callable[[re.Match], str]:
+            def replacer(m: re.Match) -> str:
+                return f"{hp} {_unescape_marker_chars(m.group(2))}"
+
+            return replacer
+
+        processed_line = FONT_MARKER_PATTERN.sub(
+            make_heading_replacer(heading_prefix),
+            line,
+        )
+        heading_count[label] = heading_count.get(label, 0) + 1
+
+        return processed_line
+
+    def _apply_callout_formatting(
+        self,
+        line: str,
+        label: str,
+        current_active_callout_label: str | None,
+        callout_count: list[int],
+        callout_end_markers: dict[str, str],
+    ) -> tuple[str, str | None]:
+        """Apply callout formatting to a line with a callout marker.
+
+        Args:
+            line: The line containing the callout marker
+            label: The callout label (e.g., "callout_gm")
+            current_active_callout_label: The currently active callout label
+            callout_count: Mutable list with single int to track callout count
+            callout_end_markers: Mapping from callout label to end text marker
+
+        Returns:
+            Tuple of (processed_line, updated_active_callout_label)
+        """
+        # Check if this is a different callout type
+        if current_active_callout_label and current_active_callout_label != label:
+            # Different callout type ends previous callout
+            current_active_callout_label = label
+
+        # Apply callout formatting (blockquote)
+        if not current_active_callout_label:
+            current_active_callout_label = label
+
+        processed_line = FONT_MARKER_PATTERN.sub(
+            lambda m: f"> {_unescape_marker_chars(m.group(2))}", line
+        )
+        callout_count[0] += 1
+
+        # Check if this line contains the end_text marker
+        end_marker = callout_end_markers.get(label)
+        if end_marker and end_marker in line:
+            # End marker found, close callout after this line
+            current_active_callout_label = None
+
+        return processed_line, current_active_callout_label
+
+    def _process_content_lines(
+        self,
+        content: str,
+        sig_id_to_label_map: dict[str, str],
+        callout_end_markers: dict[str, str],
+    ) -> tuple[str, dict[str, int], int, list[str]]:
+        """Process all lines in the content, applying headings and callouts.
+
+        Args:
+            content: The full content to process
+            sig_id_to_label_map: Mapping from signature ID to label
+            callout_end_markers: Mapping from callout label to end text marker
+
+        Returns:
+            Tuple of (processed_content, heading_count, callout_count, callout_warnings)
+        """
+        formatted_lines: list[str] = []
+        heading_count = {"H1": 0, "H2": 0, "H3": 0, "H4": 0}
+        callout_count_list = [0]  # Use list for mutable reference
+
+        # Track active callout state
+        current_active_callout_label: str | None = None
+        callout_blocks_with_warnings: list[str] = []
+
+        lines = content.split("\n")
+        total_lines = len(lines)
+
+        for line_idx, line in enumerate(lines):
+            is_last_line = line_idx == total_lines - 1
+
+            # Check for font markers in the line
+            match = FONT_MARKER_PATTERN.search(line)
+            if match:
+                sig_id = match.group(1)
+                label = sig_id_to_label_map.get(sig_id)
+
+                if label and label.startswith("H"):
+                    processed_line = self._apply_heading_formatting(line, label, heading_count)
+                    # Headings break callout blocks
+                    current_active_callout_label = None
+
+                elif label and label.startswith("callout_"):
+                    processed_line, current_active_callout_label = self._apply_callout_formatting(
+                        line,
+                        label,
+                        current_active_callout_label,
+                        callout_count_list,
+                        callout_end_markers,
+                    )
+
+                else:
+                    # If not a heading or a callout, just unescape the text in the marker
+                    processed_line = FONT_MARKER_PATTERN.sub(
+                        lambda m: _unescape_marker_chars(m.group(2)), line
+                    )
+                    # Non-callout content breaks callout blocks
+                    if current_active_callout_label:
+                        current_active_callout_label = None
+
+            elif current_active_callout_label:
+                # No font marker in this line, but inside callout block
+                # Continue blockquote for lines within an active callout block
+                processed_line = f"> {line}"
+
+            else:
+                processed_line = line
+
+            # Check for EOF with unclosed callout
+            if is_last_line and current_active_callout_label:
+                callout_blocks_with_warnings.append(current_active_callout_label)
+                current_active_callout_label = None
+
+            formatted_lines.append(processed_line)
+
+        processed_content = "\n".join(formatted_lines)
+        return processed_content, heading_count, callout_count_list[0], callout_blocks_with_warnings
+
+    def execute(self, state: ConversionState) -> PhaseResult:
         """Execute heading insertion and callout formatting steps.
 
         Args:
@@ -90,7 +334,7 @@ class Phase8(Phase):
         output_dir = Path(state.output_dir)
         pdf_name = Path(state.pdf_path).stem
 
-        input_path = output_dir / f"{pdf_name}-phase6.md"  # Changed from phase4.md
+        input_path = output_dir / f"{pdf_name}-phase6.md"
         output_path = output_dir / f"{pdf_name}-phase8.md"
 
         # Check if input exists
@@ -108,19 +352,7 @@ class Phase8(Phase):
             sig_id_to_label_map = _build_sig_id_to_label_mapping(mapping_path)
 
             # Load callout config to get end_text markers for each callout type
-            callout_end_markers: dict[str, str] = {}
-            gm_callout_config_file = state.config.get("gm_callout_config_file")
-            if gm_callout_config_file:
-                try:
-                    with open(gm_callout_config_file, encoding="utf-8") as f:
-                        callout_config = json.load(f)
-                    for definition in callout_config:
-                        label = definition.get("label", "callout_gm")
-                        end_text = definition.get("end_text")
-                        if end_text:
-                            callout_end_markers[label] = end_text
-                except Exception as e:
-                    logger.warning(f"Failed to load callout config: {e}")
+            callout_end_markers = self._load_callout_end_markers(state)
 
             result.add_step(
                 StepResult(
@@ -131,93 +363,10 @@ class Phase8(Phase):
                 )
             )
 
-            # Steps 8.2, 8.4, 8.5, 8.8 are combined into a single pass over the content
-            formatted_lines: list[str] = []
-            heading_count = {"H1": 0, "H2": 0, "H3": 0, "H4": 0}
-            callout_count = 0
-
-            # Track active callout state
-            current_active_callout_label: str | None = None
-            callout_blocks_with_warnings: list[str] = []
-
-            lines = content.split("\n")
-            total_lines = len(lines)
-
-            for line_idx, line in enumerate(lines):
-                processed_line = line
-                is_last_line = line_idx == total_lines - 1
-
-                # Check for font markers in the line
-                match = FONT_MARKER_PATTERN.search(line)
-                if match:
-                    sig_id = match.group(1)
-                    label = sig_id_to_label_map.get(sig_id)
-
-                    if label and label.startswith("H"):
-                        # Apply heading formatting
-                        level = int(label[1])
-                        heading_prefix = "#" * level
-
-                        def make_heading_replacer(hp: str) -> Callable[[re.Match], str]:
-                            def replacer(m: re.Match) -> str:
-                                return f"{hp} {_unescape_marker_chars(m.group(2))}"
-
-                            return replacer
-
-                        processed_line = FONT_MARKER_PATTERN.sub(
-                            make_heading_replacer(heading_prefix),
-                            line,
-                        )
-                        heading_count[label] = heading_count.get(label, 0) + 1
-
-                        # Headings break callout blocks
-                        if current_active_callout_label:
-                            current_active_callout_label = None
-
-                    elif label and label.startswith("callout_"):
-                        # Check if this is a different callout type
-                        if current_active_callout_label and current_active_callout_label != label:
-                            # Different callout type ends previous callout
-                            current_active_callout_label = label
-
-                        # Apply callout formatting (blockquote)
-                        if not current_active_callout_label:
-                            current_active_callout_label = label
-
-                        processed_line = FONT_MARKER_PATTERN.sub(
-                            lambda m: f"> {_unescape_marker_chars(m.group(2))}", line
-                        )
-                        callout_count += 1
-
-                        # Check if this line contains the end_text marker
-                        end_marker = callout_end_markers.get(label)
-                        if end_marker and end_marker in line:
-                            # End marker found, close callout after this line
-                            current_active_callout_label = None
-
-                    else:
-                        # If not a heading or a callout, just unescape the text in the marker
-                        processed_line = FONT_MARKER_PATTERN.sub(
-                            lambda m: _unescape_marker_chars(m.group(2)), line
-                        )
-                        # Non-callout content breaks callout blocks
-                        if current_active_callout_label:
-                            current_active_callout_label = None
-
-                elif current_active_callout_label:
-                    # No font marker in this line, but inside callout block
-                    # Continue blockquote for lines within an active callout block
-                    # This includes empty lines - they get blockquoted too
-                    processed_line = f"> {line}"
-
-                # Check for EOF with unclosed callout
-                if is_last_line and current_active_callout_label:
-                    callout_blocks_with_warnings.append(current_active_callout_label)
-                    current_active_callout_label = None
-
-                formatted_lines.append(processed_line)
-
-            content = "\n".join(formatted_lines)
+            # Process all lines in the content
+            content, heading_count, callout_count, callout_warnings = self._process_content_lines(
+                content, sig_id_to_label_map, callout_end_markers
+            )
 
             # Build step message
             step_message = (
@@ -229,12 +378,12 @@ class Phase8(Phase):
             )
 
             # Add warnings for unclosed callouts
-            if callout_blocks_with_warnings:
+            if callout_warnings:
                 step_message += (
-                    f" Warning: {len(callout_blocks_with_warnings)} callout(s) "
+                    f" Warning: {len(callout_warnings)} callout(s) "
                     "not explicitly closed by end_text marker."
                 )
-                for label in callout_blocks_with_warnings:
+                for label in callout_warnings:
                     result.add_warning(
                         f"Callout '{label}' reached end of document without "
                         "explicit end_text marker"

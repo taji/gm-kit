@@ -371,14 +371,21 @@ class StepResult:
 
 ### Complexity Management
 
-**Current High-Complexity Functions** (marked with `# noqa: C901`):
-- `phase3.py:execute()` - 31 complexity
-- `phase3.py:_analyze_footer_watermarks()` - 33 complexity
-- `phase5.py:execute()` - 65 complexity
-- `phase7.py:execute()` - 82 complexity
-- `phase4.py:execute()` - 38 complexity
+**Refactored Functions** (complexity reduced via extraction):
+- `cli_helpers.py:run_pdf_convert_command()` - Extracted 8 helper functions
+- `phase3.py:execute()` - Extracted 7 step methods (3.1, 3.3-3.8)
+- `phase3.py:_analyze_icon_fonts()` - Extracted 5 detection methods
+- `phase4.py:execute()` - Extracted 6 methods for chunk/page/span processing
+- `phase5.py:execute()` - Extracted 10 methods for character-level fixes
+- `phase7.py:execute()` - Extracted 12 methods for structural detection
+- `phase8.py:execute()` - Extracted 4 methods for line processing
 
-**Mitigation**: These are intentionally complex orchestration functions. Extract step methods where practical.
+**Remaining Suppressions** (`# noqa: PLR0913` - too many arguments):
+- Helper methods using mutable list/dict references (8 functions)
+- Factory methods (e.g., `create_step_result()`)
+- CLI handlers passing through user options
+
+**Pattern**: Complex `execute()` methods decomposed into private step methods. Each extracted method has single responsibility and reduced cyclomatic complexity. Complexity violations only remain where splitting would harm clarity (CLI option passthrough, factory methods).
 
 ### Future Enhancements
 
@@ -418,5 +425,5 @@ Core rules:
 
 ---
 
-*Last Updated: 2026-02-10*
+*Last Updated: 2026-02-13*
 *Status: E4-07a (Code-driven pipeline) complete, E4-07b (Agent steps) pending*
