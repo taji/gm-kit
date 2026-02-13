@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import subprocess  # nosec B404
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -126,7 +127,7 @@ class Phase9(Phase):
             try:
                 # Run pymarkdownlnt with JSON output
                 cmd = [
-                    "python",
+                    sys.executable,
                     "-m",
                     "pymarkdown",
                     "scan",

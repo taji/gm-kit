@@ -3,6 +3,8 @@
 Tests for markdown linting and quality checks.
 """
 
+import sys
+
 import pytest
 
 from gm_kit.pdf_convert.phases.base import PhaseStatus
@@ -52,6 +54,31 @@ class TestPhase9LintChecks:
         assert step_9_6.status == PhaseStatus.WARNING
         assert step_9_6.message and "Lint check skipped" in step_9_6.message
         assert "No lint violations found" not in step_9_6.message
+
+    def test__should_use_current_interpreter__when_running_pymarkdown(
+        self, setup_phase9, tmp_path, monkeypatch
+    ):
+        """Phase 9 should run pymarkdown via the active Python interpreter."""
+        phase, state = setup_phase9
+        input_path = tmp_path / "test-phase8.md"
+        input_path.write_text("# Heading\n\nContent")
+        captured_cmd: list[str] = []
+
+        class _Proc:
+            returncode = 0
+            stdout = "[]"
+            stderr = ""
+
+        def _run(cmd, **_kwargs):
+            captured_cmd[:] = cmd
+            return _Proc()
+
+        monkeypatch.setattr("gm_kit.pdf_convert.phases.phase9.subprocess.run", _run)
+
+        result = phase.execute(state)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert captured_cmd[:3] == [sys.executable, "-m", "pymarkdown"]
 
 
 class TestPhase9AgentSteps:
