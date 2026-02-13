@@ -4,7 +4,7 @@ Use this outline as the canonical user-facing documentation. Keep it current by 
 
 ## Overview
 - GM-Kit helps GMs initialize a project workspace with agent-specific prompts, scripts, and templates.
-- Current focus: a walking skeleton command (`/gmkit.hello-gmkit`) that demonstrates the flow end to end.
+- Current focus: PDF → Markdown conversion via `gmkit pdf-convert` (code-driven pipeline with per-phase artifacts).
 
 ## Getting Started
 ### Prerequisites
@@ -32,7 +32,46 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ```
 
 ## Core Workflows
+### PDF → Markdown (`gmkit pdf-convert`)
+1. Run `gmkit pdf-convert <pdf-path> --output <output-dir>`.
+2. Review generated phase outputs and the final markdown draft.
+3. Optionally re-run a phase or resume from an existing output directory.
+
+#### Common Commands
+- Full pipeline: `gmkit pdf-convert <pdf-path> --output <output-dir> --yes`
+- Re-run a phase: `gmkit pdf-convert --phase <n> <output-dir>`
+- Resume: `gmkit pdf-convert --resume <output-dir>`
+- Status: `gmkit pdf-convert --status <output-dir>`
+- Diagnostics bundle: `gmkit pdf-convert <pdf-path> --output <output-dir> --diagnostics`
+- Callout config: `gmkit pdf-convert <pdf-path> --output <output-dir> --gm-callout-config-file callout_config.json`
+
+#### Key Outputs
+```
+<output-dir>/
+├── .state.json
+├── metadata.json
+├── toc-extracted.txt
+├── font-family-mapping.json
+├── callout_config.json
+├── images/
+│   └── image-manifest.json
+├── preprocessed/
+│   └── <filename>-no-images.pdf
+├── <filename>-phase4.md
+├── <filename>-phase5.md
+├── <filename>-phase6.md
+├── <filename>-phase8.md
+├── conversion-report.md
+└── diagnostic-bundle.zip (when --diagnostics is set)
+```
+
+Notes:
+- `callout_config.json` is created automatically if not provided; edit it before proceeding if you need custom callout boundaries.
+- `font-family-mapping.json` captures font signatures (family + size + weight + style) used for heading inference.
+- `diagnostic-bundle.zip` contains state, metadata, and phase outputs for troubleshooting.
+
 ### /gmkit.hello-gmkit
+This is a walking-skeleton placeholder command retained for onboarding and basic flow validation.
 1. Run `gmkit init` to generate prompts, scripts, and templates.
 2. In your agent, invoke: `/gmkit.hello-gmkit "Hello from Agent!"`
 3. Result: `greetings/greeting01.md` (or next sequence number) is created from the template.
@@ -71,6 +110,12 @@ Agent prompt locations:
   - `--agent`: the AI assistant you use to generate GM content (claude, codex-cli, gemini, qwen).
   - `--os`: the operating system where you run that assistant (macos/linux or windows).
 - `gmkit init <path>` (interactive prompt for agent/OS)
+
+- `gmkit pdf-convert <pdf-path> [--output <dir>] [--yes]`
+- `gmkit pdf-convert --phase <n> <dir>`
+- `gmkit pdf-convert --resume <dir>`
+- `gmkit pdf-convert --status <dir>`
+- `gmkit pdf-convert --diagnostics <pdf-path> --output <dir>`
 
 ## Configuration
 - Settings users can change (env vars, config files, toggles).

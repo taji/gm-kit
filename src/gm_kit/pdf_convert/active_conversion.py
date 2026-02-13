@@ -37,7 +37,8 @@ def load_active_state(start: Path) -> dict | None:
     if not state_path.exists():
         return None
     try:
-        return json.loads(state_path.read_text())
+        result: dict | None = json.loads(state_path.read_text())
+        return result
     except json.JSONDecodeError:
         return None
 

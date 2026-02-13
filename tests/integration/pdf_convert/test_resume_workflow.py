@@ -74,11 +74,27 @@ def create_partial_state(output_dir: Path, pdf_path: Path, completed_phases: lis
             output_file = output_dir / f"{pdf_name}-phase{phase_num}.md"
             output_file.write_text(f"# Phase {phase_num} output\n", encoding="utf-8")
 
+    # Create font-family-mapping.json if Phase 3 is completed (required for Phase 7)
+    if 3 in completed_phases:
+        font_mapping = {
+            "version": "1.0",
+            "signatures": [],
+            "metadata": {
+                "total_signatures": 0,
+                "candidate_headings": 0,
+            },
+        }
+        (output_dir / "font-family-mapping.json").write_text(
+            json.dumps(font_mapping, indent=2), encoding="utf-8"
+        )
+
 
 class TestResumeInterruptedConversion:
     """Tests for resuming interrupted conversion."""
 
-    def test_resume_workflow__should_continue__when_checkpoint_exists(self, tmp_path, gmkit_cli, src_path):
+    def test_resume_workflow__should_continue__when_checkpoint_exists(
+        self, tmp_path, gmkit_cli, src_path
+    ):
         """--resume continues from last completed phase."""
         output_dir = tmp_path / "output"
 
@@ -86,9 +102,11 @@ class TestResumeInterruptedConversion:
         create_partial_state(output_dir, TEST_PDF_PATH, completed_phases=[0, 1, 2])
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--resume", str(output_dir),
+                "--resume",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
@@ -110,7 +128,9 @@ class TestResumeInterruptedConversion:
         # Should have progressed past phase 3 or completed
         assert state["current_phase"] > 3 or state["status"] == "completed"
 
-    def test_resume_workflow__should_skip_completed__when_phases_done(self, tmp_path, gmkit_cli, src_path):
+    def test_resume_workflow__should_skip_completed__when_phases_done(
+        self, tmp_path, gmkit_cli, src_path
+    ):
         """Resume doesn't re-run phases that were already completed."""
         output_dir = tmp_path / "output"
 
@@ -118,9 +138,11 @@ class TestResumeInterruptedConversion:
         create_partial_state(output_dir, TEST_PDF_PATH, completed_phases=[0, 1, 2, 3, 4])
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--resume", str(output_dir),
+                "--resume",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
@@ -146,9 +168,11 @@ class TestResumeErrorCases:
     def test_resume_workflow__should_fail__when_no_state_file(self, tmp_path, gmkit_cli, src_path):
         """--resume fails gracefully when no state file exists."""
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--resume", str(tmp_path),
+                "--resume",
+                str(tmp_path),
             ],
             capture_output=True,
             text=True,
@@ -167,9 +191,11 @@ class TestResumeErrorCases:
         (tmp_path / ".state.json").write_text("not valid json{")
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--resume", str(tmp_path),
+                "--resume",
+                str(tmp_path),
             ],
             capture_output=True,
             text=True,
@@ -201,9 +227,11 @@ class TestResumeErrorCases:
         create_partial_state(output_dir, fake_pdf, completed_phases=[0, 1])
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--resume", str(output_dir),
+                "--resume",
+                str(output_dir),
             ],
             capture_output=True,
             text=True,
@@ -221,7 +249,9 @@ class TestResumeErrorCases:
 class TestPhaseRerun:
     """Tests for re-running specific phases."""
 
-    def test_phase_rerun__should_run_single_phase__when_valid_phase(self, tmp_path, gmkit_cli, src_path):
+    def test_phase_rerun__should_run_single_phase__when_valid_phase(
+        self, tmp_path, gmkit_cli, src_path
+    ):
         """--phase N re-runs only phase N."""
         output_dir = tmp_path / "output"
 
@@ -237,10 +267,12 @@ class TestPhaseRerun:
             json.dump(state, f)
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(output_dir),
-                "--phase", "3",
+                "--phase",
+                "3",
                 "--yes",
             ],
             capture_output=True,
@@ -253,7 +285,9 @@ class TestPhaseRerun:
         # Should succeed (mock phases always succeed)
         assert result.returncode == 0
 
-    def test_phase_rerun__should_fail__when_prerequisites_missing(self, tmp_path, gmkit_cli, src_path):
+    def test_phase_rerun__should_fail__when_prerequisites_missing(
+        self, tmp_path, gmkit_cli, src_path
+    ):
         """--phase N fails if prerequisite phases aren't completed."""
         output_dir = tmp_path / "output"
 
@@ -261,10 +295,12 @@ class TestPhaseRerun:
         create_partial_state(output_dir, TEST_PDF_PATH, completed_phases=[0])
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(output_dir),
-                "--phase", "5",
+                "--phase",
+                "5",
                 "--yes",
             ],
             capture_output=True,
@@ -278,7 +314,9 @@ class TestPhaseRerun:
         output = (result.stdout + result.stderr).lower()
         assert "phase" in output and ("require" in output or "complete" in output)
 
-    def test_phase_rerun__should_update_state__when_phase_completes(self, tmp_path, gmkit_cli, src_path):
+    def test_phase_rerun__should_update_state__when_phase_completes(
+        self, tmp_path, gmkit_cli, src_path
+    ):
         """--phase N updates state after re-running (T046)."""
         output_dir = tmp_path / "output"
 
@@ -296,13 +334,16 @@ class TestPhaseRerun:
 
         # Wait a moment to ensure timestamp difference
         import time
+
         time.sleep(0.1)
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(output_dir),
-                "--phase", "3",
+                "--phase",
+                "3",
                 "--yes",
             ],
             capture_output=True,
@@ -330,10 +371,12 @@ class TestFromStepResume:
     def test_from_step__should_reject__when_invalid_format(self, tmp_path, gmkit_cli, src_path):
         """--from-step validates step format."""
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(tmp_path),
-                "--from-step", "invalid",
+                "--from-step",
+                "invalid",
             ],
             capture_output=True,
             text=True,
@@ -346,7 +389,9 @@ class TestFromStepResume:
         output = (result.stdout + result.stderr).lower()
         assert "invalid" in output or "format" in output
 
-    def test_from_step__should_start_at_step__when_valid_format(self, tmp_path, gmkit_cli, src_path):
+    def test_from_step__should_start_at_step__when_valid_format(
+        self, tmp_path, gmkit_cli, src_path
+    ):
         """--from-step N.N starts from the specified step."""
         output_dir = tmp_path / "output"
 
@@ -354,10 +399,12 @@ class TestFromStepResume:
         create_partial_state(output_dir, TEST_PDF_PATH, completed_phases=[0, 1, 2, 3, 4])
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(output_dir),
-                "--from-step", "5.2",
+                "--from-step",
+                "5.2",
                 "--yes",
             ],
             capture_output=True,

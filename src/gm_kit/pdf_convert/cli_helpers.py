@@ -15,7 +15,7 @@ from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
 
 
-def run_pdf_convert_command(  # noqa: PLR0913, PLR0915
+def run_pdf_convert_command(  # noqa: PLR0913, PLR0915, C901
     pdf_path: str | None,
     output: str | None,
     resume: bool,
@@ -24,6 +24,8 @@ def run_pdf_convert_command(  # noqa: PLR0913, PLR0915
     status: bool,
     diagnostics: bool,
     yes: bool,
+    gm_keyword: list[str] | None,
+    gm_callout_config_file: str | None,
 ) -> None:
     """Handle CLI routing for pdf-convert operations."""
 
@@ -133,5 +135,7 @@ def run_pdf_convert_command(  # noqa: PLR0913, PLR0915
         diagnostics=diagnostics,
         auto_proceed=yes,
         cli_args=cli_args,
+        gm_keyword=gm_keyword,
+        gm_callout_config_file=gm_callout_config_file,
     )
     raise typer.Exit(code=exit_code)

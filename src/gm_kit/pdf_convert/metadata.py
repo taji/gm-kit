@@ -43,6 +43,7 @@ class PDFMetadata:
         creation_date: PDF creation date (ISO8601 or None)
         modification_date: PDF modification date (ISO8601 or None)
     """
+
     page_count: int
     file_size_bytes: int
     title: str = ""
@@ -106,7 +107,7 @@ def _safe_string(value: Any) -> str:
     try:
         result = str(value)
         # Replace any invalid characters
-        return result.encode('utf-8', errors='replace').decode('utf-8')
+        return result.encode("utf-8", errors="replace").decode("utf-8")
     except Exception:
         return ""
 
@@ -241,7 +242,7 @@ def save_metadata(metadata: PDFMetadata, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     metadata_path = output_dir / "metadata.json"
-    with open(metadata_path, 'w') as f:
+    with open(metadata_path, "w") as f:
         json.dump(metadata.to_dict(), f, indent=2)
 
     return metadata_path

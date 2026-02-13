@@ -1,6 +1,6 @@
 # AGENTS.md (Context file for AI Agents)
 
-This file defines the standards, conventions, and expectations for AI-assisted development on this project.  
+This file defines the standards, conventions, and expectations for AI-assisted development on this project.
 
 ## Git Hygiene
 
@@ -63,12 +63,12 @@ The project is a **Python command-line utility**, not a web service, so the guid
 
 This repository contains a Python CLI tool managed with:
 
-- **uv** for dependency management, environment resolution, and execution  
-- **just** for task orchestration (until uv's task runner stabilizes)  
-- **pytest** for testing  
-- **ruff**, **black**, **isort** for linting and formatting  
-- **mypy** for static typing  
-- **bandit** and **uv audit** for security scanning  
+- **uv** for dependency management, environment resolution, and execution
+- **just** for task orchestration (until uv's task runner stabilizes)
+- **pytest** for testing
+- **ruff**, **black**, **isort** for linting and formatting
+- **mypy** for static typing
+- **bandit** and **uv audit** for security scanning
 
 Agents must follow the procedures below when implementing or modifying code.
 
@@ -79,6 +79,7 @@ Agents must follow the procedures below when implementing or modifying code.
 ## 1. Unit Tests Required for All New Code
 - When you implement a new function, class, or feature, you **must add unit tests**.
 - Place tests in the `tests/` directory, using pytest conventions.
+ - Regression-test harness guidance lives in `tests/README.md` (add a unit test whenever an integration anomaly requires a code change).
 
 ## 2. Maintain and Expand Existing Tests
 - When modifying existing code, update any affected tests.
@@ -118,25 +119,13 @@ Fix all issues automatically where possible.
 - Name pytest functions with the pattern `test_<Subject>__should_<ExpectedOutcome>__when_<Condition>`.
 - Keep the subject descriptive (e.g., `surgebench_cli`), the expected outcome explicit (e.g., `should_emit_error_modal`), and the condition clear (e.g., `when_invalid_vcv_file`).
 - Apply consistently across unit and integration tests so logs clearly show intent when tests pass/fail.
-- The test name is the **contract**; the test body **implements** that contract. The `should_<ExpectedOutcome>` MUST match what the assertions actually verify (e.g., `should_return_success` if asserting `exit_code == 0`, not a vague `should_accept_flag`).
-- **Success tests**: Assert the return value or exit code. Do not redundantly check output strings when the return value already proves success.
-- **Failure tests**: Assert both the exit code/exception AND the specific error message, to confirm the code fails for the right reason. Comment the expected error message above the assertion (e.g., `# Expect: "ERROR: Cannot combine --resume, --phase, --from-step, or --status"`).
-- **Assertions must be unconditional**: Avoid `if` statements around assertions; tests should fail loudly when expected artifacts or output are missing.
 
 ## 4.6 Test Boundary Rules
-- **Unit tests** (`tests/unit/`) MUST NOT spawn subprocesses, make network calls, or touch the filesystem beyond `tmp_path`. They test functions and classes in isolation with mocked dependencies.
-- **Integration tests** (`tests/integration/`) MAY spawn subprocesses, exercise real I/O, and test cross-module workflows.
-- For CLI testing in unit tests, use `typer.testing.CliRunner` to invoke commands in-process. Mock the underlying service layer (e.g., `Orchestrator`) so tests verify argument parsing and routing logic only.
-- Reserve `subprocess.run` for integration tests that validate end-to-end CLI behavior.
-- Unit tests must mock external libraries (e.g., PDF parsers) and avoid reading real fixture files; use fakes or `tmp_path` inputs instead.
-- Unit tests must not read package assets (e.g., `src/gm_kit/assets`) directly; build minimal assets under `tmp_path` or patch dependencies to avoid relying on installed files.
-- Do not skip tests due to missing fixtures; missing fixtures should fail loudly so the gap is visible.
-- Avoid conditional assertions (e.g., `if file.exists()`); assert required artifacts exist before inspecting content.
-- When asserting errors, compare the exact error string and include a `# Expect: "<full error>"` comment above the assertion.
-- In integration tests, assert `returncode == 0` on success paths to prevent silent failures.
-- For help/usage tests, assert the `Usage:` line (and error line when applicable).
-- When asserting CLI output, normalize terminal formatting (e.g., strip ANSI codes) before exact string comparisons.
-- Help/usage assertions must be robust to ANSI styling and line-wrapping; normalize output before matching option names.
+- **Unit tests** (`tests/unit/`) must not spawn subprocesses, use network calls, or depend on real fixture assets beyond `tmp_path`; mock/stub external libraries and I/O.
+- **Integration tests** (`tests/integration/`) may use subprocesses, real fixture files, and cross-module workflows.
+- Unit tests for CLI parsing should use `typer.testing.CliRunner` and mock orchestration/service layers.
+- Assertions must be unconditional (`assert`, no `if` guards around expected artifacts/results).
+- Error-path tests should assert exact error text and exact exit behavior.
 
 ## 5. Type Checking
 Use MyPy to enforce typing standards:
@@ -146,6 +135,57 @@ just typecheck
 ```
 
 All modified or added code must pass MyPy.
+
+## 6. Cyclomatic Complexity Guidelines
+Complexity is tracked using **Ruff's mccabe plugin** to maintain code readability for both humans and AI agents.
+
+### Complexity Thresholds
+- **A (1-5)**: Simple - acceptable
+- **B (6-10)**: Acceptable - no action needed
+- **C (11-15)**: Warning - consider refactoring if function grows
+- **D (16-20)**: High - should be refactored when convenient
+- **E (21-35)**: Very High - must be refactored (see exceptions below)
+- **F (35+)**: Extreme - must be refactored immediately
+
+### Check Complexity
+Complexity is automatically checked during `just lint` via Ruff's C90 (mccabe) rule. The current threshold is **max-complexity = 20** (E-grade threshold).
+
+```bash
+# Run linting (includes complexity check via Ruff)
+just lint
+
+# To suppress complexity warnings for a specific function
+def my_function():  # noqa: C901
+    """This function has high complexity but is acceptable."""
+    pass
+```
+
+### When to Allow High Complexity
+Complexity violations are acceptable in these cases:
+- **Purely sequential steps** with no branching (just long procedural code)
+- **Single large `execute()` methods** that orchestrate multiple steps (when extracted to step methods)
+- **External library wrappers** that must match library interfaces
+- **Agent steps** (10.2, 10.3, etc.) that are intentionally stubbed
+
+### When to Refactor
+Require refactoring when:
+- Deep nesting (>3 levels of conditionals/loops)
+- Multiple responsibilities in one function (violates SRP)
+- High branch count with interdependent conditions
+- Poor testability due to complexity
+- Functions exceed 100 lines (secondary indicator)
+
+### Current High Complexity (For Reference)
+These functions currently have E-grade complexity and should be refactored in future:
+- `phase3.py:execute()` - 31 complexity (extract step methods)
+- `phase3.py:_analyze_footer_watermarks()` - 33 complexity
+- `phase3.py:_analyze_icon_fonts()` - 29 complexity
+- `phase4.py:execute()` - 38 complexity (extract text extraction loop)
+- `phase5.py:execute()` - 65 complexity (extract step methods)
+- `phase7.py:execute()` - 82 complexity (extract detection methods)
+- `orchestrator.py` - various methods need extraction
+
+**Note**: Complexity violations will fail the build during `just lint`. Use `# noqa: C901` comments sparingly for functions that legitimately need high complexity.
 
 ---
 
@@ -174,20 +214,20 @@ Fix or justify all Bandit warnings.
 ## 3. Avoid Unsafe Python Features
 Agents must not introduce:
 
-- `eval()` or `exec()`  
-- `pickle` (use JSON, msgpack, or `yaml.safe_load`)  
-- `yaml.load` (must use `yaml.safe_load`)  
-- `subprocess` with `shell=True` unless absolutely required and documented  
-- unsafe temp file handling  
+- `eval()` or `exec()`
+- `pickle` (use JSON, msgpack, or `yaml.safe_load`)
+- `yaml.load` (must use `yaml.safe_load`)
+- `subprocess` with `shell=True` unless absolutely required and documented
+- unsafe temp file handling
 
 ## 4. Input-Handling Safety
 Even CLI arguments may be untrusted.
 
 For any feature handling user paths or file content:
 
-- validate paths  
-- avoid path traversal (`../`) issues  
-- sanitize data passed to subprocesses  
+- validate paths
+- avoid path traversal (`../`) issues
+- sanitize data passed to subprocesses
 
 ---
 
@@ -204,8 +244,8 @@ just <task>
 ```
 
 ## Recommended AI workflow:
-1. Implement code  
-2. Write/update tests  
+1. Implement code
+2. Write/update tests
 3. Run the full quality pipeline:
 
 ```bash
@@ -218,15 +258,15 @@ uv audit
 bandit -r src
 ```
 
-4. Confirm all checks pass  
-5. Submit changes  
+4. Confirm all checks pass
+5. Submit changes
 
 ---
 
 # 📝 Documentation Guidelines
 
-- Update `README.md` or docstrings for new features.  
-- Add examples for new CLI commands or flags.  
+- Update `README.md` or docstrings for new features.
+- Add examples for new CLI commands or flags.
 - Keep inline comments minimal but clear.
 
 ---
@@ -235,10 +275,10 @@ bandit -r src
 
 All commits must be:
 
-- Atomic  
-- Well-described  
-- Paired with tests  
-- Passing all quality & security checks  
+- Atomic
+- Well-described
+- Paired with tests
+- Passing all quality & security checks
 
 Example commit message:
 
@@ -250,28 +290,14 @@ Add feature X to module Y, including tests and updated CLI handler
 
 # 🏁 Completion Requirements for All AI Tasks
 
-Completion requirements vary by task type:
+A task is “complete” only when:
 
-**Spec/Documentation Mode** (e.g., editing specs, plans, checklists):
-- Documentation accurately reflects requirements and changes
-- No code quality checks required
-
-**Build/Implementation Mode** (e.g., writing/modifying code, tests):
-- All tests pass  
-- Code coverage meets or exceeds requirements  
-- Linting and formatting pass  
-- Type checking passes  
-- Security scans show no unresolved issues  
-- Documentation reflects new changes  
+- All tests pass
+- Code coverage meets or exceeds requirements
+- Linting and formatting pass
+- Type checking passes
+- Security scans show no unresolved issues
+- Documentation reflects new changes
 - The implementation adheres to project architecture and style guidelines
 
 <!-- GENERATED:AGENT_CONTEXT_PYTHON_END -->
-
-## Active Technologies
-- Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit (001-ci-walking-skeleton)
-- N/A (CI configuration only) (001-ci-walking-skeleton)
-- Python 3.13.7 + typer, rich, PyMuPDF (fitz), pymarkdownlnt (006-code-pdf-pipeline)
-- Files on local workspace (.state.json, per-phase artifacts, manifests) (006-code-pdf-pipeline)
-
-## Recent Changes
-- 001-ci-walking-skeleton: Added Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit

@@ -1,5 +1,6 @@
 """Unit tests for PDF metadata extraction (T017)."""
 
+import json
 import sys
 from types import SimpleNamespace
 
@@ -13,6 +14,8 @@ from gm_kit.pdf_convert.metadata import (
     load_metadata,
     save_metadata,
 )
+from gm_kit.pdf_convert.phases.phase3 import Phase3
+from gm_kit.pdf_convert.state import ConversionState
 
 
 class _FakePage:
@@ -258,6 +261,104 @@ class TestExtractMetadataErrors:
         """extract_metadata raises ValueError when fitz.open reports encryption."""
         pdf_path = tmp_path / "encrypted.pdf"
         pdf_path.write_bytes(b"%PDF-1.4\n%Fake\n")
+
+
+class TestFontSignatureInference:
+    """Tests for font signature differentiation."""
+
+    def test_font_signatures__should_differ__when_weight_or_style_changes(
+        self, tmp_path, monkeypatch
+    ):
+        """Same family/size with different weight/style yields distinct signatures."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4\n%Fake\n")
+
+        class _FakeFontPage:
+            def get_text(self, *_args, **_kwargs):
+                return {
+                    "blocks": [
+                        {
+                            "lines": [
+                                {
+                                    "spans": [
+                                        {
+                                            "font": "TimesNewRoman",
+                                            "size": 12.0,
+                                            "flags": 0,
+                                            "text": "Regular Text",
+                                        },
+                                        {
+                                            "font": "TimesNewRoman",
+                                            "size": 12.0,
+                                            "flags": 1,
+                                            "text": "Bold Text",
+                                        },
+                                        {
+                                            "font": "TimesNewRoman",
+                                            "size": 12.0,
+                                            "flags": 2,
+                                            "text": "Italic Text",
+                                        },
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+
+        class _FakeFontDoc:
+            def __init__(self):
+                self._pages = [_FakeFontPage()]
+
+            def get_toc(self):
+                return []
+
+            def __len__(self):
+                return len(self._pages)
+
+            def __getitem__(self, index):
+                return self._pages[index]
+
+            def close(self):
+                pass
+
+        monkeypatch.setattr("gm_kit.pdf_convert.phases.phase3.fitz.open", lambda *_a, **_k: _FakeFontDoc())
+        monkeypatch.setattr(
+            Phase3,
+            "_analyze_footer_watermarks",
+            lambda *_a, **_k: {
+                "watermark_signatures": [],
+                "page_number_signatures": [],
+                "footer_signatures": [],
+            },
+        )
+        monkeypatch.setattr(Phase3, "_analyze_icon_fonts", lambda *_a, **_k: {"icon_signatures": []})
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(output_dir))
+
+        phase = Phase3()
+        result = phase.execute(state)
+        assert result.is_error is False
+
+        mapping_path = output_dir / "font-family-mapping.json"
+        assert mapping_path.exists()
+
+        with open(mapping_path, encoding="utf-8") as f:
+            mapping = json.load(f)
+
+        signatures = mapping.get("signatures", [])
+        matches = [
+            sig
+            for sig in signatures
+            if sig.get("family") == "TimesNewRoman" and sig.get("size") == 12.0
+        ]
+        weights_styles = {(sig.get("weight"), sig.get("style")) for sig in matches}
+
+        assert ("normal", "normal") in weights_styles
+        assert ("bold", "normal") in weights_styles
+        assert ("normal", "italic") in weights_styles
 
         def _open(_path):
             raise RuntimeError("File is encrypted and requires password")

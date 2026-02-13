@@ -5,6 +5,7 @@ from pathlib import Path
 
 from gm_kit.pdf_convert.active_conversion import (
     ACTIVE_CONVERSION_FILENAME,
+    _now_iso,
     resolve_active_candidates,
     update_active_conversion,
 )
@@ -49,3 +50,7 @@ def test_resolve_active_candidates__should_return_existing_paths__when_state_pre
 
     candidates = resolve_active_candidates(tmp_path)
     assert candidates == [output_dir.resolve()]
+
+
+def test_now_iso__should_include_utc_offset__when_called() -> None:
+    assert _now_iso().endswith("+00:00")
