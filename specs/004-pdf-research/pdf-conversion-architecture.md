@@ -2,21 +2,23 @@
 
 This document captures the architecture and design decisions for the PDF to Markdown conversion pipeline, derived from research phases E4-01 through E4-06 and iterative POC testing.
 
-**Version:** v10 (2026-01-29)
-**Status:** Ready for implementation
+**Version:** v11 (2026-02-14)
+**Status:** Updated to reflect E4-07a implementation
 **Related features:** E4-07a, E4-07b, E4-07c, E4-07d, E4-07e
 
 ---
 
 ## Overview
 
-The conversion pipeline consists of 11 phases with 70 total steps, categorized by execution type:
+The conversion pipeline consists of 11 phases with 77 total steps, categorized by execution type:
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| Code | 49 | Deterministic automation via Python/PyMuPDF |
-| Agent | 15 | Judgment calls requiring AI analysis |
-| User | 5 | Confirmation steps requiring human decision |
+| Code | 58 | Deterministic automation via Python/PyMuPDF |
+| Agent | 13 | Judgment calls requiring AI analysis |
+| User | 6 | Confirmation steps requiring human decision |
+
+**Note:** Three Phase 8 steps (8.4, 8.5, 8.8) are integrated into step 8.2 and do not execute independently. They are listed for traceability. Step 7.9a is a sub-step of 7.9.
 
 ### Design Principles
 
@@ -69,13 +71,11 @@ Criticality indicates the impact on conversion quality if an agent step fails af
 | Step | Description | Criticality | On Failure After Retries |
 |------|-------------|-------------|--------------------------|
 | 3.2 | Parse visual TOC page | Medium | Skip - use font-based hierarchy only |
-| 4.6 | Resolve split sentences at chunk boundaries | Low | Skip - minor sentence boundary issues acceptable |
+| 4.5 | Resolve split sentences at chunk boundaries | Low | Skip - minor sentence boundary issues acceptable |
 | 6.4 | Fix OCR spelling artifacts (rn→m, l→1) | Low | Skip - spelling errors remain but don't block |
 | 7.7 | Detect table structures | Medium | Skip - tables may not be detected |
 | 8.7 | Convert tables to markdown format | Medium | Flag for user - tables render as text |
-| 8.8 | Apply blockquote formatting to callouts | Medium | Flag for user - callouts may be plain text |
-| 8.9 | Insert figure/map placeholders | Low | Skip - figure placeholders omitted |
-| 9.1-9.5 | Quality checks (completeness, structure, flow, tables, callouts) | High | Halt - quality assessment required |
+| 9.2-9.5 | Quality checks (structure, flow, tables, callouts) | High | Halt - quality assessment required |
 | 9.7 | Review TOC issues | Medium | Flag for user - issues may remain |
 | 9.8 | Review two-column reading order issues | Medium | Flag for user - issues may remain |
 | 10.2-10.3 | Quality ratings + document remaining issues | Low | Skip - report incomplete but conversion done |
@@ -269,12 +269,12 @@ Apply all suggested fixes? [yes/no/review]: _
 | 0 | Pre-flight Analysis | 6 | Code (1 User) |
 | 1 | Image Extraction | 4 | Code |
 | 2 | Image Removal | 3 | Code |
-| 3 | TOC & Font Extraction | 6 | Code (1 Agent) |
-| 4 | Text Extraction & Merge | 7 | Code (1 Agent) |
+| 3 | TOC & Font Extraction | 8 | Code (1 Agent) |
+| 4 | Text Extraction & Merge | 5 | Code (1 Agent) |
 | 5 | Character-Level Fixes | 9 | Code |
 | 6 | Word/Token-Level Fixes | 5 | Code (1 Agent) |
-| 7 | Structural Detection | 10 | Code (1 Agent, 1 User) |
-| 8 | Hierarchy Application | 12 | Code (3 Agent) |
+| 7 | Structural Detection | 11 | Code (1 Agent, 2 User) |
+| 8 | Hierarchy Application | 10 | Code (1 Agent) |
 | 9 | Quality & Review | 11 | Agent/User |
 | 10 | Report & Diagnostics | 6 | Code (2 Agent) |
 
@@ -368,10 +368,14 @@ with fitz.open(input_pdf) as doc:
 | 3.4 | Sample font families/sizes from PDF | Code |
 | 3.5 | Generate `font-family-mapping.json` with samples | Code |
 | 3.6 | Pre-fill labels by matching samples to TOC titles | Code |
+| 3.7 | Detect footer and watermark signatures | Code |
+| 3.8 | Detect icon font signatures | Code |
 
 **Output:**
 - `toc-extracted.txt` (format: `level|title|page`)
 - `font-family-mapping.json`
+- `footer_config.json` (detected footer/watermark signatures for Phase 5 removal)
+- `icon_config.json` (detected icon font signatures for Phase 5 removal)
 
 **Note:** Step 3.2 must produce same output format as 3.1 for downstream compatibility.
 
@@ -540,6 +544,10 @@ TTRPG modules contain domain-specific terms (monster names, locations, game term
 | 7.5 | Detect GM/Keeper note keywords | Code |
 | 7.6 | Detect read-aloud text markers | Code |
 | 7.7 | Detect table structures | Agent |
+| 7.9 | Update font-family-mapping.json with ALL detection findings | Code |
+| 7.9a | Generate annotated PDF for label review | Code |
+| 7.10 | Present font-family labels for review | User |
+| 7.11 | Capture user corrections | User |
 
 **Future Consideration: Multimodal Table Reconstruction (Image-based OCR)**
 Current table detection relies on textual heuristics. For highly complex or visually-driven tables, especially those that defy text-based structural inference, an advanced approach involving multimodal AI agents could be explored. This would involve:
@@ -547,15 +555,9 @@ Current table detection relies on textual heuristics. For highly complex or visu
 2.  **Image Extraction:** Rendering the detected table regions as high-resolution images.
 3.  **Multimodal OCR:** Passing these table images to a multimodal AI (e.g., Gemini) with a prompt to perform OCR and reconstruct the table structure into Markdown.
 
-This approach offers higher fidelity for complex tables but introduces challenges related to image processing, model cost/latency, and accurate spatial detection. It is a future enhancement to be considered as agents become more sophisticated and efficient.
-| 7.8 | Detect inline/embedded headings within spans | Code |
-| 7.9 | Update font-family-mapping.json with ALL detection findings | Code |
-| 7.9a | Generate annotated PDF for label review | Code |
-| 7.10 | Review font-family labels, prompt user if clarification needed | User |
-
 **Output:** Updated `font-family-mapping.json` with detection labels and notes
 
-**Decision:** Step 7.8 (inline heading detection) runs before 7.9 so findings update JSON before user review.
+**Decision:** Step 7.8 (inline heading detection) was removed during E4-07a implementation — analysis showed headings appear as standalone lines/blocks, not embedded within spans, making inline detection unnecessary.
 
 **User Review Workflow (preferred):**
 - The JSON remains an agent-only artifact.
@@ -566,22 +568,23 @@ This approach offers higher fidelity for complex tables but introduces challenge
 
 | Step | Description | Category |
 |------|-------------|----------|
-| 8.1 | Split spans to isolate embedded headings | Code |
-| 8.2 | Apply heading levels (TOC exact match first, then font-family pattern match) | Code |
-| 8.3 | Apply GM note blockquote formatting | Code |
-| 8.4 | Apply read-aloud blockquote formatting | Code |
-| 8.5 | Apply quote formatting (italic + attribution) | Code |
-| 8.6 | Convert detected tables to markdown format | Agent |
-| 8.7 | Apply blockquote formatting to callout boxes | Agent |
-| 8.8 | Insert figure/map placeholders | Agent |
-| 8.9 | Insert commented image links using manifest data | Code |
+| 8.1 | Load font-family-mapping.json labels | Code |
+| 8.2 | Apply heading and callout levels based on font signatures | Code |
+| 8.3 | Validate heading hierarchy (no level skips) | Code |
+| 8.4 | Apply GM note blockquote formatting (integrated into 8.2) | Code |
+| 8.5 | Apply read-aloud blockquote formatting (integrated into 8.2) | Code |
+| 8.7 | Convert detected tables to markdown format | Agent |
+| 8.8 | Apply blockquote formatting to callout boxes (integrated into 8.2) | Code |
+| 8.9 | Insert figure/map placeholders with image links | Code |
 | 8.10 | Ensure single H1 at top (demote other H1s to H2, cascade child headings) | Code |
-| 8.11 | Validate heading hierarchy (no level skips) | Code |
-| 8.12 | Insert copyright notice block at document top (above H1) using metadata from step 0.1 | Code |
+| 8.11 | Validate TOC matches headings | Code |
 
 **Output:** `<filename>-phase8.md`
 
-**Decision:** Step 8.1 (split spans) runs first so embedded headings are isolated before heading levels are applied in 8.2.
+**Implementation Notes:**
+- Steps 8.4, 8.5, and 8.8 are logically separate concerns but were integrated into step 8.2's combined heading/callout processing during E4-07a implementation. They are listed for traceability but execute as part of 8.2.
+- Step 8.6 (quote formatting with italic + attribution) was removed — author quotes render adequately as plain text blocks.
+- Step 8.12 (copyright notice insertion) was moved to Phase 10 report generation.
 
 **Decision:** Step 8.9 inserts commented-out image links (e.g., `<!-- ![description](images/page005_img01.png) -->`) so position is preserved but not visible. User or agent can uncomment if desired.
 
@@ -609,7 +612,7 @@ Before:                              After:
 
 | Step | Description | Category |
 |------|-------------|----------|
-| 9.1 | Completeness check - verify all pages represented | Agent |
+| 9.1 | Completeness check - verify all pages represented | Code (dropped from Agent — Phase 4 guarantees page markers) |
 | 9.2 | Structural clarity assessment | Agent |
 | 9.3 | Text flow / readability assessment | Agent |
 | 9.4 | Table integrity check | Agent |
@@ -676,7 +679,7 @@ These tests validate agent prompts during development and CI. Production users d
 | Approach | Description | Best For |
 |----------|-------------|----------|
 | Contract testing | Define input/output contracts | Structured output (3.2, 7.8) |
-| Rubric-based evaluation | Define criteria output must meet | Quality checks (9.1-9.5) |
+| Rubric-based evaluation | Define criteria output must meet | Quality checks (9.2-9.5) |
 | Golden file comparison | Compare to known-good output, check key elements | Complex transformations (8.6, 8.7) |
 | Structural validation | Validate markdown structure is well-formed | Table conversion, hierarchy |
 | Property-based testing | Define invariants (e.g., TOC count matches headings) | Cross-phase consistency |
@@ -711,7 +714,7 @@ Key rules:
 
 ### E4-07a: Code-Driven Pipeline
 
-**Scope:** All 49 Code-category steps
+**Scope:** All 58 Code-category steps
 
 **Deliverables:**
 - Python package with modular phase functions
@@ -722,7 +725,7 @@ Key rules:
 
 ### E4-07b: Agent-Driven Pipeline
 
-**Scope:** All 15 Agent-category steps
+**Scope:** All 13 Agent-category steps
 
 **Deliverables:**
 - Prompt templates for each agent step
@@ -730,11 +733,11 @@ Key rules:
 - Rubric definitions for evaluation
 - Integration with Code pipeline
 
-**Steps covered:** 3.2, 4.6, 6.4, 7.7, 8.6-8.8, 9.1-9.5, 9.7-9.8, 10.2-10.3
+**Steps covered:** 3.2, 4.5, 6.4, 7.7, 8.7, 9.2-9.5, 9.7-9.8, 10.2-10.3
 
 ### E4-07c: User Interaction Workflow
 
-**Scope:** All 5 User-category steps
+**Scope:** All 6 User-category steps
 
 **Deliverables:**
 - Pre-flight confirmation prompt (step 0.6) - gates the entire pipeline
@@ -743,7 +746,7 @@ Key rules:
 - Smart analysis presentation (headers/footers)
 - Correction capture and application
 
-**Steps covered:** 0.6, 7.10, 9.9-9.11
+**Steps covered:** 0.6, 7.10-7.11, 9.9-9.11
 
 ### E4-07d: Image Link Injection
 
@@ -801,8 +804,12 @@ gmkit pdf-convert --status <conversion-dir>      # Check progress
 | 5.2 before 5.3 | Hyphenation fix needs line breaks intact to detect `word-\n` pattern |
 | 5.5 always normalizes quotes | Consistency over aesthetics; agent is primary audience |
 | 4.3 detects only, 9.9 removes | User confirmation prevents accidental content loss |
-| Removed 4.7 two-column detection | PyMuPDF extracts text in correct order automatically; short-line heuristic caused false positives on RPG content. If needed in future, use spatial (x-coordinate) analysis not line-length heuristics |
-| 7.9 before 7.10 | Inline heading detection informs JSON before user review |
+| Removed 4.5 two-column detection (old numbering) | PyMuPDF extracts text in correct order automatically; short-line heuristic caused false positives on RPG content. If needed in future, use spatial (x-coordinate) analysis not line-length heuristics. Agent step renumbered from 4.6 to 4.5. |
+| Removed 7.8 inline heading detection | Analysis showed headings appear as standalone lines/blocks, not embedded within spans |
+| Removed 8.6 quote formatting | Author quotes render adequately as plain text blocks; agent judgment not needed |
+| Integrated 8.4, 8.5, 8.8 into 8.2 | GM notes, read-aloud, and callout blockquote formatting combined into single heading/callout processing step |
+| 8.9 figure placeholders as Code | Image manifest provides sufficient data for deterministic placeholder insertion; agent judgment not needed |
+| Added 3.7, 3.8 detection steps | Footer/watermark and icon font detection added to Phase 3 for automatic removal in Phase 5 |
 | 8.1 split spans first | Embedded headings must be isolated before heading levels applied |
 | 9.8 review-only | Two-column reading-order issues are flagged for review; no automatic threshold-based fixes |
 | pymarkdownlnt for linting | Pure Python, pip installable, configurable rules |
