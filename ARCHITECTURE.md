@@ -422,8 +422,9 @@ Core rules:
 - Two-column heuristic removed; use spatial x-coordinate analysis if needed.
 - pymarkdownlnt is the linting tool for Phase 9.
 - Single H1 rule enforced; TOC level 1 maps to H2.
+- E2-09 audit confirmed agent-orchestrated CLI execution is viable with Claude Code, Codex CLI, and OpenCode for autonomous multi-step file I/O workflows; these agents may be used for manual or dedicated live-agent integration testing of E4-07b/E4-07* features.
 
 ---
 
-*Last Updated: 2026-02-13*
-*Status: E4-07a (Code-driven pipeline) complete, E4-07b (Agent steps) pending*
+*Last Updated: 2026-02-26*
+*Status: E4-07a (Code-driven pipeline) complete, E2-09 (agent audit) complete, E4-07b (Agent steps) pending implementation*

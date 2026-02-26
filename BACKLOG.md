@@ -210,7 +210,17 @@ Success looks like: Optional CI job that validates slash command → agent → C
 
 Priority: LOW (nice-to-have after core features are stable)
 
-### E2-09. Agent & Model Capability Audit — Autonomous Pipeline Execution **[TASK]**
+### ✅ E2-09. Agent & Model Capability Audit — Autonomous Pipeline Execution **[TASK, COMPLETED as specs/009-agent-audit/findings.md]**
+Status: COMPLETED (2026-02-24)
+
+Outcome summary:
+- Claude Code, Codex CLI, and OpenCode all passed the Phase 1 autonomous execution audit (CLI invocable, runs to completion, structured file output generation).
+- E4-07b is UNBLOCKED: agent-orchestrated execution model confirmed viable.
+- Audit protocol, command runner, and decision notes are documented in:
+  - `specs/009-agent-audit/findings.md`
+  - `specs/009-agent-audit/test-runner.md`
+  - `specs/009-agent-audit/feature-implementation-journal.txt`
+
 Task description:
 Determine which agent(s) can autonomously execute the PDF→Markdown pipeline's agent-orchestrated workflow without interruption. The E4-07b architectural decision (SDK-based vs. agent-orchestrated) is BLOCKED on this audit. A successful candidate must be able to: invoke CLI commands, read workspace files, perform multi-step tasks to completion, and write output files — all without human intervention in a single run.
 

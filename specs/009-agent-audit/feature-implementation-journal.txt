@@ -1,0 +1,137 @@
+E2-09 Implementation Journal
+==============================
+Branch: 009-agent-audit
+Started: 2026-02-24
+
+Overview
+--------
+Audit Claude Code, Codex CLI, and OpenCode for autonomous multi-step task
+execution with file output. Results determine E4-07b architectural approach:
+SDK-based (current plan) vs. agent-orchestrated (preferred if viable).
+
+The bar is: can at least one agent run a multi-step task to completion,
+reading structured input files and writing structured output files, without
+human intervention?
+
+See findings.md for the full test protocol and results matrix.
+
+Session: 2026-02-24 - Audit Setup
+--------------------------------------------------------
+Branch: 009-agent-audit
+Date: 2026-02-24
+
+Work Completed:
+1. Created branch 009-agent-audit from master (latest: commit 8c8ead9)
+2. Created specs/009-agent-audit/ folder with:
+   - findings.md: audit matrix, 4-test protocol per agent, decision table
+   - test-inputs/step-input.json: fixture for Test 4 (structured file I/O)
+   - test-outputs/: directory for agent to write Test 4 output
+3. Committed 007-agent-pipeline spec work to 007 branch (c610bc7) before
+   switching — all spec artifacts preserved
+
+Context from 007 branch discussions:
+- Prior E2-02 finding (~2025): CLI batch mode non-viable for codex-cli,
+  gemini, opencode. Claude Code not tested (no subscription at the time).
+- All three candidates have had major updates since prior test.
+- Test bar: must pass Tests 1 (CLI invocable), 2 (runs to completion),
+  and 4 (generates output files) to be considered viable.
+- Test 3 (slash commands) is informative but secondary — pipeline uses
+  CLI commands, not slash commands directly.
+
+Next Steps:
+1. Test Claude Code first (new subscription, likely best candidate)
+2. Test Codex CLI (has "build mode"; prior result unreliable)
+3. Test OpenCode (Kimi 2.5; major updates since prior test)
+4. Record findings in findings.md
+5. Make architectural decision and document in findings.md §Decision
+6. Return to 007 branch: if agent-orchestrated confirmed, revise plan
+   (remove client.py, define workspace artifact protocol);
+   if SDK confirmed, run /speckit.tasks and proceed to implementation
+
+Recorded by: claude-sonnet-4-6
+
+Session: 2026-02-24 - Audit Execution & Decision
+--------------------------------------------------------
+Branch: 009-agent-audit
+Date: 2026-02-24
+
+Work Completed:
+1. Cherry-picked BACKLOG.md E2-09 updates from 007-agent-pipeline branch (commit
+   c610bc7) into 009-agent-audit — branch was created from master before 007 merged.
+2. Pre-flight investigation of all three CLIs:
+   - Claude Code: --print flag confirmed; blocked from nested invocation (CLAUDECODE
+     env var); --dangerously-skip-permissions required for file writes in --print mode.
+   - Codex CLI: exec subcommand is non-interactive batch mode; auth token was expired,
+     required codex login. --full-auto + -s workspace-write is the correct invocation.
+   - OpenCode: opencode run is the batch subcommand; initial test hung (30s timeout)
+     due to one-time SQLite DB migration on first use; subsequent runs exit cleanly.
+3. Created test-runner.md: step-by-step commands for Tests 1, 2, 4 per agent.
+   All tests run from gm-kit repo root; output written to project workspace (not /tmp).
+4. Removed knowledge-graph MCP from .codex/config.toml (project-level) — it was
+   loading the full project memory on every Codex invocation (~22k tokens per call).
+   pdf-reader MCP retained. Switched to journal-based context continuity instead.
+5. Ran all tests (Tests 1, 2, 4) for all three agents:
+
+   Claude Code (v2.1.52):
+   - Test 1: ✅ claude --print "Echo: hello world" → exit 0
+   - Test 2: ✅ --dangerously-skip-permissions required; all 3 lines written
+   - Test 4: ✅ Correct 5-entry JSON array; "Contents" header excluded
+
+   Codex CLI (v0.101.0, gpt-5.3-codex):
+   - Test 1: ✅ codex exec --full-auto → exit 0
+   - Test 2: ✅ -s workspace-write; all 3 lines written; output suppressed cleanly
+   - Test 4: ✅ Correct 5-entry JSON array
+
+   OpenCode (v1.2.2, Kimi K2.5):
+   - Test 1: ✅ opencode run → exit 0 (after one-time DB migration)
+   - Test 2: ✅ All 3 lines written; output suppressed cleanly
+   - Test 4: ✅ Valid JSON; 6 entries (included "Contents" as level 0) — minor
+             interpretation difference, structurally correct
+
+6. Decision recorded in findings.md §Decision:
+   ALL THREE agents pass Tests 1+2+4. Agent-orchestrated model CONFIRMED.
+
+Architectural Decision:
+- E4-07b will use agent-orchestrated model (not SDK-based)
+- Remove client.py from the E4-07b plan
+- Define workspace artifact protocol (input/output file contract per step)
+- Document transition model (batch groups + CLI handoff points)
+- Running agent controls pipeline flow; Code steps are CLI invocations;
+  Agent steps performed by the agent itself
+
+Next Steps:
+1. Return to 007-agent-pipeline branch
+2. Revise plan.md: remove client.py, add workspace artifact protocol,
+   document agent invocation patterns per agent (claude/codex/opencode)
+3. Run /speckit.tasks to generate tasks.md
+4. Proceed to E4-07b implementation
+
+Recorded by: claude-sonnet-4-6
+
+Session: 2026-02-26 - Backlog/Architecture Sync and Audit Docs Recovery
+--------------------------------------------------------
+Branch: 011-e2-09-audit-doc-sync
+Date: 2026-02-26
+
+Work Completed:
+1. Recovered `009-agent-audit` documentation artifacts from the deleted local branch tip (`d4e918a`) into a new docs-sync branch
+2. Added `specs/009-agent-audit/` audit docs to the working tree (`findings.md`, `test-runner.md`, journal, test input fixture, `.gitkeep`)
+3. Updated `BACKLOG.md` E2-09 entry to mark the audit complete and link the audit documents
+4. Updated `ARCHITECTURE.md` to record the E2-09 outcome (agent-orchestrated CLI execution viable with Claude Code, Codex CLI, OpenCode)
+5. Added `specs/009-agent-audit/.gitignore` to exclude local test output artifacts while keeping `test-workspace/.gitkeep`
+
+Key Decisions:
+- Audit output files under `specs/009-agent-audit/test outputs/`, `test-outputs/`, and generated `test-workspace/*` are local scratch artifacts and should not be committed
+- E2-09 is documented as completed and explicitly unblocks E4-07b architectural direction
+
+Current State:
+- `specs/009-agent-audit/` docs are ready to merge to `master`
+- `BACKLOG.md` and `ARCHITECTURE.md` now reference the audit completion and outcome
+- Local scratch output artifacts remain untracked and ignored
+
+Next Steps:
+1. Commit docs-sync changes on `011-e2-09-audit-doc-sync`
+2. Open PR, run CI, merge to `master`
+3. Optionally delete local/remote `009-agent-audit` branch after docs are safely merged
+
+Recorded by: gpt-5-codex

@@ -1,0 +1,4 @@
+test outputs/
+test-outputs/
+test-workspace/*
+!test-workspace/.gitkeep
