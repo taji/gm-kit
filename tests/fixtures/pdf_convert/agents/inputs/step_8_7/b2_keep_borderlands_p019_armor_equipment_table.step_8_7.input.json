@@ -1,0 +1,18 @@
+{
+  "fixture_id": "b2_keep_borderlands_p019_armor_equipment_table",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "page_number_1based": 19,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/b2_keep_borderlands_p019_armor_equipment_table.page.png",
+  "table_crop_image": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/b2_keep_borderlands_p019_armor_equipment_table.table_crop.png",
+  "table_id": "t1",
+  "bbox_pixels": {
+    "x0": 73,
+    "y0": 1371,
+    "x1": 638,
+    "y1": 1525
+  },
+  "flat_text_file": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/b2_keep_borderlands_p019_armor_equipment_table.flat_text.txt",
+  "table_slug": "armor_equipment_table",
+  "notes": "Simple 3-column armor subtable; footnote line intentionally excluded from canonical table output. Crop includes table title \"Armor\"; canonical 8.7 markdown excludes title."
+}

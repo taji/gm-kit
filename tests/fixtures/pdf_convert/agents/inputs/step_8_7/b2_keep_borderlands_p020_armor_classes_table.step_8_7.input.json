@@ -1,0 +1,18 @@
+{
+  "fixture_id": "b2_keep_borderlands_p020_armor_classes_table",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "page_number_1based": 20,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/b2_keep_borderlands_p020_armor_classes_table.page.png",
+  "table_crop_image": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/b2_keep_borderlands_p020_armor_classes_table.table_crop.png",
+  "table_id": "t1",
+  "bbox_pixels": {
+    "x0": 608,
+    "y0": 550,
+    "x1": 1167,
+    "y1": 802
+  },
+  "flat_text_file": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/b2_keep_borderlands_p020_armor_classes_table.flat_text.txt",
+  "table_slug": "armor_classes",
+  "notes": "Armor Classes lookup table with OCR artifacts (ii, &Shield spacing). Canonical output excludes title line and normalizes obvious OCR/spacing issues."
+}

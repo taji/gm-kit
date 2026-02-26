@@ -1,0 +1,19 @@
+{
+  "fixture_id": "b2_keep_borderlands_p005_determining_armor_class",
+  "step_id": "7.7",
+  "status": "success",
+  "tables": [
+    {
+      "table_id": "t1",
+      "page_number_1based": 5,
+      "bbox_pixels": {
+        "x0": 67,
+        "y0": 321,
+        "x1": 633,
+        "y1": 596
+      },
+      "confidence_note": "Simple two-column armor class lookup table in left column"
+    }
+  ],
+  "warnings": []
+}

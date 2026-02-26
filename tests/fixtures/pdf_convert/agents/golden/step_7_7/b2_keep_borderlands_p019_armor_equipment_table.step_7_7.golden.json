@@ -1,0 +1,19 @@
+{
+  "fixture_id": "b2_keep_borderlands_p019_armor_equipment_table",
+  "step_id": "7.7",
+  "status": "success",
+  "tables": [
+    {
+      "table_id": "t1",
+      "page_number_1based": 19,
+      "bbox_pixels": {
+        "x0": 73,
+        "y0": 1371,
+        "x1": 638,
+        "y1": 1525
+      },
+      "confidence_note": "Compact 3-column armor/cost table near page bottom"
+    }
+  ],
+  "warnings": []
+}

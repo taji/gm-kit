@@ -1,0 +1,18 @@
+{
+  "fixture_id": "cofc_quickstart_p015_other_forms_of_damage",
+  "source_pdf": "temp-resources/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf",
+  "page_number_1based": 15,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/cofc_quickstart_p015_other_forms_of_damage.page.png",
+  "table_crop_image": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/cofc_quickstart_p015_other_forms_of_damage.table_crop.png",
+  "table_id": "t1",
+  "bbox_pixels": {
+    "x0": 146,
+    "y0": 913,
+    "x1": 1102,
+    "y1": 1358
+  },
+  "flat_text_file": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/cofc_quickstart_p015_other_forms_of_damage.flat_text.txt",
+  "table_slug": "other_forms_of_damage",
+  "notes": "Full-width table spanning page text area. Canonical 8.7 output excludes title line (OTHER FORMS OF DAMAGE) and emits only header + rows."
+}

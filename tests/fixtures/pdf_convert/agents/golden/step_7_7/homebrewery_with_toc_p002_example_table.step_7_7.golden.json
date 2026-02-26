@@ -1,0 +1,19 @@
+{
+  "fixture_id": "homebrewery_with_toc_p002_example_table",
+  "step_id": "7.7",
+  "status": "success",
+  "tables": [
+    {
+      "table_id": "t1",
+      "page_number_1based": 2,
+      "bbox_pixels": {
+        "x0": 652,
+        "y0": 379,
+        "x1": 1124,
+        "y1": 638
+      },
+      "confidence_note": "clear visible example table in second column"
+    }
+  ],
+  "warnings": []
+}

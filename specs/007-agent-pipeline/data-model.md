@@ -1,131 +1,176 @@
-# Data Model: PDF→Markdown Agent-Driven Pipeline
+# Data Model: PDF->Markdown Agent-Driven Pipeline
 
 ## Entities
 
-### AgentStep (abstract base)
-- **Represents**: A single agent step in the pipeline, defining prompt, contract, and rubric
+### AgentStepDefinition
+- **Represents**: Static definition for one agent step in E4-07b (13 total)
 - **Key attributes**:
-  - `step_id` (str): Step identifier, e.g. "3.2", "9.1"
+  - `step_id` (str): Step identifier, e.g. `"3.2"`, `"4.5"`, `"10.3"` (9.1 excluded)
   - `phase` (int): Phase number (3, 4, 6, 7, 8, 9, 10)
-  - `description` (str): Human-readable step description
-  - `criticality` (enum): HIGH, MEDIUM, LOW — determines escalation behavior
-- **Behavior**: `execute(inputs) -> StepOutput` — builds prompt, calls LLM, validates, evaluates
+  - `description` (str): Human-readable step purpose
+  - `criticality` (enum): `HIGH`, `MEDIUM`, `LOW`
+  - `instruction_template` (str): Template path (`instructions/step_X_Y.md` or `step_7_7.py`)
+  - `contract_schema` (str): JSON schema path (`schemas/step_X_Y.schema.json`)
+  - `rubric_id` (str | None): Rubric identifier for quality-evaluated steps
+- **Behavior**: Provides metadata for workspace file generation, validation, retry policy, and escalation
 
-### StepOutput
-- **Represents**: The validated, evaluated output of an agent step execution
+### AgentStepWorkspaceRequest
+- **Represents**: Files and metadata prepared by Python code for the running agent to execute a step
 - **Key attributes**:
-  - `step_id` (str): Which step produced this output
-  - `data` (dict): Step-specific output payload (varies per step)
-  - `metadata` (OutputMetadata): Shared envelope fields
-  - `evaluation` (EvaluationResult | None): Rubric evaluation if performed
-- **Serialized as**: JSON conforming to step's contract schema
+  - `step_id` (str)
+  - `workspace_dir` (str): Conversion workspace root
+  - `step_dir` (str): `{workspace}/agent_steps/step_X_Y/`
+  - `input_file` (str): `step-input.json`
+  - `instruction_file` (str): `step-instructions.md`
+  - `attempt_number` (int): 1..3
+  - `resume_command` (str): `uv run --python "$(cat .python-version)" --extra dev -- gmkit pdf-convert --resume <workspace>`
+- **Serialized artifacts**:
+  - `step-input.json`: structured inputs and file paths
+  - `step-instructions.md`: rendered instruction template + standard resume footer
 
-### OutputMetadata (shared envelope)
-- **Represents**: Common metadata for all agent step outputs
+### AgentStepInputPayload
+- **Represents**: Step-specific input payload written to `step-input.json`
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `input_artifact` (str): Path or reference to input
-  - `warnings` (list[str]): Non-fatal issues encountered
-  - `errors` (list[str]): Errors encountered (empty on success)
-  - `notes` (str | None): Optional additional context
-- **Validation**: JSON Schema applied to all outputs
+  - `step_id` (str)
+  - `input_artifacts` (dict[str, str]): Required artifact names -> workspace paths
+  - `optional_artifacts` (dict[str, str]): Optional inputs (e.g., `font-family-mapping.json` for 9.7)
+  - `context` (dict): Step-specific parameters (thresholds, flags, corpus metadata, etc.)
+  - `output_contract` (str): Contract schema path or identifier
+- **Validation**: Presence/shape checked by Python before writing workspace request
 
-### PromptTemplate
-- **Represents**: A parameterized prompt for a single agent step
+### AgentStepOutputEnvelope
+- **Represents**: Contract-validated output written by the running agent to `step-output.json`
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `task` (str): What the step does
-  - `input_format` (str): Description of expected input structure
-  - `output_format` (str): Description of expected output structure
-  - `edge_cases` (list[str]): Edge case handling instructions
-- **Behavior**: `build_prompt(inputs: dict) -> str` — constructs the full prompt with concrete input data
+  - `step_id` (str)
+  - `status` (enum): `success`, `warning`, `failed`
+  - `data` (dict): Step-specific result payload (or metadata-only payload for in-place markdown edits)
+  - `warnings` (list[str]): Non-fatal issues
+  - `notes` (str | None): Additional agent notes
+- **Validation**: Must conform to per-step JSON Schema before pipeline resumes
+
+### AgentStepErrorEnvelope
+- **Represents**: Structured step failure for missing inputs or repeated validation failures (FR-008)
+- **Key attributes**:
+  - `step_id` (str)
+  - `error` (str): Description of what failed
+  - `recovery` (str): Actionable guidance
+- **Serialized as**: JSON in FR-008 format
 
 ### StepContract
-- **Represents**: JSON Schema defining required fields and constraints for a step's output
+- **Represents**: JSON Schema defining required fields and structural constraints for a step output
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `schema` (dict): JSON Schema Draft-07 document
-  - `required_fields` (list[str]): Top-level required fields
-- **Behavior**: `validate(output: dict) -> list[ValidationError]` — returns empty list if valid
-- **Storage**: `agents/schemas/step_X_Y.schema.json`
+  - `step_id` (str)
+  - `schema` (dict): JSON Schema Draft-07
+  - `required_fields` (list[str])
+  - `version` (str | None)
+- **Behavior**: `validate(output: dict) -> list[ValidationError]`
 
 ### StepRubric
-- **Represents**: Evaluation criteria for scoring step output quality
+- **Represents**: Quality rubric for steps that require semantic evaluation
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `dimensions` (list[RubricDimension]): Scoring dimensions (3 per step)
-  - `critical_failures` (list[str]): Conditions that cause immediate failure
-  - `min_score` (int): Minimum acceptable score per dimension (3)
-  - `max_score` (int): Maximum score (5)
-- **Behavior**: `build_evaluation_prompt(output: dict) -> str` — constructs rubric evaluation prompt for LLM
+  - `step_id` (str)
+  - `dimensions` (list[RubricDimension])
+  - `critical_failures` (list[str])
+  - `min_score` (int): `3`
+  - `max_score` (int): `5`
+- **Behavior**: Defines scoring criteria used by the running agent for rubric evaluation (temperature=0, structured output)
 
 ### RubricDimension
-- **Represents**: A single scoring dimension within a rubric
+- **Represents**: One scoring dimension within a rubric
 - **Key attributes**:
-  - `name` (str): Dimension name (e.g., "Completeness", "Level accuracy")
-  - `description` (str): What this dimension measures
-  - `scoring_guide` (dict[int, str]): Score-to-description mapping (1-5)
+  - `name` (str)
+  - `description` (str)
+  - `scoring_guide` (dict[int, str]): 1-5 score descriptions
 
 ### EvaluationResult
-- **Represents**: The outcome of rubric evaluation for a step output
+- **Represents**: Rubric evaluation outcome for a step output
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `passed` (bool): Whether all dimensions meet minimum and no critical failures
-  - `dimension_scores` (dict[str, int]): Dimension name → score (1-5)
-  - `critical_failures` (list[str]): Detected critical failures (empty if none)
-  - `feedback` (str): LLM evaluator's summary feedback
-- **Serialized as**: JSON
+  - `step_id` (str)
+  - `passed` (bool)
+  - `dimension_scores` (dict[str, int])
+  - `critical_failures` (list[str])
+  - `feedback` (str)
+- **Serialized as**: JSON (step-specific or shared schema)
 
-### AgentStepError
-- **Represents**: A structured error when a step fails
+### StepAttemptRecord
+- **Represents**: One execution attempt for an agent step (used for retry tracking)
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `error` (str): Description of what went wrong
-  - `recovery` (str): Actionable guidance to fix
-- **Serialized as**: JSON per FR-008 format
+  - `step_id` (str)
+  - `attempt_number` (int): 1..3
+  - `validation_passed` (bool)
+  - `rubric_passed` (bool | None)
+  - `failure_reason` (str | None)
+  - `retry_prompt_appendix` (str | None): Validation or rubric feedback appended to next instructions
+
+### TokenPreflightResult
+- **Represents**: Preflight estimate outcome for large markdown quality-assessment steps (FR-015)
+- **Key attributes**:
+  - `step_id` (str)
+  - `estimated_tokens` (int)
+  - `threshold` (int)
+  - `exceeds_threshold` (bool)
+  - `user_choice` (enum | None): `proceed`, `skip`, `auto_proceed`
+- **Applies to**: Quality Assessment + Reporting steps that send full markdown
 
 ### TestArtifact
-- **Represents**: Input/output pair from the reference corpus for testing
+- **Represents**: Step-specific test fixture set derived from the reference corpus
 - **Key attributes**:
-  - `step_id` (str): Step identifier
-  - `corpus_pdf` (str): Which PDF this artifact is from
-  - `input_data` (dict | str): Step input (varies per step)
-  - `golden_output` (dict): Expected step output for comparison
+  - `step_id` (str)
+  - `corpus_pdf` (str): One of the three reference PDFs
+  - `input_payload` (dict | str): Fixture input data
+  - `golden_output` (dict | str): Expected output artifact
+  - `artifact_type` (enum): `unit_fixture`, `contract_fixture`, `golden`, `integration_sample`
 - **Storage**: `tests/fixtures/pdf_convert/agents/inputs/` and `golden/`
 
 ## Relationships
 
-```
-AgentStep 1──1 PromptTemplate     (each step has one prompt)
-AgentStep 1──1 StepContract       (each step has one contract)
-AgentStep 1──1 StepRubric         (each step has one rubric)
-StepRubric 1──* RubricDimension   (each rubric has 3 dimensions)
-AgentStep 1──* StepOutput         (each step produces outputs per execution)
-StepOutput 1──1 OutputMetadata    (every output has metadata envelope)
-StepOutput 0──1 EvaluationResult  (output may have rubric evaluation)
-AgentStep 1──* TestArtifact       (each step has test artifacts per corpus PDF)
-AgentStep 0──1 AgentStepError     (step may produce error instead of output)
+```text
+AgentStepDefinition 1--1 StepContract
+AgentStepDefinition 1--0..1 StepRubric
+StepRubric 1--* RubricDimension
+
+AgentStepDefinition 1--* AgentStepWorkspaceRequest
+AgentStepWorkspaceRequest 1--1 AgentStepInputPayload
+AgentStepWorkspaceRequest 1--0..1 AgentStepOutputEnvelope
+AgentStepWorkspaceRequest 1--0..1 AgentStepErrorEnvelope
+AgentStepWorkspaceRequest 1--* StepAttemptRecord
+
+AgentStepOutputEnvelope 0..1--1 EvaluationResult
+AgentStepDefinition 1--* TestArtifact
+AgentStepDefinition 0..*--1 TokenPreflightResult
 ```
 
 ## State Transitions
 
-### Step Execution States
+### Agent Step Lifecycle (file-handoff model)
 
-```
-PENDING → EXECUTING → VALIDATING → EVALUATING → COMPLETED
-                 ↓          ↓            ↓
-              RETRYING ← RETRYING ←  RETRYING  (up to 3 attempts total)
-                                        ↓
-                                    ESCALATED → HALTED (High)
-                                              → FLAGGED (Medium)
-                                              → SKIPPED (Low)
+```text
+PENDING
+  -> REQUEST_WRITTEN        (step-input.json + step-instructions.md written)
+  -> AWAITING_AGENT         (CLI exits; agent performs step)
+  -> OUTPUT_READ            (resume reads step-output.json)
+  -> CONTRACT_VALIDATING
+     -> RETRY_REQUEST_WRITTEN (invalid output; retry instructions appended) -> AWAITING_AGENT
+     -> RUBRIC_EVALUATING      (if rubric applies)
+        -> COMPLETED           (passes rubric)
+        -> RETRY_REQUEST_WRITTEN (fails rubric/recoverable)
+        -> ESCALATED           (max retries reached)
+
+ESCALATED -> HALTED   (High)
+ESCALATED -> FLAGGED  (Medium)
+ESCALATED -> SKIPPED  (Low)
 ```
 
 ### Integration with E4-07a PhaseStatus
 
-| Agent State | Maps to PhaseStatus |
-|------------|---------------------|
-| COMPLETED | SUCCESS |
-| FLAGGED | WARNING |
-| SKIPPED | WARNING (Low criticality) |
-| HALTED | ERROR |
+| Agent Step Outcome | Maps to PhaseStatus |
+|--------------------|---------------------|
+| COMPLETED          | SUCCESS |
+| FLAGGED            | WARNING |
+| SKIPPED            | WARNING |
+| HALTED             | ERROR |
+
+## Scope Notes
+
+- E4-07b covers **13 agent steps**; step `9.1` is intentionally excluded (handled by code-level checks in E4-07a).
+- Steps `4.5`, `6.4`, and `8.7` may edit phase markdown files in place; in those cases `step-output.json` carries metadata/summary fields rather than the full revised markdown content.

@@ -1,0 +1,18 @@
+{
+  "fixture_id": "homebrewery_with_toc_p002_example_table",
+  "source_pdf": "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf",
+  "page_number_1based": 2,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/homebrewery_with_toc_p002_example_table.page.png",
+  "table_crop_image": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/homebrewery_with_toc_p002_example_table.table_crop.png",
+  "table_id": "t1",
+  "bbox_pixels": {
+    "x0": 652,
+    "y0": 379,
+    "x1": 1124,
+    "y1": 638
+  },
+  "flat_text_file": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/homebrewery_with_toc_p002_example_table.flat_text.txt",
+  "table_slug": "example_table",
+  "notes": "Flattened text copied from PDF selection; includes row/column span example semantics. EDGE CASE: non-canonical expected markdown due visual row/col span ambiguity."
+}

@@ -1,0 +1,19 @@
+{
+  "fixture_id": "cofc_quickstart_p015_other_forms_of_damage",
+  "step_id": "7.7",
+  "status": "success",
+  "tables": [
+    {
+      "table_id": "t1",
+      "page_number_1based": 15,
+      "bbox_pixels": {
+        "x0": 146,
+        "y0": 913,
+        "x1": 1102,
+        "y1": 1358
+      },
+      "confidence_note": "Full-width 3-column damage severity table with title row and column headers"
+    }
+  ],
+  "warnings": []
+}

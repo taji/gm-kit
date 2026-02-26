@@ -15,7 +15,7 @@
 
 ## Decision 2: Rubric evaluation approach
 
-**Decision:** LLM-based rubric evaluation using the configured provider at temperature=0 with structured JSON output. Per-step rubric with minimum 3/5 per dimension and zero critical failures.
+**Decision:** LLM-based rubric evaluation performed by the configured agent (via the same file-handoff workflow) at temperature=0 with structured JSON output. Per-step rubric with minimum 3/5 per dimension and zero critical failures.
 
 **Rationale:** Quality dimensions (structural clarity, text flow, readability) are semantic and cannot be evaluated by rule-based code. Temperature=0 and structured output schemas provide consistent/reproducible results (SC-003). "Deterministic" means consistent given explicit criteria, not bit-identical.
 
@@ -39,29 +39,29 @@
 
 ---
 
-## Decision 4: LLM provider and configuration
+## Decision 4: Agent execution model and provider handling
 
-**Decision:** Provider-agnostic abstraction layer (`client.py`) that supports multiple LLM backends. Constitution VI mandates support for prioritized AI agents (Claude, Gemini, Qwen, Codex, etc.). Temperature=0 for all agent steps and rubric evaluations. Structured JSON output enforced at the abstraction layer.
+**Decision:** Use an agent-orchestrated execution model. Python writes workspace input/instruction files and validates outputs, while the running agent performs the LLM work and writes `step-output.json`. No Python SDK calls for LLM inference are used in E4-07b.
 
-**Rationale:** gmkit is used by multiple AI agents, not just Claude. The client abstraction provides a common interface (`call(prompt, schema) -> dict`) that each provider implements. Provider selection is configured at runtime (env var or config). All providers must support temperature=0 and structured JSON output for SC-003 reproducibility. Vision-capable providers are required for table detection steps (7.7, 8.7).
+**Rationale:** E2-09 confirmed that supported agent CLIs can execute multi-step workflows autonomously using workspace files. This avoids provider SDK/auth complexity in Python code and matches the E4-07b design goal of replacing agent stubs with file-based handoff steps. SC-003 reproducibility is achieved through explicit rubrics, temperature=0 instructions in prompts, and structured output contracts.
 
 **Alternatives considered:**
-- Single-provider (Claude only) — violates Constitution VI multi-agent mandate
-- Local models only — insufficient quality for semantic tasks like table detection
-- No abstraction (direct SDK calls per provider) — duplicates retry/validation logic across providers
+- Python provider abstraction layer (`client.py`) with direct SDK calls — rejected because E4-07b is now agent-orchestrated
+- Single-provider implementation — rejected (multi-agent support remains a project requirement)
+- Local models only — rejected due to quality limits for semantic and multimodal tasks
 
 ---
 
-## Decision 5: Prompt storage format
+## Decision 5: Instruction/prompt storage format
 
-**Decision:** Python modules (one per step) rather than text template files.
+**Decision:** Store step instructions primarily as markdown template files (`instructions/step_X_Y.md`) with variable substitution, with a Python module only for step 7.7 due to its two-pass prompt construction (text-scan + vision confirmation).
 
-**Rationale:** Python modules allow parameterized prompt construction, type checking via mypy, direct imports in tests, and conditional logic for edge cases. Each module exposes a `build_prompt(inputs: dict) -> str` function.
+**Rationale:** Markdown templates are easy to review, diff, and hand off to the running agent. Most steps only need variable substitution, not executable logic. Step 7.7 is the exception because it builds different prompts for separate passes.
 
 **Alternatives considered:**
-- Jinja2 templates (additional dependency, no type checking)
-- Plain text files with string formatting (no parameterization, error-prone)
-- YAML configuration (verbose, no logic support)
+- Python module per step — rejected as unnecessary complexity for mostly static instructions
+- Jinja2 templates — rejected (extra dependency without meaningful benefit)
+- YAML configuration — rejected (less readable for long agent instructions)
 
 ---
 
@@ -80,25 +80,25 @@
 
 ---
 
-## Decision 8: Large document handling for quality assessment steps
+## Decision 7: Large document handling for quality assessment steps
 
 **Decision:** Agent steps send the full markdown to the LLM where context window permits. A preflight token estimate gates large documents: if estimated tokens exceed the threshold (default 100,000), the user is warned and prompted to skip in interactive mode, or warned and auto-proceeded in non-interactive (`--yes`) mode. Chunking with overlapping windows is deferred to a future feature.
 
 **Rationale:** Step 9.3 (text flow assessment) is particularly sensitive to chunking — flow issues span paragraph and section boundaries, so splitting the document would cause cross-boundary issues to be missed. Sending the full markdown is the correct approach. The 100,000-token threshold provides a safety valve for very large PDFs without complicating the E4-07b implementation. The `--yes` flag pattern is already established in the pipeline for non-interactive mode.
 
-**Known constraint:** PDFs that produce markdown exceeding the provider's context window will produce incomplete or failed assessments for step 9.3. This is acceptable for E4-07b's reference corpus (small TTRPG PDFs). A future feature should implement overlapping-window chunking for large documents.
+**Known constraint:** PDFs that produce markdown exceeding the selected agent/model context window will produce incomplete or failed assessments for step 9.3. This is acceptable for E4-07b's reference corpus (small TTRPG PDFs). A future feature should implement overlapping-window chunking for large documents.
 
 **Alternatives considered:**
 - Chunking with overlapping windows now — adds significant complexity, violates YAGNI for the reference corpus
 - Sampling (beginning/middle/end) — misses issues in unsampled sections; not appropriate for a quality gate
 
-## Decision 7: Agent step library structure
+## Decision 8: Agent step library structure
 
-**Decision:** Self-contained subpackage at `src/gm_kit/pdf_convert/agents/` with public API `run_agent_step(step_id, inputs) -> StepOutput`.
+**Decision:** Self-contained subpackage at `src/gm_kit/pdf_convert/agents/` with file-handoff APIs for writing agent inputs/instructions and reading/validating agent outputs (e.g., `write_agent_inputs(...)`, `read_agent_output(...)`). A higher-level wrapper may orchestrate these calls, but file handoff is the core interface.
 
-**Rationale:** Library-first (Constitution I): independently testable, clear boundary. Phase files call `run_agent_step()` where stubs currently live. The agents module owns prompts, contracts, rubrics, and the LLM client.
+**Rationale:** Library-first (Constitution I): independently testable, clear boundary. Phase files replace stubs by calling into the agents library, which owns instruction templates, contracts, rubric definitions, and workspace I/O/validation behavior. The running agent, not Python, performs the LLM inference.
 
 **Alternatives considered:**
 - Inline agent logic in each phase file (violates library-first, hard to test)
 - Separate top-level package (unnecessary separation from pdf_convert)
-- Plugin/registry pattern (over-engineering for 14 fixed steps)
+- Plugin/registry pattern (over-engineering for 13 fixed steps)

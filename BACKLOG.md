@@ -437,7 +437,7 @@ Success looks like: a scoped V2 plan that can follow the initial converter work.
 
 Feature description:
 
-Implement the Code-category steps (58 of 78 total) from the PDF conversion architecture. This includes Python/PyMuPDF modules for image extraction, image removal, TOC extraction, font sampling, text extraction, chunking, merging, character-level fixes, word-level fixes, structural detection, hierarchy application, markdown linting, and report generation.
+Implement the Code-category steps (58 of 77 total) from the PDF conversion architecture. This includes Python/PyMuPDF modules for image extraction, image removal, TOC extraction, font sampling, text extraction, chunking, merging, character-level fixes, word-level fixes, structural detection, hierarchy application, markdown linting, and report generation.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
@@ -566,13 +566,14 @@ Success looks like: A log file is produced for conversions and included in the d
 
 **Status: COMPLETED** (2026-02-13) - UTF-8 logging with horizontal line format, TeeOutput for stdout/stderr capture, 17 unit tests, integrated with diagnostic bundle.
 
-### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE]**
+### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE, DRAFT as specs/007-agent-pipeline/spec.md]**
 
 Feature description:
 
 Implement the Agent-category steps (13 of 77 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, quality assessments, and two-column reading order validation. Step 9.1 (completeness check) dropped — Phase 4 guarantees all page markers; a code-level check is sufficient.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+Doc sync state: `quickstart.md` not yet merged into `docs/user/user-guide.md`; `plan.md` / `research.md` / `data-model.md` not yet synced to `ARCHITECTURE.md` (deferred until implementation completes).
 
 Requirements:
 - Prompt templates for each agent step (13 total): These are AI-directed prompts invoked by the orchestrator at specific steps—not user-facing prompts, not phase-level, and not for the entire command. Each template defines the task, input format, expected output format, and edge cases for a single step.
@@ -591,7 +592,7 @@ Success looks like: Agent prompts that reliably produce outputs meeting defined 
 
 Feature description:
 
-Implement the User-category steps (6 of 78 total) from the PDF conversion architecture. This includes pre-flight confirmation, interactive prompts for font-family label review and correction capture, header/footer removal confirmation, and final issue resolution.
+Implement the User-category steps (6 of 77 total) from the PDF conversion architecture. This includes pre-flight confirmation, interactive prompts for font-family label review and correction capture, header/footer removal confirmation, and final issue resolution.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 

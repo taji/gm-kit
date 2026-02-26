@@ -5,13 +5,13 @@
 
 ## Summary
 
-Implement the 13 Agent-category steps from the PDF conversion architecture (v11) by creating prompt templates, JSON schema contracts, LLM-based rubrics, and integration wiring to replace the existing E4-07a stubs. Each agent step receives structured input from the code pipeline, calls an LLM (temperature=0, structured output), validates the response against its contract, and evaluates quality via a rubric. Steps are grouped into Content Repair (3.2, 4.5, 6.4), Table Processing (7.7, 8.7), Quality Assessment (9.2-9.5, 9.7-9.8), and Reporting (10.2-10.3).
+Implement the 13 Agent-category steps from the PDF conversion architecture (v11) using an agent-orchestrated model (confirmed viable by E2-09 audit). The running agent controls pipeline flow: Code steps run as `gmkit pdf-convert` CLI invocations; Agent steps are performed by the agent itself by reading workspace input files and writing workspace output files. Python code handles workspace I/O, contract validation, and CLI orchestration — no Python SDK calls for LLM inference. Supported agents: Claude Code, Codex CLI, OpenCode, Gemini CLI, Qwen (CI/CD automated testing covers Claude Code, Codex CLI, and OpenCode only — confirmed viable by E2-09; Gemini and Qwen are supported but not CI-tested). Steps are grouped into Content Repair (3.2, 4.5, 6.4), Table Processing (7.7, 8.7), Quality Assessment (9.2-9.5, 9.7-9.8), and Reporting (10.2-10.3).
 
 ## Technical Context
 
 - **Language/Version**: Python 3.8+ (constitution mandate), running on 3.13.7
 - **Primary Dependencies**: typer, rich, PyMuPDF/fitz, jsonschema (contract validation), Pillow (image cropping for table region extraction in steps 7.7/8.7)
-- **LLM Integration**: Provider-agnostic via abstraction layer; supports Claude, Gemini, Qwen, and other agents per Constitution VI; temperature=0; structured JSON output
+- **Agent Integration**: Agent-orchestrated execution (E2-09 confirmed viable); running agent performs agent steps by reading workspace input files and writing workspace output files; no Python SDK calls for LLM inference; supported agents: Claude Code (`--print --dangerously-skip-permissions`), Codex CLI (`exec --full-auto -s workspace-write`), OpenCode (`run`), Gemini CLI, Qwen; CI/CD automated testing covers Claude Code, Codex CLI, and OpenCode only (E2-09 confirmed); Gemini and Qwen supported but not CI-tested
 - **Storage**: Local files in conversion workspace (JSON contracts, markdown artifacts, prompt templates as Python modules)
 - **Testing**: pytest (unit in tests/unit/, integration in tests/integration/, contract in tests/contract/)
 - **Target Platform**: Linux/cross-platform CLI
@@ -30,7 +30,7 @@ Implement the 13 Agent-category steps from the PDF conversion architecture (v11)
 | III. Test-First (NON-NEGOTIABLE) | PASS | TDD: contracts → unit tests → rubric tests → integration tests |
 | IV. Integration Testing | PASS | Contract tests per step, end-to-end pipeline tests on reference corpus |
 | V. Observability & Simplicity | PASS | Structured JSON errors (FR-008), evaluation results logged; YAGNI approach |
-| VI. AI Agent Integration | PASS | This IS the agent integration; follows AGENTS.md coding standards; Constitution VI v1.4 mandates provider-agnostic abstraction — `client.py` abstracts Claude, Gemini, Qwen, etc. |
+| VI. AI Agent Integration | PASS | Agent-orchestrated model (E2-09 confirmed); the running agent IS the provider — no separate SDK/API calls; file-based handoff (input/instruction files in, output file out) is the interface between Code steps and Agent steps; supported agents documented in E2-09 findings |
 | VII. Interactive CLI Testing | N/A | No interactive prompts in agent steps |
 | VIII. Cross-Platform Installation | N/A | No new installation requirements |
 
@@ -50,7 +50,7 @@ specs/007-agent-pipeline/
 ├── contracts/           # Phase 1 contract overview
 │   └── agent-steps.md   # Contract summary + per-step schema references
 ├── checklists/
-│   └── requirements.md  # Spec quality checklist (42/42 passing)
+│   └── requirements.md  # Spec quality checklist (see file for current item count/status)
 └── feature-implementation-journal.txt
 ```
 
@@ -59,32 +59,25 @@ specs/007-agent-pipeline/
 ```text
 src/gm_kit/pdf_convert/
 ├── agents/                        # NEW: Agent step library
-│   ├── __init__.py                # Public API: run_agent_step(), AgentStepError
+│   ├── __init__.py                # Public API: write_agent_inputs(), read_agent_output(), AgentStepError
 │   ├── base.py                    # AgentStep abstract base, shared types
-│   ├── client.py                  # LLM client abstraction (provider-agnostic, temperature=0)
 │   ├── contracts.py               # Contract loader + validator (jsonschema)
-│   ├── evaluation.py              # LLM-based rubric evaluator
-│   ├── errors.py                  # AgentStepError, ContractViolation, RubricFailure
-│   ├── prompts/                   # Prompt templates per step
-│   │   ├── __init__.py
-│   │   ├── step_3_2.py            # Visual TOC parsing
-│   │   ├── step_4_5.py            # Sentence boundary resolution
-│   │   ├── step_6_4.py            # OCR spelling correction
-│   │   ├── step_7_7.py            # Table detection (two prompt fns: text_scan + vision)
-│   │   ├── step_8_7.py            # Table-to-markdown conversion
-│   │   ├── step_9_2.py            # Structural clarity
-│   │   ├── step_9_3.py            # Text flow / readability
-│   │   ├── step_9_4.py            # Table integrity
-│   │   ├── step_9_5.py            # Callout formatting
-│   │   ├── step_9_7.py            # TOC validation review
-│   │   ├── step_9_8.py            # Two-column reading order
-│   │   ├── step_10_2.py           # Quality ratings
-│   │   └── step_10_3.py           # Remaining issues
-│   ├── rubrics/                   # Rubric definitions per step
-│   │   ├── __init__.py
-│   │   ├── base.py                # Rubric base class, scoring types
-│   │   ├── step_3_2.py            # ... one per step (same layout as prompts/)
-│   │   └── ...
+│   ├── errors.py                  # AgentStepError, ContractViolation
+│   ├── agent_step.py               # Agent step I/O: write input/instruction files, read output files
+│   ├── instructions/              # Instruction templates written to workspace per step
+│   │   ├── step_3_2.md            # Visual TOC parsing — markdown template, {variable} slots
+│   │   ├── step_4_5.md            # Sentence boundary resolution
+│   │   ├── step_6_4.md            # OCR spelling correction
+│   │   ├── step_7_7.py            # Table detection — Python only (two-pass: text_scan + vision)
+│   │   ├── step_8_7.md            # Table-to-markdown conversion
+│   │   ├── step_9_2.md            # Structural clarity
+│   │   ├── step_9_3.md            # Text flow / readability
+│   │   ├── step_9_4.md            # Table integrity
+│   │   ├── step_9_5.md            # Callout formatting
+│   │   ├── step_9_7.md            # TOC validation review
+│   │   ├── step_9_8.md            # Two-column reading order
+│   │   ├── step_10_2.md           # Quality ratings
+│   │   └── step_10_3.md           # Remaining issues
 │   └── schemas/                   # JSON Schema files per step
 │       ├── step_3_2.schema.json
 │       ├── step_4_5.schema.json
@@ -104,8 +97,8 @@ tests/
 ├── unit/pdf_convert/agents/       # NEW: Unit tests for agent library
 │   ├── test_base.py               # AgentStep base class tests
 │   ├── test_contracts.py          # Contract validation tests
-│   ├── test_evaluation.py         # Rubric evaluator tests
-│   ├── test_prompts.py            # Prompt template construction tests
+│   ├── test_agent_step.py          # Workspace I/O tests (write inputs, read output)
+│   ├── test_instructions.py       # Instruction file generation tests
 │   └── test_errors.py             # Error type tests
 ├── contract/pdf_convert/agents/   # NEW: Contract tests per step
 │   ├── test_step_3_2.py           # Contract test for step 3.2
@@ -136,32 +129,55 @@ tests/
 
 ### Step Execution Flow
 
-Each agent step follows this execution pattern:
+Each agent step uses a file-based handoff between Code steps and Agent steps:
 
 ```
-Phase.execute() → agents.run_agent_step(step_id, inputs)
-  1. Load prompt template (prompts/step_X_Y.py)
-  2. Build prompt with step inputs
-  3. Call LLM (client.py: configured provider, temperature=0, structured output)
-     Note — step 7.7 uses two LLM calls internally:
-       3a. Text scan: send all pages' extracted text → LLM identifies likely table pages
-       3b. Image render: PyMuPDF renders flagged pages on-demand as images
-       3c. Vision call: send page images → LLM returns bounding boxes per table
-  4. Validate response against contract (schemas/step_X_Y.schema.json)
-  5. If invalid → retry (up to 3x, append validation error to prompt)
-  6. If valid → evaluate via rubric (rubrics/step_X_Y.py + LLM evaluation)
-  7. If rubric passes (≥3/5 per dimension, zero critical failures) → return result
-  8. If rubric fails → retry (counts toward same 3x budget)
-  9. After max retries → criticality-based escalation
+Phase.execute() → agents.write_agent_inputs(step_id, inputs, workspace)
+  1. Load instruction template (instructions/step_X_Y.md or step_7_7.py)
+  2. Substitute variables into template
+  3. Append standard "after completing this step" footer to instructions:
+       "Write your output to step-output.json in this directory, then
+        resume the pipeline by running:
+          gmkit pdf-convert --resume {workspace_path}"
+  4. Write step-input.json + step-instructions.md to {workspace}/agent_steps/step_X_Y/
+  5. Update state.json: current_step = "X.Y", status = AWAITING_AGENT
+  6. CLI exits — control passes to the running agent
+
+[Agent performs the step]:
+  A. Agent reads {workspace}/agent_steps/step_X_Y/step-input.json
+  B. Agent reads {workspace}/agent_steps/step_X_Y/step-instructions.md
+  C. Agent processes and writes step-output.json to the same directory
+     Note — steps 4.5, 6.4, 8.7 (markdown-modifying steps):
+       Agent edits the phase file directly (path provided in step-input.json);
+       step-output.json contains metadata only (status, changes_made, notes)
+     Note — step 7.7 two-pass:
+       i.  Agent reads extracted text → identifies likely table pages
+       ii. PyMuPDF renders flagged pages on-demand as images (Code utility)
+       iii.Agent reads page images → returns bounding boxes per table
+  D. Agent calls: gmkit pdf-convert --resume {workspace_path}
+
+[Pipeline resumes via --resume]:
+  7. CLI reads state.json → finds current_step = "X.Y", status = AWAITING_AGENT
+  8. agents.read_agent_output(step_id, workspace) reads step-output.json
+  9. Validate output against contract (schemas/step_X_Y.schema.json)
+  10. If invalid → re-write error + retry instructions to workspace; CLI exits;
+      agent re-runs (up to 3x retry budget)
+  11. If valid → update state.json; pipeline continues to next Code phase
+  12. After max retries → criticality-based escalation
+
+Note — restart resilience: if the agent is interrupted and restarted, it calls
+  gmkit pdf-convert --resume {workspace_path}; the CLI re-writes the workspace
+  files for the current step (state.json is authoritative for position) and the
+  agent proceeds from there.
 ```
 
 ### Implementation Order
 
 Work is organized in dependency order:
 
-1. **Foundation** (agents base, client, contracts, errors, token_preflight utility)
-   - `client.py`: provider-agnostic LLM interface; `complete(prompt, *, vision=False) -> str`; raises `ProviderError`, `VisionNotSupportedError`
-   - `token_preflight.py`: shared utility for FR-015; estimates token count (~4 chars/token), warns user if markdown exceeds ~100k tokens; interactive skip or `--yes` auto-proceed
+1. **Foundation** (agents base, workspace I/O, contracts, errors, token_preflight utility)
+   - `agent_step.py`: write_agent_inputs() reads markdown template, substitutes variables, appends standard resume-instruction footer, writes step-input.json + step-instructions.md to workspace; read_agent_output() reads step-output.json; handles retry instruction writes
+   - `token_preflight.py`: shared utility for FR-015; estimates token count (~4 chars/token), warns user if markdown exceeds ~100k tokens (~80-120 two-column pages); warning message explicitly calls out that heading hierarchy and TOC alignment quality may degrade for large documents as quality assessment steps receive the full document; interactive skip or `--yes` auto-proceed
 2. **Content Repair steps** (3.2, 4.5, 6.4) — simplest, fewest dependencies
    - Step 3.2: prompt enforces indented-text output format per FR-012 (not pipe-delimited); contract schema validates indent structure
    - Step 6.4: prompt addresses both OCR scenarios per FR-013: (a) pre-baked text layer artifacts; (b) agent-driven OCR path with resume-from-phase guidance
@@ -200,15 +216,16 @@ Each step has tailored rubric dimensions scored 1-5 by LLM evaluator:
 
 Following Constitution III (Test-First, NON-NEGOTIABLE):
 
-1. **Unit tests** (tests/unit/): Mock LLM client, test prompt construction, contract validation logic, rubric scoring logic, error handling. No network calls.
-   - Multimodal steps (7.7, 8.7): pass `Path("fixtures/agents/images/stub_page.png")` as image arg to mock client; stub PNG included in test fixtures; tests validate prompt construction and image path plumbing, not image content.
+1. **Unit tests** (tests/unit/): Test workspace I/O logic, instruction file generation, contract validation, error handling. No network calls, no agent invocations.
+   - `agent_step.py` tests: use `tmp_path` fixtures; assert correct file paths and content written for each step; assert read_agent_output() parses correctly.
+   - Instruction tests: assert markdown templates render correctly after variable substitution; assert generated step-instructions.md contains required fields for each step; parameterized with fixture inputs. step_7_7.py tested for correct template selection per pass.
    - Token preflight: test both branches — interactive skip (mock `input()` returning "s") and `--yes` auto-proceed; use short markdown strings to trigger threshold.
-   - `client.py` unit tests: mock at the SDK level (`unittest.mock.patch` on the provider SDK client method, e.g. `anthropic_client.messages.create`); test `VisionNotSupportedError` raised correctly. No raw HTTP mocking — provider SDKs own HTTP internally.
-2. **Contract tests** (tests/contract/): Validate that each step's output schema matches the expected shape. Use fixture inputs → mock LLM → validate against schema. One contract test file per step (13 total). Also includes `test_client_contract.py` validating the `client.py` interface contract across all provider adapters.
-3. **Integration tests** (tests/integration/): Real LLM calls against reference corpus. Verify SC-002 (90% first-pass), SC-003 (reproducible scores), SC-005 (zero false TTRPG corrections).
-   - Provider: use configured provider from `GM_LLM_PROVIDER` env var (default: whichever is set in CI); CI runs with `--yes` flag (no interactive prompts).
-   - Credentials: provider API keys via env vars (`ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, etc.); integration tests skipped if no key present (marked `pytest.mark.integration`).
-4. **Golden files**: Generated from first successful corpus run, then reviewed manually. Subsequent runs compared for regression.
+   - Multimodal steps (7.7, 8.7): stub PNG in test fixtures; tests validate instruction content references correct image paths, not image content.
+2. **Contract tests** (tests/contract/): Validate that fixture agent outputs conform to each step's JSON Schema. Use pre-written fixture output files (not live agent calls) → validate against schema. One contract test file per step (13 total).
+3. **Integration tests** (tests/integration/): Live agent invocation against reference corpus. Verify SC-002 (90% first-pass), SC-003 (reproducible scores), SC-005 (zero false TTRPG corrections).
+   - Agent: use configured agent from `GM_AGENT` env var (default: `codex`); invoked via subprocess with appropriate flags per agent (dispatch table maps agent name → full CLI invocation, e.g. `codex` → `codex exec --full-auto -s workspace-write`).
+   - CI: integration tests skipped by default (marked `pytest.mark.integration`); run manually or in dedicated CI job with `GM_AGENT` set.
+4. **Golden files**: Generated from first successful corpus run, reviewed manually. Subsequent runs compared for regression.
    - Vision steps (7.7, 8.7): golden files include bounding-box JSON from step 7.7 and markdown table output from step 8.7; captured at 150 DPI; if DPI changes, golden files must be regenerated.
    - Golden files stored in `tests/fixtures/pdf_convert/agents/golden/step_7_7/` and `step_8_7/`.
 
@@ -216,16 +233,16 @@ Following Constitution III (Test-First, NON-NEGOTIABLE):
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| LLM provider | Provider-agnostic abstraction | Constitution VI mandates support for multiple AI agents (Claude, Gemini, Qwen, etc.); client.py abstracts provider differences behind a common interface |
-| Rubric evaluation | LLM-based (temperature=0) | Quality dimensions are semantic, not rule-checkable (SC-003 clarification); works with any supported provider |
+| Execution model | Agent-orchestrated (E2-09 confirmed) | Running agent controls pipeline; Code steps are CLI invocations; Agent steps performed by agent itself; no Python SDK for LLM inference; eliminates auth complexity and double-billing |
+| Workspace artifact protocol | step-input.json + step-instructions.md → step-output.json | Standard file contract per step in {workspace}/agent_steps/step_X_Y/; agent reads inputs, writes output; Python validates output against JSON Schema |
+| Markdown modification (steps 4.5, 6.4, 8.7) | Agent edits phase file directly; step-output.json carries metadata only | These 3 steps modify the phase markdown in place — agent receives phase file path in step-input.json and edits it directly; step-output.json contains status/change count/notes only (not content); phase files remain clean, human-readable diff artifacts |
+| Agent invocation | Agent-dependent CLI flags | Codex (default): `exec --full-auto -s workspace-write`; Claude Code: `--print --dangerously-skip-permissions`; OpenCode: `run`; all confirmed by E2-09. Gemini CLI and Qwen also supported; not CI-tested (E2-09 Phase 2 deferred). Agent selected via `GM_AGENT` env var; dispatch table maps name → full invocation |
+| Instruction storage | Markdown templates (Python for step 7.7 only) | instructions/step_X_Y.md: human-readable, {variable} slots substituted by agent_step.py before writing to workspace; step_7_7.py is Python-only due to two-pass logic (text_scan + vision template selection) |
 | Contract format | JSON Schema Draft-07 | Python jsonschema library mature; deterministic validation |
-| Prompt storage | Python modules (not text files) | Allows parameterization, type checking, test imports |
-| Table detection | Two-pass multimodal (text scan → on-demand image render → vision) | Step 7.7 scans extracted text to flag likely table pages, renders only those pages as images on-demand via PyMuPDF, then uses vision LLM for bounding box extraction; step 8.7 crops flagged regions and uses vision LLM to reconstruct markdown. No pre-rendered page images — rendering is on-demand only (FR-014) |
+| Table detection | Two-pass multimodal (text scan → on-demand image render → vision) | Step 7.7: agent reads extracted text to identify likely table pages; PyMuPDF Code utility renders those pages as images on-demand; agent reads images and returns bounding boxes; step 8.7 crops and reconstructs markdown. No pre-rendered page images — rendering is on-demand only (FR-014) |
 | Step output format | JSON with shared metadata envelope | Consistent validation; envelope has step_id, warnings, errors |
 | Agent step library | Subpackage under pdf_convert | Library-first (Constitution I); self-contained, independently testable |
-| client.py interface | `complete(prompt: str, *, vision: bool = False, images: list[Path] = None) -> str` | Provider differences hidden behind one method; `vision=True` with `images` for multimodal steps; raises `VisionNotSupportedError` if provider lacks vision; caller handles as step failure (criticality-based escalation, same as other critical failures) |
-| Vision capability | Validated at invocation, not startup | `VisionNotSupportedError` raised by `client.py` when `vision=True` but provider doesn't support it; step catches and escalates per FR-010; not a silent fallback — pipeline fails the step explicitly |
-| Token heuristic | Configurable via env var `GM_TOKEN_THRESHOLD` (default 100000) | ~4 chars/token estimate; set lower for testing; threshold checked before any quality-assessment step LLM call |
+| Token heuristic | Configurable via env var `GM_TOKEN_THRESHOLD` (default 100000) | ~4 chars/token estimate (~80-120 two-column pages); threshold checked before quality-assessment steps (9.2-9.5, 9.7-9.8, 10.2-10.3) which receive the full document; warning explicitly flags heading hierarchy and TOC alignment as the most likely accuracy casualties for large documents; user may proceed or skip |
 | Page image DPI | 150 DPI (configurable via `GM_PAGE_IMAGE_DPI`) | Balances file size vs. table text legibility; 150 DPI sufficient for vision LLM recognition; override for high-density tables |
 
 ## Dependency Notes
