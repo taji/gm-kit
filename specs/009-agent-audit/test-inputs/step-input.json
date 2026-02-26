@@ -1,0 +1,5 @@
+{
+  "step_id": "3.2",
+  "instruction": "Parse the following visual TOC text and return a JSON array of entries, each with level (int), title (str), and page (int).",
+  "input_text": "Contents\n  Introduction (page 3)\n  Chapter One (page 5)\n    Section 1.1 (page 7)\n    Section 1.2 (page 9)\n  Chapter Two (page 12)"
+}
