@@ -1,7 +1,7 @@
 """Phase 8: Heading Insertion.
 
 Code steps 8.1-8.5, 8.9-8.11: Apply headings, blockquotes, and hierarchy.
-Agent steps 8.6-8.8 are stubbed (table conversion, callout formatting).
+Agent step 8.7 is stubbed (table conversion).
 
 This phase reads font signature markers from Phase 4 output and converts
 them to markdown headings based on font-family-mapping.json labels.
@@ -75,7 +75,7 @@ class Phase8(Phase):
 
     @property
     def has_agent_steps(self) -> bool:
-        return True  # Steps 8.6-8.8: Table conversion, quote formatting, figure placeholders
+        return True  # Step 8.7: Table conversion
 
     def _load_callout_end_markers(self, state: ConversionState) -> dict[str, str]:
         """Load callout configuration to get end_text markers for each callout type.
@@ -432,16 +432,6 @@ class Phase8(Phase):
                     description="Apply blockquote formatting to callouts (Integrated in 8.2)",
                     status=PhaseStatus.SUCCESS,
                     message="Integrated into Step 8.2",
-                )
-            )
-
-            # Step 8.6: Apply quote formatting with italic + attribution (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="8.6",
-                    description="Apply quote formatting with italic + attribution (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
                 )
             )
 

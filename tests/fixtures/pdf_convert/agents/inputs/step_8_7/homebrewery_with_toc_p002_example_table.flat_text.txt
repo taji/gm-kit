@@ -1,0 +1,17 @@
+Example
+Head A
+Head B
+1A 2A 3A
+4A 5A
+6A
+Spanned Header
+Head C
+Head D
+1B
+1C
+2B
+2C
+3B 3C 4B 4C
+5B 6B
+5C
+6C

@@ -6,6 +6,22 @@ This file defines the standards, conventions, and expectations for AI-assisted d
 
 - When renaming or moving tracked files, use `git mv` so history and rename detection stay intact.
 
+## Session Journal
+
+Before ending a session where feature work was performed, update the feature's `feature-implementation-journal.txt` in the spec folder (e.g., `specs/007-agent-pipeline/feature-implementation-journal.txt`). If the file does not exist, create it following the format from any existing journal (e.g., `specs/006-code-pdf-pipeline/feature-implementation-journal.txt`).
+
+Each journal entry must include:
+
+1. **Session header**: Date and short title (e.g., `Session: 2026-02-16 - Clarify Completion & Planning`)
+2. **Work completed**: Bullet list of what was done this session
+3. **Key decisions**: Any decisions made regarding the feature (design choices, trade-offs, user preferences)
+4. **Current state**: What is done, what is in progress, what is blocked
+5. **Next steps**: Numbered list of what to do next, in order
+6. **Agent attribution**: At the end of the entry, include the line:
+   `Recorded by: <model-name> (e.g., claude-opus-4-6, claude-sonnet-4-5, gemini-2.5-pro)`
+
+This journal is the primary handoff mechanism between sessions and between different AI agents. Write entries with enough detail that a different agent (or the same agent in a new context window) can resume the work without asking the user to re-explain.
+
 <!-- GENERATED:MEMORY_GUIDELINES_START -->
 
 Follow these steps for each interaction:
@@ -301,3 +317,15 @@ A task is “complete” only when:
 - The implementation adheres to project architecture and style guidelines
 
 <!-- GENERATED:AGENT_CONTEXT_PYTHON_END -->
+
+## Active Technologies
+- Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit (001-ci-walking-skeleton)
+- N/A (CI configuration only) (001-ci-walking-skeleton)
+- Python 3.13.7 + typer, rich, PyMuPDF (fitz), pymarkdownlnt (006-code-pdf-pipeline)
+- Files on local workspace (.state.json, per-phase artifacts, manifests) (006-code-pdf-pipeline)
+- Local files in conversion workspace (JSON, markdown, prompt artifacts) (007-agent-pipeline)
+- Python 3.8+ (constitution mandate), running on 3.13.7 + typer, rich, PyMuPDF/fitz, jsonschema (contract validation) (007-agent-pipeline)
+- Local files in conversion workspace (JSON contracts, markdown artifacts, prompt templates as Python modules) (007-agent-pipeline)
+
+## Recent Changes
+- 001-ci-walking-skeleton: Added Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit

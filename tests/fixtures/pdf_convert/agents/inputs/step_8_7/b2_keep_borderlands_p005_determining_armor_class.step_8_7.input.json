@@ -1,0 +1,18 @@
+{
+  "fixture_id": "b2_keep_borderlands_p005_determining_armor_class",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "page_number_1based": 5,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/b2_keep_borderlands_p005_determining_armor_class.page.png",
+  "table_crop_image": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/b2_keep_borderlands_p005_determining_armor_class.table_crop.png",
+  "table_id": "t1",
+  "bbox_pixels": {
+    "x0": 67,
+    "y0": 321,
+    "x1": 633,
+    "y1": 596
+  },
+  "flat_text_file": "tests/fixtures/pdf_convert/agents/inputs/step_8_7/b2_keep_borderlands_p005_determining_armor_class.flat_text.txt",
+  "table_slug": "determining_armor_class",
+  "notes": "Scanned/OCR-ish table text with misrecognized AC numerals and wrapped final cell; 8.7 golden normalizes intended values."
+}

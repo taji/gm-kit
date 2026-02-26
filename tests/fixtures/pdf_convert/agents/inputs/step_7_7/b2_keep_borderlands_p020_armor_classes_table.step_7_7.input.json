@@ -1,0 +1,9 @@
+{
+  "fixture_id": "b2_keep_borderlands_p020_armor_classes_table",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "page_number_1based": 20,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/b2_keep_borderlands_p020_armor_classes_table.page.png",
+  "table_slug": "armor_classes",
+  "notes": "B2 page 20 right-column Armor Classes table. Source PDF is temp-resources only."
+}

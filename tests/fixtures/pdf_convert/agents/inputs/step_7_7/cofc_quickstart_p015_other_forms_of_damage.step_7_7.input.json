@@ -1,0 +1,9 @@
+{
+  "fixture_id": "cofc_quickstart_p015_other_forms_of_damage",
+  "source_pdf": "temp-resources/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf",
+  "page_number_1based": 15,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/cofc_quickstart_p015_other_forms_of_damage.page.png",
+  "table_slug": "other_forms_of_damage",
+  "notes": "Call of Cthulhu Quick-Start page 15 full-width table. Source PDF is temp-resources local copy; canonical acquisition script: tests/fixtures/pdf_convert/download_cofc_fixture.sh"
+}

@@ -1,0 +1,9 @@
+{
+  "fixture_id": "b2_keep_borderlands_p005_determining_armor_class",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "page_number_1based": 5,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/b2_keep_borderlands_p005_determining_armor_class.page.png",
+  "table_slug": "determining_armor_class",
+  "notes": "B2 page 5 left-column table. Source PDF is temp-resources only (not committed fixture PDF)."
+}

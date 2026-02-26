@@ -1,0 +1,19 @@
+Determining Armor Class:
+Armor Class
+Type of Armor
+9
+;
+:
+4
+i
+1
+None
+Shield only
+Leather
+Leather&Shield
+Chainmail
+Chainmail &Shield
+Plate Mail
+Plate Mail &Shield
+Plate Mail & magic Shield +1 (or other
+combinations)

@@ -1,0 +1,19 @@
+{
+  "fixture_id": "b2_keep_borderlands_p020_armor_classes_table",
+  "step_id": "7.7",
+  "status": "success",
+  "tables": [
+    {
+      "table_id": "t1",
+      "page_number_1based": 20,
+      "bbox_pixels": {
+        "x0": 608,
+        "y0": 550,
+        "x1": 1167,
+        "y1": 802
+      },
+      "confidence_note": "Clear two-column armor-class lookup table on page 20 right side"
+    }
+  ],
+  "warnings": []
+}

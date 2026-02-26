@@ -1,0 +1,809 @@
+E4-07b Implementation Journal
+==============================
+Branch: 007-agent-pipeline
+Started: 2026-02-06
+
+Overview
+--------
+Implementing the agent-driven PDF-to-Markdown pipeline (E4-07b) defined in
+specs/007-agent-pipeline/. This feature covers 13 Agent-category steps across
+phases 3, 4, 6, 7, 8, 9, and 10. Each step requires a prompt template,
+contract definition (JSON schema), rubric for evaluation, and integration
+with the E4-07a code pipeline.
+
+Agent Steps (13 total):
+  3.2  - Parse visual TOC page
+  4.5  - Resolve split sentences at chunk boundaries
+  6.4  - Fix spelling errors (OCR artifacts: rn->m, l->1, O->0)
+  7.7  - Detect table structures
+  8.7  - Convert detected tables to markdown format
+  9.2  - Structural clarity assessment
+  9.3  - Text flow / readability assessment
+  9.4  - Table integrity check
+  9.5  - Callout formatting check
+  9.7  - Review TOC validation issues (gaps, duplicates)
+  9.8  - Review two-column reading order issues
+  10.2 - Include quality ratings (1-5 scale)
+  10.3 - Document up to 3 remaining issues with examples
+
+Session: 2026-02-06 - Initial Spec Generation
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-06
+
+Work Completed:
+1. Generated initial spec.md via /specify
+   - 15 agent steps listed (based on pre-E4-07a architecture)
+   - 3 user stories (P1: reliable outputs, P2: consistent rubrics, P3: integration)
+   - 11 functional requirements, 4 success criteria
+   - Reference test corpus: Homebrewery (with/without TOC), Call of Cthulhu
+
+2. Generated checklists/requirements.md (27 items, CHK001-CHK027)
+
+3. Generated supporting artifacts:
+   - contracts/ folder
+   - data-model.md
+   - plan.md
+   - quickstart.md
+   - research.md
+
+4. Started checklist review (CHK001-CHK005 completed)
+   - CHK001: Added explicit "15 steps" language
+   - CHK002: Added example to FR-002
+   - CHK003: Clarified "per step" in FR-003
+   - CHK004: Linked pass rule to FR-008
+   - CHK005: Tied FR-006 to reference corpus
+
+Note: Checklist review paused at CHK006 pending alignment with E4-07a
+implementation changes.
+
+Recorded by: claude-opus-4-6
+
+Session: 2026-02-14 - Architecture Alignment (Pre-Spec Refresh)
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-14
+
+Context:
+E4-07a (Code-Driven Pipeline) was completed and merged to master (commit
+8c8ead9, PR #9, 2026-02-13). The implementation made several changes that
+invalidate the 007 spec's step list and descriptions. Before continuing the
+checklist review, we aligned the architecture doc and BACKLOG with code reality.
+
+Discrepancies Found:
+1. Phase 4 agent step renumbered: 4.6 -> 4.5 (two-column detection removed)
+2. Phase 7 step 7.8 (inline heading detection) removed
+3. Phase 8 reshuffled:
+   - 8.6 (quote formatting) removed - author quotes render as plain text
+   - 8.7 (table conversion) remains as sole Phase 8 agent step
+   - 8.8 (callout formatting) integrated into code step 8.2
+   - 8.9 (figure placeholders) became Code step
+4. Phase 3 gained steps 3.7 (footer/watermark) and 3.8 (icon font detection)
+5. Phase 7 gained step 7.11 (capture user corrections)
+6. Architecture criticality table had stale step numbers (8.7/8.8/8.9)
+7. Phase Summary step counts were inaccurate
+
+Changes Made:
+1. Architecture doc (pdf-conversion-architecture.md) updated to v11:
+   - Overview: 78 total steps (58 Code, 14 Agent, 6 User)
+   - Phase 3 detail: Added 3.7, 3.8 + output entries (footer_config, icon_config)
+   - Phase 4: Confirmed 4.5 as agent step
+   - Phase 7: Removed 7.8, added 7.11, updated decision note
+   - Phase 8: Rewrote to match code (integrated steps noted, 8.6 removed)
+   - Criticality table: Removed stale 8.8/8.9 entries
+   - Feature Split: E4-07b = 14 steps, E4-07c = 6 steps
+   - Key Decisions: Added 6 new entries documenting removals/changes
+
+2. Code (phase8.py):
+   - Removed step 8.6 agent stub (quote formatting)
+   - Updated file header and has_agent_steps comment
+   - All 440 unit + 35 integration tests pass
+
+3. BACKLOG.md:
+   - E4-07a: 58 of 78 total
+   - E4-07b: 14 of 78 total, step list = 3.2, 4.5, 6.4, 7.7, 8.7,
+     9.1-9.5, 9.7-9.8, 10.2-10.3
+   - E4-07c: 6 of 78 total, steps = 0.6, 7.10-7.11, 9.9-9.11
+   - Added note about removed/reclassified steps
+
+Current State:
+- Architecture doc aligned with code (v11)
+- BACKLOG.md step counts and lists corrected
+- Code step 8.6 removed, tests passing
+- 007 spec.md is STALE (still references 15 steps, old step numbers)
+- Checklist paused at CHK006
+
+Next Steps:
+1. Re-run /specify for 007-agent-pipeline with corrected architecture as input
+2. Then /clarify, /plan, /checklist to regenerate spec artifacts
+3. Resume checklist review with updated spec
+
+Recorded by: claude-opus-4-6
+
+Session: 2026-02-15 - Spec Regeneration & Clarify Start
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-15
+
+Context:
+Continuing from the architecture alignment session. The 007 spec was stale
+(15 steps, old numbering). Needed to regenerate spec and begin clarification.
+
+Work Completed:
+1. Re-ran /speckit.specify with corrected architecture (v11) as input
+   - spec.md fully rewritten with 14 agent steps
+   - Added Session 2026-02-14 clarifications documenting architecture alignment
+   - Steps Covered table now includes Phase and Criticality columns
+   - Added Step Groupings section (Content Repair, Table Processing,
+     Quality Assessment, Reporting)
+   - FR-004: defined critical failures and minimum score (3/5 per dimension)
+   - FR-008: added structured error JSON format with example
+   - FR-013: added 6.4 flagging-over-fixing mitigation for table content
+   - FR-014: documented table handling reality and multimodal OCR recommendation
+   - SC-002: scoped as per-execution across all steps x corpus PDFs
+   - SC-005: added zero false corrections on TTRPG domain terms
+   - 14 functional requirements, 5 success criteria
+
+2. Regenerated checklists/requirements.md
+   - Replaced 27-item checklist with 42-item checklist
+   - All 42/42 items passing
+   - Fixed 4 initially failing items:
+     - CHK016: Added JSON format example to FR-008
+     - CHK017: Added minimum 3/5 score threshold to FR-004
+     - CHK018: Added critical failure definition to FR-004
+     - CHK026: Clarified SC-002 scope (all steps x all corpus PDFs)
+
+3. Started /speckit.clarify
+   - Ran ambiguity & coverage scan across all taxonomy categories
+   - 7 of 10 categories rated Clear, 3 rated Partial
+   - Identified 1 high-impact question: rubric evaluation mechanism
+     (LLM-based vs rule-based vs hybrid) — impacts SC-003 determinism
+   - Recommended Option A (LLM-based, SC-003 = consistent/reproducible)
+   - Session interrupted before user answered
+
+Current State:
+- spec.md fully regenerated and aligned with architecture v11
+- Checklist 42/42 passing
+- /speckit.clarify in progress — 1 question pending (rubric eval mechanism)
+- contracts/agent-steps.md is stale (still lists removed steps 4.6, 8.6, 8.8)
+  — will be regenerated during planning
+
+Next Steps:
+1. Resume /speckit.clarify — answer rubric evaluation question
+2. Run /speckit.plan to generate implementation plan
+3. Run /speckit.checklist for detailed quality review
+4. Update stale contracts/agent-steps.md during planning
+
+Recorded by: claude-opus-4-6
+
+Session: 2026-02-16 - Clarify Completion & Implementation Planning
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-16
+
+Work Completed:
+1. Completed /speckit.clarify
+   - 1 question asked: rubric evaluation mechanism (LLM vs rule-based vs hybrid)
+   - User chose Option A: LLM-based evaluation (temperature=0, structured output)
+   - SC-003 updated: "deterministic" means consistent/reproducible, not bit-identical
+   - Added Session 2026-02-16 clarification entry to spec.md
+
+2. Completed /speckit.plan — full implementation plan generated
+   - Technical context: Python 3.8+, Claude API via anthropic SDK, jsonschema,
+     pydantic for structured output models
+   - Constitution check: all 8 principles pass, no violations
+   - Project structure: new agents/ subpackage under src/gm_kit/pdf_convert/
+     with prompts/, rubrics/, schemas/ subdirectories
+   - Step execution flow: prompt → LLM call → contract validation → rubric
+     evaluation → retry (max 3) → criticality-based escalation
+   - Implementation order: Foundation → Content Repair (3.2, 4.5, 6.4) →
+     Table Processing (7.7, 8.7) → Quality Assessment (9.1-9.5, 9.7-9.8) →
+     Reporting (10.2-10.3) → Integration wiring
+   - Rubric dimensions table: 3 dimensions + critical failures per step
+   - Test strategy: unit (mock LLM) → contract (mock LLM) → integration
+     (real LLM) → end-to-end pipeline
+   - 7 key design decisions documented
+
+3. Updated supporting artifacts
+   - research.md: expanded from 3 to 7 decisions (added LLM provider,
+     prompt storage, table detection, agent library structure)
+   - data-model.md: rewritten with 9 detailed entities, relationships diagram,
+     state transition diagram, PhaseStatus mapping
+   - quickstart.md: fixed 15→14 steps, added prerequisites, 4-tier test steps
+   - contracts/agent-steps.md: fixed step list, added per-step output field
+     summaries with key JSON fields
+   - AGENTS.md: agent context updated with new technology entries
+
+Current State:
+- spec.md complete and clarified (42/42 checklist, 1 clarification integrated)
+- plan.md complete with full implementation approach
+- All supporting artifacts (research, data-model, quickstart, contracts) updated
+- Ready for task generation
+
+Next Steps:
+1. Run /speckit.checklist for plan quality review
+2. Run /speckit.tasks to generate task breakdown (tasks.md)
+3. Begin TDD implementation per plan's implementation order
+
+Recorded by: claude-opus-4-6
+
+Session: 2026-02-17 - Provider-Agnostic Refactor & Agent Audit Planning
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-17
+
+Work Completed:
+1. Removed pydantic from plan — jsonschema is sole validation layer
+
+2. Refactored plan to be LLM provider-agnostic (was Claude-specific)
+   - plan.md: Technical Context, execution flow, design decisions updated
+   - research.md: Decision 4 (LLM provider) rewritten for provider abstraction;
+     Decision 6 (table detection) generalized from Claude vision to any
+     vision-capable provider
+   - quickstart.md: Removed ANTHROPIC_API_KEY references, generalized to
+     configured provider
+   - AGENTS.md: Removed pydantic from Active Technologies entry
+
+3. Updated Constitution to v1.4
+   - Added to Principle VI: features with runtime LLM calls MUST use
+     provider-agnostic abstraction; supported models assumed to have
+     equivalent multimodal capabilities (vision, structured output)
+
+4. Scanned all 007 spec artifacts for Claude-specific language
+   - Fixed remaining references in quickstart.md and research.md
+   - Journal "Recorded by:" and checklist "Reviewer:" lines left as-is
+     (correct — they're attribution, not runtime references)
+
+5. Added AGENTS.md Session Journal convention
+   - New section between Git Hygiene and Memory Guidelines
+   - Codifies: when to write, where to write, what to include
+   - Requires agent attribution line (model name) for session handoff
+
+6. Added retroactive "Recorded by: claude-opus-4-6" to all 4 prior
+   007 journal entries
+
+7. Added E2-09 to BACKLOG.md under Epic 2
+   - "Agent & Model Capability Audit — Vision, MCP, Local File Access"
+   - 10 candidate agents (CLI + desktop/MCP): Claude Code, Claude Desktop,
+     Gemini CLI, Gemini Desktop, OpenCode/Kimi, Codex CLI, ChatGPT Desktop,
+     GitHub Copilot, Qwen CLI, Qwen Desktop
+   - 3 audit dimensions: vision, MCP support, local file access
+   - Manual testing required against real environments
+   - Re-adds opencode (Kimi 2.5) as supported agent
+   - Priority MEDIUM (gates E4-07b multi-agent testing)
+
+Key Decisions:
+- pydantic unnecessary — jsonschema handles all contract validation
+- LLM integration must be provider-agnostic per Constitution VI v1.4
+- Desktop/MCP-based agents (Claude Desktop, ChatGPT, Copilot, etc.) are
+  now candidates alongside CLI agents
+- Session journal entries are mandatory before exiting, per AGENTS.md
+
+Current State:
+- spec.md complete and clarified (42/42 checklist, 1 clarification integrated)
+- plan.md complete, now provider-agnostic
+- All supporting artifacts updated and provider-agnostic
+- Constitution v1.4 ratified
+- AGENTS.md has session journal convention
+- E2-09 (agent audit) added to BACKLOG.md
+- Ready for task generation
+
+Next Steps:
+1. Run /speckit.checklist for plan quality review
+2. Run /speckit.tasks to generate task breakdown (tasks.md)
+3. Begin TDD implementation per plan's implementation order
+4. E2-09 can run in parallel — research + manual testing of agent capabilities
+
+Recorded by: claude-opus-4-6
+
+Session: 2026-02-20 - Step-by-Step Agent Walkthrough & Spec Refinements
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-20
+
+Context:
+Continuing from the 2026-02-17 session. All planning artifacts were complete
+and provider-agnostic. This session performed a full step-by-step walkthrough
+of all 13 agent steps, with user Q&A at each step triggering spec revisions.
+
+Work Completed:
+1. Walked through all 13 agent steps one by one with user
+   - Each step: purpose, inputs, outputs, contract format, integration notes
+   - User questions at each step drove targeted spec updates
+
+2. Spec revisions during walkthrough:
+
+   Step 3.2 (Parse visual TOC):
+   - FR-012 corrected: output format was specified as `level|title|page`
+     pipe-delimited but code (phase3.py) produces indented text format:
+     `Chapter One (page 4)` / `  Section 1.1 (page 5)` (2-space indent per level)
+   - Fixed to match actual code output format
+
+   Step 6.4 (Fix OCR spelling):
+   - FR-013 updated: added context that the pipeline itself does NOT perform
+     OCR; two distinct scenarios documented:
+     (a) PDF has pre-baked OCR text layer with artifacts
+     (b) Agent-driven path: user provides scanned PDF → agent invokes OCR
+         tool → resume-from-phase mechanism to retry
+
+   Step 7.7 (Detect table structures):
+   - FR-014 fully rewritten as two-pass multimodal approach:
+     Pass 1: text scan all pages for heuristic table signals (code)
+     Pass 2: for flagged pages only → render page image on-demand →
+             submit to vision LLM → extract bounding boxes
+   - Clarified: Phase 2 REMOVES embedded images (white rectangles), does NOT
+     pre-render pages; page images are rendered on-demand in step 7.7 only
+   - PIL/Pillow added as dependency for image cropping
+
+   Step 8.7 (Convert tables to markdown):
+   - Corrected: step 8.7 REUSES page images already saved by step 7.7
+     (no re-rendering); PIL/Pillow crops the saved image to the bounding box;
+     cropped image submitted to vision LLM for markdown table conversion
+
+   Step 9.1 (Completeness check) - DROPPED:
+   - User questioned its value; investigated phase4.py
+   - Code uses `for page_num in range(total_pages)` — guarantees all page
+     markers are present; completeness check adds no value
+   - User confirmed: "drop it"
+   - All references updated: 14→13 agent steps, 78→77 total pipeline steps
+   - Files updated: spec.md, plan.md, contracts/agent-steps.md, quickstart.md,
+     research.md, BACKLOG.md, pdf-conversion-architecture.md
+
+   Step 9.7 (Review TOC validation issues):
+   - FR-016 added: step 9.7 must receive font-family-mapping.json as input
+   - Rationale: font-inferred headings (ALL CAPS, Title Case heuristics from
+     Phase 7) may produce false-positive TOC gaps; agent must know which
+     headings were font-inferred vs TOC-sourced to apply skepticism appropriately
+
+   Step 9.5 / FR-015 (Preflight token threshold):
+   - FR-015 added: before sending full markdown to LLM for quality assessment,
+     estimate token count (~4 chars/token); if threshold exceeded (~100k tokens),
+     warn user interactively
+   - Interactive mode: pause and ask user to skip or proceed
+   - `--yes` flag: auto-proceed without prompt (no skip option)
+   - Chunking deferred to future feature
+
+   Step 10.2 (Quality ratings):
+   - Clarified: JSON output is internal pipeline intermediate, NOT emitted
+     to screen as raw JSON
+   - Consumed by Code step 10.4 which renders it into conversion-report.md
+     as a human-readable ## Quality Assessment section
+
+3. Phase 10 code review (phase10.py)
+   - Confirmed: step 10.4 generates conversion-report.md as human-readable
+     markdown (Pipeline Summary, Phase Details, Performance, Warnings,
+     Errors, Output Files, License Notice)
+   - Steps 10.2-10.3 are currently stubbed with SUCCESS status
+   - Confirmed the internal JSON → markdown rendering flow
+
+Key Decisions:
+- Step 9.1 dropped: Phase 4 code guarantees correctness — agent step redundant
+- Two-pass table detection: text heuristics (code) → vision LLM (agent, only
+  for flagged pages) — minimizes LLM calls while handling complex tables
+- Phase 2 does NOT render page images — corrected prior misunderstanding
+- Step 8.7 reuses images from 7.7 — no redundant rendering
+- Step 10.2 JSON is internal — user sees markdown report only
+
+Current State:
+- All 13 agent steps walked through and documented
+- All spec artifacts reflect 13 steps, 77 total pipeline steps
+- Spec refinements (FR-012 through FR-016) integrated into spec.md
+- contracts/agent-steps.md aligned with all corrections
+- New plan quality checklist generated: checklists/plan.md (31 items)
+  - Covers: plan-spec consistency, new FR coverage, multimodal design,
+    provider-agnostic architecture, test strategy, dependency specification,
+    acceptance criteria alignment
+  - Several known failures: CHK001 (Summary says "14 steps"), CHK002
+    (Implementation Order says "9.1-9.5"), CHK003 (step_9_1.py still listed),
+    CHK009 (FR-015 not in plan), CHK010 (FR-016 not in plan)
+  - Note: requirements.md CHK005 is now stale ("14 agent steps" → 13)
+- Task generation not yet started
+
+Next Steps:
+1. Resolve plan.md checklist failures (update plan Summary, Implementation
+   Order, Project Structure, add FR-015/FR-016 coverage)
+2. Run /speckit.tasks to generate task breakdown (tasks.md)
+3. Begin TDD implementation per plan's implementation order
+4. E2-09 agent audit can run in parallel
+
+Recorded by: claude-sonnet-4-6
+
+Session: 2026-02-22 - Architectural Decision Point: SDK vs Agent-Orchestrated
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-22
+
+Context:
+Continuing from 2026-02-20. Resolved all 31 plan.md checklist items (31/31
+passing). During plan review, user raised fundamental architectural questions
+about the agent step implementation approach that reveal a design divergence.
+
+Work Completed:
+1. Resolved all plan.md checklist failures (31/31)
+   - Quick fixes: step counts 14→13, removed step_9_1.py from structure
+   - New FR coverage: FR-012 thru FR-016 documented in Implementation Order
+     and Rubric Dimensions
+   - Architecture additions: client.py interface spec, vision capability
+     handling, provider-agnostic design decisions
+   - Test strategy: multimodal unit test approach, CI credentials, golden files
+   - Dependency notes: PyMuPDF rendering API, Pillow crop formula, token heuristic
+   - contracts/agent-steps.md: font-family-mapping.json schema documented
+
+2. Architectural discussion: SDK-based vs. Agent-orchestrated approach
+
+   Current plan (Model A - SDK-based):
+   - Python pipeline controls everything
+   - Agent steps → client.py → SDK call → LLM API → response
+   - Requires separate API key configuration from user
+   - O(N) provider adapter complexity as new agents added
+   - OAuth users (Claude.ai subscription) would still need a separate API key
+   - Direct API calls bypass subscription-included usage → double billing
+
+   User's model (Model B - Agent-orchestrated):
+   - Running agent (Claude Code, Codex, OpenCode) controls the flow
+   - Agent calls CLI for code steps; performs agent steps itself
+   - No separate authentication — inherits agent's existing auth
+   - No client.py, no provider adapters, no O(N) complexity
+   - Uses agent's subscription-included usage (no double billing)
+   - Main tradeoff: less deterministic, harder to test
+
+   Batch-pause variant of Model B (reduces 13 transitions to 3-4):
+   - Code pipeline runs, collects inputs for agent steps at boundaries
+   - Agent handles batches of steps in one session
+   - Pipeline resumes with agent outputs
+
+3. Pipeline transition analysis
+
+   Agent steps are NOT all terminal — several feed directly into code steps:
+   - Step 4.5 output → Phase 5 code needs corrected phase4.md
+   - Step 6.4 output → Phase 7 code needs corrected phase6.md
+   - Steps 7.7 + 8.7 → Phase 8 code needs markdown tables
+   - Steps 9.x, 10.x are terminal (quality + reporting)
+
+   Minimum transitions with current pipeline ordering: 3-4 agent batches
+   Two-transition model requires pipeline restructuring (E4-07e scope):
+   - "Input collection" mode: code phases run, write manifests, no agent steps
+   - Agent batch: all 13 steps handled respecting internal deps
+   - "Correction apply" mode: affected code phases re-run with agent outputs
+   This is achievable but non-trivial — flagged as open design question for E4-07e
+
+4. Prior agent capability findings reviewed
+   - E2-02 finding (2025): CLI batch mode non-viable for codex-cli, gemini,
+     opencode — no clean slash-command invocation; codex output unreliable
+   - Claude Code was NOT tested at that time (no subscription)
+   - All three agents have had major updates since prior test
+   - E2-09 audit still in BACKLOG, unexecuted
+
+5. E2-09 updated in BACKLOG.md
+   - Priority raised: MEDIUM → HIGH (blocks E4-07b architectural decision)
+   - Phase 1 focus narrowed to Claude Code, Codex CLI, OpenCode only
+   - 4 new test columns added: CLI invocable?, runs to completion?,
+     slash commands to completion?, generates output files?
+   - Phase 2 (remaining agents) deferred until Phase 1 yields a candidate
+   - "BLOCKS E4-07b" dependency documented explicitly
+
+Key Open Decisions:
+- BLOCKED: E4-07b implementation approach (SDK vs. agent-orchestrated)
+  cannot be locked until E2-09 Phase 1 completes
+- OPEN: If agent-orchestrated, how many pipeline transitions are acceptable?
+  2-transition model requires E4-07e restructuring; 3-4 is achievable sooner
+- OPEN: If agent-orchestrated, rubric evaluation becomes agent self-evaluation
+  (no separate evaluator LLM call) — implications for SC-003 determinism TBD
+
+Current State:
+- plan.md: 31/31 checklist passing, fully updated
+- BACKLOG.md: E2-09 updated to HIGH priority with autonomous execution focus
+- E4-07b implementation: ON HOLD pending E2-09 Phase 1 results
+- /speckit.tasks: not yet run (blocked pending architectural decision)
+
+Next Steps:
+1. Execute E2-09 Phase 1: test Claude Code, Codex CLI, OpenCode for autonomous
+   multi-step task execution and file output
+2. Lock E4-07b architectural approach based on findings
+3. If agent-orchestrated confirmed: revise plan significantly (remove client.py,
+   define workspace artifact protocol, document transition model)
+4. If SDK confirmed: run /speckit.tasks and proceed to implementation
+
+Recorded by: claude-sonnet-4-6
+
+Session: 2026-02-24 - E2-09 Decision Applied to Plan
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-24
+
+Context:
+E2-09 audit completed on branch 009-agent-audit. All three Phase 1 agents
+(Claude Code, Codex CLI, OpenCode) passed Tests 1+2+4. Agent-orchestrated
+model confirmed viable.
+
+Work Completed:
+Revised plan.md to reflect agent-orchestrated architecture:
+
+1. Removed client.py from Project Structure
+   - No Python SDK needed for LLM inference
+   - Running agent IS the LLM provider
+   - Removed evaluation.py (LLM-based rubric evaluator; agent does this itself)
+   - Removed rubrics/ directory (same reason)
+
+2. Added workspace artifact protocol
+   - workspace.py: write_agent_inputs(), read_agent_output()
+   - instructions/ replaces prompts/ — generates step-instructions.md written to workspace
+   - Per-step workspace dir: {workspace}/agent_steps/step_X_Y/
+   - Files: step-input.json + step-instructions.md in, step-output.json out
+
+3. Updated Step Execution Flow
+   - Code step writes input files + instruction file to workspace
+   - Agent reads files, processes, writes step-output.json
+   - Code step reads output, validates against JSON Schema
+   - Retry: write error + retry instructions back to workspace
+
+4. Updated Test Strategy
+   - Unit tests: workspace I/O with tmp_path fixtures (no agent invocations)
+   - Contract tests: fixture output files validated against schema
+   - Integration tests: live agent invocations; GM_AGENT env var selects agent
+
+5. Updated Key Design Decisions
+   - Removed client.py interface, rubric evaluation, VisionNotSupportedError decisions
+   - Added: Execution model, Workspace artifact protocol, Agent invocation flags
+
+6. Updated Constitution Check VI
+   - Running agent IS the provider; no separate SDK/API calls
+
+Agent invocation patterns confirmed by E2-09:
+- Claude Code: claude --print --dangerously-skip-permissions "<prompt>"
+- Codex CLI:   codex exec --full-auto -s workspace-write "<prompt>" > /dev/null 2>&1
+- OpenCode:    opencode run "<prompt>" > /dev/null 2>&1
+
+Next Steps:
+1. Run /speckit.tasks to generate tasks.md
+2. Proceed to E4-07b implementation
+
+Recorded by: claude-sonnet-4-6
+
+---
+
+Session: 2026-02-24 - Plan Review Refinements
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-24
+
+Additional plan.md changes made during user review:
+
+1. Gemini CLI and Qwen added to supported agents list
+   - All five agents listed: Claude Code, Codex CLI, OpenCode, Gemini CLI, Qwen
+   - Note added in Summary, Technical Context, and Key Design Decisions:
+     CI/CD automated testing covers Claude Code, Codex CLI, OpenCode only (E2-09
+     confirmed); Gemini and Qwen supported but not CI-tested
+
+2. Instruction templates changed from Python modules to Markdown files
+   - instructions/step_X_Y.md: human-readable, {variable} slots substituted by
+     workspace.py before writing to workspace
+   - Exception: step_7_7.py remains Python-only (two-pass logic: text_scan +
+     vision template selection)
+   - workspace.py now responsible for template read → variable substitution → write
+   - Unit tests updated: assert markdown templates render correctly after substitution;
+     step_7_7.py tested for correct template selection per pass
+
+Status: plan.md review complete. Ready to commit.
+
+Recorded by: claude-sonnet-4-6
+
+Session: 2026-02-25 - plan.md Review Refinements
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-25
+
+Additional plan.md changes made during user review:
+
+1. workspace.py renamed to agent_step.py
+   - Scoped to agent-side I/O; differentiates from CLI-side phases/base.py
+   - Import sites are clear: `from .base import AgentStep` vs
+     `from .agent_step import write_inputs, read_output`
+
+2. Step Execution Flow — resume mechanism made explicit
+   - CLI exits after writing workspace files (not "pauses")
+   - state.json updated to AWAITING_AGENT before exit
+   - step-instructions.md gets standard resume-instruction footer injected
+     by write_agent_inputs(): agent calls gmkit pdf-convert --resume
+   - --resume reads state.json (authoritative), re-writes workspace files
+     if needed, reads step-output.json, validates, continues
+   - Restart resilience documented: restarted agent calls --resume; CLI
+     re-writes workspace files from state.json
+
+3. Markdown-modifying steps (4.5, 6.4, 8.7) — agent writes phase file directly
+   - step-output.json carries metadata only (status, changes_made, notes)
+   - step-input.json provides phase file path to agent
+   - Phase files remain clean, human-readable diff artifacts
+   - Rejected: embedding content in JSON (all options over-design for 3 steps)
+
+4. Default integration test agent changed to codex (GM_AGENT=codex)
+   - User discontinuing Claude subscription; prefers Codex and OpenCode
+   - Dispatch table noted: agent name → full CLI invocation
+
+5. Gemini CLI and Qwen added as supported agents
+   - CI/CD automated testing: Claude Code, Codex CLI, OpenCode only (E2-09)
+   - Gemini and Qwen: supported but not CI-tested
+
+6. Token preflight warning enhanced for large documents
+   - Warning explicitly flags heading hierarchy and TOC alignment as the
+     most likely accuracy casualties for documents >~100 two-column pages
+   - No chunked QA planned — not worth architectural complexity for two steps
+   - User proceeds informed; --yes auto-proceeds without prompt
+
+Recorded by: claude-sonnet-4-6
+
+---
+
+Todo
+----
+[ ] Commit plan.md + journal updates to 007-agent-pipeline
+[ ] Merge 009-agent-audit → master
+[ ] Run /speckit.tasks on 007-agent-pipeline to generate tasks.md
+[ ] Proceed to E4-07b implementation
+
+Session: 2026-02-25 - Spec/Plan Artifact Consistency Review
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-25
+
+Work Completed:
+1. Reviewed `spec.md`, `plan.md`, `data-model.md`, `quickstart.md`, and `research.md` for cross-document consistency
+2. Updated `quickstart.md` to match agent-orchestrated execution model
+   - Removed Python SDK/API-key assumptions
+   - Added supported agent CLI prerequisite and `GM_AGENT` usage
+   - Switched test and CLI examples to `uv run ...`
+3. Updated `research.md` to match current E4-07b design
+   - Replaced provider-SDK abstraction decision with agent-orchestrated file-handoff decision
+   - Updated prompt storage decision to markdown templates (+ `step_7_7.py` exception)
+   - Updated agent library decision to file-handoff APIs
+   - Corrected stale "14 fixed steps" reference to 13
+   - Fixed decision numbering order (7/8)
+4. Rewrote `data-model.md` to reflect file-handoff workflow
+   - Added workspace request/input/output entities (`step-input.json`, `step-instructions.md`, `step-output.json`)
+   - Added attempt/retry and token preflight entities
+   - Updated lifecycle states to REQUEST_WRITTEN/AWAITING_AGENT/OUTPUT_READ flow
+   - Removed stale `9.1` step references from active model examples
+5. Updated non-checklist metadata consistency items
+   - `spec.md` updated date refreshed
+   - `plan.md` checklist note made count-agnostic
+   - `BACKLOG.md` E4-07b title now includes spec path tag and doc-sync state line
+   - `BACKLOG.md` E4-07a/E4-07c totals normalized to 77
+   - Journal overview corrected from 14 steps to 13
+
+Key Decisions:
+- `ARCHITECTURE.md` remains intentionally deferred for sync until code implementation (user-confirmed workflow)
+- Checklist regeneration/re-vetting is deferred because current checklists predate significant spec/plan changes
+- `research.md` should describe the implemented architectural direction (agent-orchestrated) rather than preserved earlier alternatives as active decisions
+
+Current State:
+- `spec.md` and `plan.md` are aligned on 13-step E4-07b scope and agent-orchestrated execution
+- Supporting artifacts (`data-model.md`, `quickstart.md`, `research.md`) are now aligned with the current plan/spec design
+- `BACKLOG.md` metadata and step totals are more consistent for E4-07a/b/c
+- `ARCHITECTURE.md` is still out of sync with 007 feature docs (deferred)
+- `checklists/` still need regeneration and review after spec/plan changes
+
+Next Steps:
+1. Regenerate E4-07b checklist(s) for the updated `spec.md` and `plan.md`
+2. Review and resolve checklist items one-by-one
+3. Run `/speckit.tasks` for `specs/007-agent-pipeline/`
+4. After implementation work lands, sync `plan.md` / `research.md` / `data-model.md` changes into `ARCHITECTURE.md`
+
+Recorded by: gpt-5-codex
+
+Session: 2026-02-25 - FR Resequencing & Checklist Regeneration
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-25
+
+Work Completed:
+1. Resequenced `spec.md` functional requirements so FR-014, FR-015, FR-016 are in numeric order (content unchanged)
+2. Regenerated `checklists/requirements.md` to match the current 13-step scope and latest spec clarifications
+3. Regenerated `checklists/plan.md` to match the current agent-orchestrated plan design and supporting docs
+4. Verified regenerated checklists no longer contain stale 14-step references or old checklist pass-count assumptions
+
+Key Decisions:
+- Regenerated checklists are now baseline review artifacts and intentionally start unchecked
+- Checklist scope remains requirements-writing and plan-quality validation (not implementation verification)
+
+Current State:
+- `spec.md` FR numbering is clean and sequential through FR-016
+- `requirements.md` and `plan.md` checklists are regenerated and aligned to current spec/plan
+- `ARCHITECTURE.md` sync remains deferred until implementation (per team workflow)
+
+Next Steps:
+1. Review regenerated `checklists/requirements.md` item-by-item and resolve any spec gaps
+2. Review regenerated `checklists/plan.md` item-by-item and resolve any plan gaps
+3. Run `/speckit.tasks` after checklist review is complete
+
+Recorded by: gpt-5-codex
+
+Session: 2026-02-25 - Checklist Validation Pass (Straightforward Fixes)
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-25
+
+Work Completed:
+1. Reviewed regenerated `checklists/requirements.md` (29 items) and `checklists/plan.md` (24 items) against current `spec.md` / `plan.md`
+2. Confirmed checklist items are currently addressable without additional product decisions
+3. Applied straightforward wording consistency fixes discovered during review:
+   - `research.md` Decision 2 now says rubric evaluation is performed by the configured agent (not "provider")
+   - `research.md` large-document constraint now references selected agent/model context window
+   - `quickstart.md` resume command now uses `uv run ... gmkit pdf-convert --resume <workspace>`
+   - `data-model.md` `resume_command` example now uses `uv run ...`
+
+Key Decisions:
+- No new scope or behavior decisions were introduced; changes were terminology and command consistency only
+- Checklist items remain suitable for manual walkthrough, but no blocking gaps were found in this pass
+
+Current State:
+- Both regenerated checklists remain valid against current docs
+- No checklist items currently require immediate spec/plan changes beyond the straightforward fixes already applied
+- `ARCHITECTURE.md` sync and checklist re-vetting workflow remain deferred per prior agreement
+
+Next Steps:
+1. Review checklist items with user for any preferred wording/strictness adjustments
+2. Run `/speckit.tasks` when checklist review is complete
+3. Sync `ARCHITECTURE.md` after E4-07b implementation lands
+
+Recorded by: gpt-5-codex
+
+Session: 2026-02-25 - Tasks Generation + Table Fixture Expansion
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-25
+
+Work Completed:
+1. Generated `specs/007-agent-pipeline/tasks.md` for E4-07b with 77 executable tasks organized by user story (US1/US2/US3)
+2. Incorporated explicit multimodal table fixture/golden work into tasks for steps `7.7` and `8.7`
+3. Created and vetted initial table fixtures under `tests/fixtures/pdf_convert/agents/`:
+   - Homebrewery page 2 example table (marked edge-case / non-canonical 8.7 output)
+   - B2 page 5 "Determining Armor Class"
+   - B2 page 19 Armor equipment table (crop updated to include title "Armor")
+   - B2 page 20 Armor Classes table
+   - CoC page 15 "Other Forms of Damage" full-width table
+4. Refined goldens during review:
+   - B2 page 19 shield AC formatting updated to `-(1)*`
+   - CoC "Other Forms of Damage" 8.7 golden updated to preserve full Injury-column text after the colon
+
+Key Decisions:
+- Homebrewery page 2 span-heavy table remains a useful detection/crop stress fixture but is documented as non-canonical for markdown output comparison
+- Canonical 8.7 goldens exclude nearby table titles even when crop images include them
+- CoC fixture acquisition remains script-based (`tests/fixtures/pdf_convert/download_cofc_fixture.sh`) while local temp-resources copies can be used for fixture authoring
+
+Current State:
+- Spec/plan/support docs/checklists/tasks are in good shape for E4-07b implementation handoff
+- Multimodal fixture strategy is proven with representative simple, OCR-noisy, and full-width tables
+- `ARCHITECTURE.md` sync remains deferred until implementation completes (team workflow)
+
+Next Steps:
+1. Review `specs/007-agent-pipeline/tasks.md` for any task granularity adjustments
+2. Start E4-07b implementation using `tasks.md` (Phase 1 → Phase 2 → US1)
+3. After implementation, sync design docs to `ARCHITECTURE.md` and merge quickstart content into `docs/user/user-guide.md`
+
+Recorded by: gpt-5-codex
+
+Session: 2026-02-25 - Tasks Review Corrections
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-02-25
+
+Work Completed:
+1. Reviewed generated `tasks.md` against `spec.md` user-story boundaries and task-format rules
+2. Corrected US1 coverage so prompt/schema/contract-fixture work for quality-assessment/review steps (`9.2-9.5`, `9.7-9.8`) is included in US1 (aligns with US1 scope: reliable outputs for all 13 agent steps)
+3. Removed invalid `[P]` parallel markers from two tasks targeting the same file (`tests/integration/pdf_convert/agents/test_agent_pipeline.py`)
+4. Re-numbered downstream tasks to restore sequential IDs and validated format consistency
+
+Key Decisions:
+- US2 now focuses on rubric/evaluator determinism and acceptance logic rather than owning prompt/schema artifact creation for steps `9.x`
+- `tasks.md` remains implementation-ready with a smaller total task count after de-duplicating misplaced US2 contract-test tasks
+
+Current State:
+- `tasks.md` is aligned with `spec.md` user stories and task-format rules
+- Total tasks now `75` (`T001-T075`), all format-valid and sequential
+
+Next Steps:
+1. Perform final human review of `tasks.md` granularity (optional)
+2. Begin implementation with Phase 1 and Phase 2
+3. Start US1 with multimodal table fixture/golden-backed work (`7.7`/`8.7`)
+
+Recorded by: gpt-5-codex

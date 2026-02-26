@@ -210,6 +210,67 @@ Success looks like: Optional CI job that validates slash command → agent → C
 
 Priority: LOW (nice-to-have after core features are stable)
 
+### E2-09. Agent & Model Capability Audit — Autonomous Pipeline Execution **[TASK]**
+Task description:
+Determine which agent(s) can autonomously execute the PDF→Markdown pipeline's agent-orchestrated workflow without interruption. The E4-07b architectural decision (SDK-based vs. agent-orchestrated) is BLOCKED on this audit. A successful candidate must be able to: invoke CLI commands, read workspace files, perform multi-step tasks to completion, and write output files — all without human intervention in a single run.
+
+Prior finding (E2-02, ~2025): Agent CLI batch mode was non-viable for codex-cli, gemini, opencode for clean slash-command invocation. Claude Code was not tested (no subscription at the time). All three have had major updates since — re-test required.
+
+This is a research-and-manual-testing task. Results gate E4-07b implementation approach.
+
+**Phase 1 (Priority): Autonomous Execution Audit — Claude Code, Codex CLI, OpenCode**
+
+Test each of the three priority agents across 7 dimensions:
+
+   | Agent | Model(s) | Vision | CLI Invocable? | Runs to Completion? | Slash Commands? | Generates Output Files? | Notes |
+   |-------|----------|--------|----------------|---------------------|-----------------|------------------------|-------|
+   | Claude Code | Claude 4.x Opus/Sonnet | confirmed | **test** | **test** | **test** | **test** | First test — now have subscription |
+   | Codex CLI | GPT-4o / o-series | likely | **test** | **test** | **test** | **test** | Has "build mode"; unreliable in prior test |
+   | OpenCode | Kimi 2.5 | confirmed | **test** | **test** | **test** | **test** | Re-adding; significant updates since prior test |
+
+   **Column definitions:**
+   - **CLI Invocable?** — Can the agent be launched from the command line in a non-interactive/batch mode?
+   - **Runs to Completion?** — Given a multi-step task, does it execute all steps without stalling or requesting human confirmation?
+   - **Slash Commands?** — Can it execute a gmkit slash command (e.g. `/gmkit.hello-gmkit`) unaided from invocation to file output?
+   - **Generates Output Files?** — Does it reliably write the expected workspace files (not just print output to terminal)?
+
+   **Test protocol for each agent:**
+   1. Invoke agent from CLI in autonomous/batch mode with a simple multi-step task
+   2. Run `/gmkit.hello-gmkit` slash command and verify greeting file written to disk
+   3. Simulate one agent pipeline step: provide a structured input file, task the agent to produce a structured JSON output file to the workspace
+   4. Document stall points, error modes, and configuration requirements
+
+**Phase 2 (Deferred): Remaining Agent Audit**
+
+Defer until Phase 1 produces a viable candidate. If no Phase 1 candidate passes, expand to:
+
+   | Agent | Type | Model(s) | Vision | MCP Support | Local File Access |
+   |-------|------|----------|--------|-------------|-------------------|
+   | Claude Desktop | Desktop | Claude 4.x Opus/Sonnet | confirmed | Yes (MCP) | Yes (via MCP) |
+   | Gemini CLI | CLI | Gemini 2.x | confirmed | needs testing | Yes |
+   | Gemini Desktop | Desktop | Gemini 2.x | confirmed | needs testing | needs testing |
+   | ChatGPT Desktop | Desktop | GPT-4o / o-series | likely | needs testing | needs testing |
+   | GitHub Copilot | IDE/Desktop | GPT-4o / Claude | likely | needs testing | Yes (workspace) |
+   | Qwen CLI | CLI | Qwen 2.5 | unclear | needs testing | Yes |
+   | Qwen Desktop | Desktop | Qwen 2.5 | unclear | needs testing | needs testing |
+
+**Additional scope (post-Phase 1):**
+
+2. **Re-add opencode (Kimi 2.5) to supported agents** (if Phase 1 confirms it passes):
+   - Add opencode to `gmkit init` agent selection and prompt folder conventions
+   - Update documentation (user_guide.md, ARCHITECTURE.md, constitution)
+
+3. **Update project-wide references** based on confirmed candidates:
+   - Constitution VI supported agent list
+   - `gmkit init` agent selection options
+   - AGENTS.md agent-specific context sections
+
+Dependencies: **BLOCKS E4-07b** — architectural decision (SDK vs. agent-orchestrated) cannot be locked until at least one autonomous agent candidate is confirmed.
+
+Success looks like: At least one of Claude Code, Codex CLI, or OpenCode confirmed to execute a multi-step task autonomously with file output. E4-07b architectural approach locked based on findings.
+
+Priority: **HIGH** (blocks E4-07b implementation approach decision)
+
 ---
 
 ## Epic 3 — Spec-Kit Architecture Analysis
@@ -376,7 +437,7 @@ Success looks like: a scoped V2 plan that can follow the initial converter work.
 
 Feature description:
 
-Implement the Code-category steps (49 of 70 total) from the PDF conversion architecture. This includes Python/PyMuPDF modules for image extraction, image removal, TOC extraction, font sampling, text extraction, chunking, merging, character-level fixes, word-level fixes, structural detection, hierarchy application, markdown linting, and report generation.
+Implement the Code-category steps (58 of 77 total) from the PDF conversion architecture. This includes Python/PyMuPDF modules for image extraction, image removal, TOC extraction, font sampling, text extraction, chunking, merging, character-level fixes, word-level fixes, structural detection, hierarchy application, markdown linting, and report generation.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
@@ -408,6 +469,8 @@ Success looks like: A tested Python package that executes all Code-category step
 Feature description:
 
 Add a pipeline log file that is captured during conversion and included in the diagnostic bundle when `--diagnostics` is enabled.
+
+Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
 Requirements:
 - Write a single log file per conversion (location under the conversion output directory)
@@ -503,24 +566,25 @@ Success looks like: A log file is produced for conversions and included in the d
 
 **Status: COMPLETED** (2026-02-13) - UTF-8 logging with horizontal line format, TeeOutput for stdout/stderr capture, 17 unit tests, integrated with diagnostic bundle.
 
-### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE]**
+### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE, DRAFT as specs/007-agent-pipeline/spec.md]**
 
 Feature description:
 
-Implement the Agent-category steps (15 of 70 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, callout formatting, figure placeholders, quality assessments, and two-column reading order validation.
+Implement the Agent-category steps (13 of 77 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, quality assessments, and two-column reading order validation. Step 9.1 (completeness check) dropped — Phase 4 guarantees all page markers; a code-level check is sufficient.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
+Doc sync state: `quickstart.md` not yet merged into `docs/user/user-guide.md`; `plan.md` / `research.md` / `data-model.md` not yet synced to `ARCHITECTURE.md` (deferred until implementation completes).
 
 Requirements:
-- Prompt templates for each agent step (15 total): These are AI-directed prompts invoked by the orchestrator at specific steps—not user-facing prompts, not phase-level, and not for the entire command. Each template defines the task, input format, expected output format, and edge cases for a single step.
+- Prompt templates for each agent step (13 total): These are AI-directed prompts invoked by the orchestrator at specific steps—not user-facing prompts, not phase-level, and not for the entire command. Each template defines the task, input format, expected output format, and edge cases for a single step.
 - Contract definitions (input/output specifications)
 - Rubric definitions for evaluation
 - Integration points with E4-07a Code pipeline
 - Testing via contract testing, rubric evaluation, golden file comparison, structural validation
 
-Steps covered: 3.2, 4.6, 6.4, 7.7, 8.6-8.8, 9.1-9.5, 9.7-9.8, 10.2-10.3
+Steps covered: 3.2, 4.5, 6.4, 7.7, 8.7, 9.2-9.5, 9.7-9.8, 10.2-10.3
 
-Note: Steps 7.7 (table detection) and 8.7 (table conversion) were investigated during E4-07a and confirmed to require agent-level judgment. PyMuPDF cannot reconstruct table structure from text extraction alone. Consider multimodal OCR (page images + AI vision) as an implementation approach for these steps.
+Note: Steps 7.7 (table detection) and 8.7 (table conversion) were investigated during E4-07a and confirmed to require agent-level judgment. PyMuPDF cannot reconstruct table structure from text extraction alone. Consider multimodal OCR (page images + AI vision) as an implementation approach for these steps. Step 8.6 (quote formatting) was removed — author quotes render adequately as plain text. Callout formatting (8.8) and figure placeholders (8.9) were implemented as Code steps during E4-07a.
 
 Success looks like: Agent prompts that reliably produce outputs meeting defined contracts and rubrics, integrated with the Code pipeline.
 
@@ -528,7 +592,7 @@ Success looks like: Agent prompts that reliably produce outputs meeting defined 
 
 Feature description:
 
-Implement the User-category steps (5 of 70 total) from the PDF conversion architecture. This includes pre-flight confirmation, interactive prompts for font-family label review, header/footer removal confirmation, and final issue resolution.
+Implement the User-category steps (6 of 77 total) from the PDF conversion architecture. This includes pre-flight confirmation, interactive prompts for font-family label review and correction capture, header/footer removal confirmation, and final issue resolution.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
 
@@ -541,7 +605,7 @@ Requirements:
 - Annotated-PDF review flow for font label review (labels in annotations mirror JSON labels; agent parses annotations to update JSON)
 - Integration with E4-07a and E4-07b pipelines
 
-Steps covered: 0.6, 7.10, 9.9-9.11
+Steps covered: 0.6, 7.10-7.11, 9.9-9.11
 
 Design note — Phase 9 review interaction has two candidate flows to evaluate:
 1. **Interactive one-at-a-time**: Agent presents each concern individually, collects user response, applies revision, then moves to the next. Tight feedback loop.

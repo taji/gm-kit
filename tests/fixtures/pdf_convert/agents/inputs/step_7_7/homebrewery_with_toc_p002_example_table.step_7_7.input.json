@@ -1,0 +1,9 @@
+{
+  "fixture_id": "homebrewery_with_toc_p002_example_table",
+  "source_pdf": "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf",
+  "page_number_1based": 2,
+  "dpi": 150,
+  "page_image": "tests/fixtures/pdf_convert/agents/inputs/table_pages/homebrewery_with_toc_p002_example_table.page.png",
+  "table_slug": "example_table",
+  "notes": "Homebrewery page 2, second-column mid-page table titled Example"
+}
