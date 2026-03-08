@@ -62,7 +62,7 @@ cd gm-kit
 uv pip install -e .
 ```
 ### Supported Agents
-`claude`, `codex-cli`, `gemini`, `qwen`
+`claude`, `codex-cli`, `opencode`, `gemini`, `qwen`
 
 ### Generated Files (Example)
 ```

@@ -3,13 +3,36 @@
 Tests for markdown linting and quality checks.
 """
 
+import json
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from gm_kit.pdf_convert.phases.base import PhaseStatus
 from gm_kit.pdf_convert.phases.phase9 import Phase9
 from gm_kit.pdf_convert.state import ConversionState
+
+
+def _write_required_quality_artifacts(output_dir):
+    """Create required artifacts so high-critical quality steps can execute."""
+    (output_dir / "tables-manifest.json").write_text(json.dumps({"tables": [], "total_count": 0}))
+    (output_dir / "gm-callout-config.json").write_text(json.dumps([]))
+    (output_dir / "font-family-mapping.json").write_text(
+        json.dumps({"version": "1.0", "signatures": []})
+    )
+
+
+@pytest.fixture(autouse=True)
+def mock_agent_step_runtime():
+    """Mock AgentStepRuntime to prevent actual agent invocation in tests."""
+    with patch("gm_kit.pdf_convert.agents.AgentStepRuntime") as mock_runtime_class:
+        mock_runtime = MagicMock()
+        mock_envelope = MagicMock()
+        mock_envelope.data = {"score": 4, "issues": [], "ratings": {"overall": {"score": 4}}}
+        mock_runtime.execute_step.return_value = (mock_envelope, MagicMock())
+        mock_runtime_class.return_value = mock_runtime
+        yield mock_runtime_class
 
 
 class TestPhase9LintChecks:
@@ -22,6 +45,7 @@ class TestPhase9LintChecks:
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
         state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
+        _write_required_quality_artifacts(tmp_path)
         return phase, state
 
     def test__should_report_success__when_no_violations(self, setup_phase9, tmp_path):
@@ -82,7 +106,7 @@ class TestPhase9LintChecks:
 
 
 class TestPhase9AgentSteps:
-    """Test that agent steps are properly stubbed."""
+    """Test that agent steps are properly executed."""
 
     @pytest.fixture
     def setup_phase9(self, tmp_path):
@@ -94,70 +118,71 @@ class TestPhase9AgentSteps:
         # Create input file
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("Content")
+        _write_required_quality_artifacts(tmp_path)
         return phase, state
 
-    def test__should_report_agent_step_9_1_stubbed(self, setup_phase9):
-        """Test step 9.1 completeness check is stubbed."""
+    def test__step_9_1_was_removed_from_architecture(self, setup_phase9):
+        """Step 9.1 was removed - Phase 4 guarantees all page markers."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
-        step = [s for s in result.steps if s.step_id == "9.1"][0]
-        assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        # Step 9.1 should not exist
+        step_9_1 = [s for s in result.steps if s.step_id == "9.1"]
+        assert len(step_9_1) == 0
 
-    def test__should_report_agent_step_9_2_stubbed(self, setup_phase9):
-        """Test step 9.2 structure validation is stubbed."""
+    def test__should_report_agent_step_9_2_executed(self, setup_phase9):
+        """Test step 9.2 structural clarity assessment is executed via agent."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "9.2"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        assert "AGENT" in step.description
 
-    def test__should_report_agent_step_9_3_stubbed(self, setup_phase9):
-        """Test step 9.3 reading flow check is stubbed."""
+    def test__should_report_agent_step_9_3_executed(self, setup_phase9):
+        """Test step 9.3 text flow assessment is executed via agent."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "9.3"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        assert "AGENT" in step.description
 
-    def test__should_report_agent_step_9_4_stubbed(self, setup_phase9):
-        """Test step 9.4 table formatting check is stubbed."""
+    def test__should_report_agent_step_9_4_status(self, setup_phase9):
+        """Test step 9.4 table integrity check status."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "9.4"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        assert "AGENT" in step.description
 
-    def test__should_report_agent_step_9_5_stubbed(self, setup_phase9):
-        """Test step 9.5 callout formatting check is stubbed."""
+    def test__should_report_agent_step_9_5_status(self, setup_phase9):
+        """Test step 9.5 callout formatting check status."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "9.5"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        assert "AGENT" in step.description
 
-    def test__should_report_agent_step_9_7_stubbed(self, setup_phase9):
-        """Test step 9.7 TOC validation is stubbed."""
+    def test__should_report_agent_step_9_7_executed(self, setup_phase9):
+        """Test step 9.7 TOC validation is executed via agent."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
-        step = [s for s in result.steps if s.step_id == "9.7"][0]
-        assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        step_9_7 = [s for s in result.steps if s.step_id == "9.7"][0]
+        assert step_9_7.status == PhaseStatus.SUCCESS
+        assert "AGENT" in step_9_7.description
 
-    def test__should_report_agent_step_9_8_stubbed(self, setup_phase9):
-        """Test step 9.8 two-column review is stubbed."""
+    def test__should_report_agent_step_9_8_executed(self, setup_phase9):
+        """Test step 9.8 reading order review is executed via agent."""
         phase, state = setup_phase9
         result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "9.8"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        assert "AGENT" in step.description
 
 
 class TestPhase9UserSteps:
@@ -173,6 +198,7 @@ class TestPhase9UserSteps:
         # Create input file
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("Content")
+        _write_required_quality_artifacts(tmp_path)
         return phase, state
 
     def test__should_report_user_step_9_9_stubbed(self, setup_phase9):
@@ -230,6 +256,7 @@ class TestPhase9EdgeCases:
 
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("")
+        _write_required_quality_artifacts(tmp_path)
 
         result = phase.execute(state)
 
@@ -247,6 +274,7 @@ class TestPhase9EdgeCases:
 
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("# 标题\n\n内容 with unicode 🎮")
+        _write_required_quality_artifacts(tmp_path)
 
         result = phase.execute(state)
 
@@ -277,8 +305,53 @@ class TestPhase9EdgeCases:
 
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("Content")
+        _write_required_quality_artifacts(tmp_path)
 
         result = phase.execute(state)
 
         step_ids = [step.step_id for step in result.steps]
         assert len(step_ids) == len(set(step_ids))
+
+    def test__should_return_structured_error__when_table_manifest_missing(self, tmp_path):
+        """High-critical step 9.4 must fail with structured error when input is missing."""
+        phase = Phase9()
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
+        input_path = tmp_path / "test-phase8.md"
+        input_path.write_text("Content")
+        (tmp_path / "gm-callout-config.json").write_text(json.dumps([]))
+        (tmp_path / "font-family-mapping.json").write_text(
+            json.dumps({"version": "1.0", "signatures": []})
+        )
+
+        result = phase.execute(state)
+
+        step = [s for s in result.steps if s.step_id == "9.4"][0]
+        assert step.status == PhaseStatus.ERROR
+        payload = json.loads(step.message or "{}")
+        assert payload["step_id"] == "9.4"
+        assert "missing" in payload["error"].lower()
+        assert "re-run previous phase" in payload["recovery"].lower()
+
+    def test__should_return_structured_error__when_callout_config_missing(self, tmp_path):
+        """High-critical step 9.5 must fail with structured error when input is missing."""
+        phase = Phase9()
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
+        input_path = tmp_path / "test-phase8.md"
+        input_path.write_text("Content")
+        (tmp_path / "tables-manifest.json").write_text(json.dumps({"tables": [], "total_count": 0}))
+        (tmp_path / "font-family-mapping.json").write_text(
+            json.dumps({"version": "1.0", "signatures": []})
+        )
+
+        result = phase.execute(state)
+
+        step = [s for s in result.steps if s.step_id == "9.5"][0]
+        assert step.status == PhaseStatus.ERROR
+        payload = json.loads(step.message or "{}")
+        assert payload["step_id"] == "9.5"
+        assert "missing" in payload["error"].lower()
+        assert "re-run previous phase" in payload["recovery"].lower()

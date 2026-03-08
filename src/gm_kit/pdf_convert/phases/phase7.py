@@ -2,7 +2,7 @@
 
 Code steps 7.1-7.9: Structural detection including TOC map building,
 heading detection, GM notes detection.
-Agent step 7.7 is stubbed (table detection).
+Agent step 7.7: table detection with two-pass multimodal flow.
 User steps 7.10-7.11 are stubbed (font label review).
 """
 
@@ -572,20 +572,131 @@ class Phase7(Phase):
 
         return updated_count
 
-    def _add_stub_steps(self, result: PhaseResult) -> None:
-        """Add stub steps for agent and user steps.
+    def _execute_agent_steps(self, result: PhaseResult, output_dir: Path, pdf_path: str) -> None:
+        """Execute agent steps 7.7 (table detection).
 
         Args:
             result: Phase result for adding steps
+            output_dir: Output directory for workspace
+            pdf_path: Path to source PDF for page rendering
         """
-        result.add_step(
-            StepResult(
-                step_id="7.7",
-                description="Detect table structures (AGENT)",
-                status=PhaseStatus.SUCCESS,
-                message="Stub: Agent step will be implemented in E4-07b",
+        # Step 7.7: Detect table structures (AGENT STEP)
+        try:
+            from gm_kit.pdf_convert.agents import AgentStepRuntime
+            from gm_kit.pdf_convert.agents.table_steps import (
+                build_step_7_7_input_payload,
+                build_step_7_7_vision_payload,
+                render_page_image,
             )
-        )
+
+            runtime = AgentStepRuntime(str(output_dir))
+
+            # Extract text from each page and run table detection
+            doc = fitz.open(pdf_path)
+            total_tables_detected = 0
+            all_detected_tables = []
+
+            try:
+                last_envelope = None
+                for page_num in range(len(doc)):
+                    page = doc.load_page(page_num)
+                    extracted_text = str(page.get_text())
+
+                    # Build text scan payload
+                    inputs = build_step_7_7_input_payload(
+                        pdf_path=pdf_path,
+                        page_num=page_num,
+                        extracted_text=extracted_text,
+                        workspace=str(output_dir),
+                    )
+
+                    # Execute text scan phase
+                    envelope, _status = runtime.execute_step("7.7", inputs)
+                    last_envelope = envelope
+
+                    if envelope and envelope.data.get("tables_detected"):
+                        # Tables detected on this page - render image and do vision confirmation
+                        detected_tables = envelope.data.get("tables", [])
+
+                        # Render page image for vision phase
+                        page_images_dir = output_dir / "page_images"
+                        page_images_dir.mkdir(parents=True, exist_ok=True)
+                        page_image_path = page_images_dir / f"page_{page_num + 1:03d}.png"
+
+                        if not page_image_path.exists():
+                            render_page_image(pdf_path, page_num, str(page_image_path))
+
+                        # Build vision payloads for each detected table
+                        vision_payloads = build_step_7_7_vision_payload(
+                            pdf_path=pdf_path,
+                            page_num=page_num,
+                            detected_tables=detected_tables,
+                            workspace=str(output_dir),
+                        )
+
+                        # Execute vision confirmation for each table
+                        for vision_inputs in vision_payloads:
+                            vision_envelope, _ = runtime.execute_step("7.7", vision_inputs)
+                            if vision_envelope and vision_envelope.data.get("bbox_pixels"):
+                                all_detected_tables.append(
+                                    {
+                                        "table_id": vision_inputs["table_id"],
+                                        "page_number_1based": page_num + 1,
+                                        "bbox_pixels": vision_envelope.data["bbox_pixels"],
+                                        "page_image": str(page_image_path),
+                                    }
+                                )
+                                total_tables_detected += 1
+
+                # Persist manifest for downstream steps even when no tables are found.
+                tables_manifest_path = output_dir / "tables-manifest.json"
+                with open(tables_manifest_path, "w", encoding="utf-8") as f:
+                    json.dump(
+                        {
+                            "tables": all_detected_tables,
+                            "total_count": total_tables_detected,
+                        },
+                        f,
+                        indent=2,
+                    )
+
+                if last_envelope:
+                    result.add_step(
+                        StepResult(
+                            step_id="7.7",
+                            description="Detect table structures (AGENT)",
+                            status=PhaseStatus.SUCCESS,
+                            message=(
+                                f"Detected {total_tables_detected} table(s) "
+                                f"across {len(doc)} pages"
+                            ),
+                        )
+                    )
+                else:
+                    result.add_step(
+                        StepResult(
+                            step_id="7.7",
+                            description="Detect table structures (AGENT)",
+                            status=PhaseStatus.WARNING,
+                            message="Agent step returned no envelope",
+                        )
+                    )
+
+            finally:
+                doc.close()
+
+        except Exception as e:
+            logger.warning(f"Step 7.7 failed: {e}")
+            result.add_step(
+                StepResult(
+                    step_id="7.7",
+                    description="Detect table structures (AGENT)",
+                    status=PhaseStatus.WARNING,
+                    message=f"Agent step failed: {e}",
+                )
+            )
+
+        # Step 7.9a: Generate annotated PDF (USER STEP - STUBBED)
         result.add_step(
             StepResult(
                 step_id="7.9a",
@@ -594,6 +705,8 @@ class Phase7(Phase):
                 message="Stub: Annotated PDF generation will be implemented later",
             )
         )
+
+        # Step 7.10: Present font-family labels for review (USER STEP)
         result.add_step(
             StepResult(
                 step_id="7.10",
@@ -651,6 +764,9 @@ class Phase7(Phase):
 
             # Load callout config and detect callouts
             callout_definitions = self._load_callout_config(state, result)
+            gm_callout_config_path = output_dir / "gm-callout-config.json"
+            with open(gm_callout_config_path, "w", encoding="utf-8") as f:
+                json.dump(callout_definitions, f, indent=2)
             all_callout_texts = self._detect_callouts_from_config(state, callout_definitions)
 
             # Steps 7.3-7.6: Detect content types
@@ -663,8 +779,9 @@ class Phase7(Phase):
                 result,
             )
 
-            # Add stub steps
-            self._add_stub_steps(result)
+            # Execute agent steps
+            output_dir = Path(state.output_dir)
+            self._execute_agent_steps(result, output_dir, state.pdf_path)
 
             # Step 7.9: Update mapping with labels
             self._update_mapping_labels(

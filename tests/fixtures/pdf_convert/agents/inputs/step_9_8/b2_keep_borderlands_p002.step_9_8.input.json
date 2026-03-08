@@ -1,0 +1,11 @@
+{
+  "step_id": "9.8",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "phase8_excerpt": "The Caves of Chaos are a series of tunnels and caverns that wind through the limestone cliffs behind the Keep. The caves are inhabited by various tribes of humanoids who have been raiding the surrounding countryside.\n\nThe local lord has put out a call for brave adventurers to enter the caves and put an end to the raids. The caverns are apartment complexes carved out by ancient dwarves, now overrun by goblins, orcs, and worse.",
+  "pdf_metadata": {
+    "layout": "two_column",
+    "column_count": 2,
+    "has_gutter": true
+  },
+  "fixture_notes": "B2 two-column text flow. Tests reading order validation for dense module layout. B2 chosen as most complex corpus due to dense typography and mixed content."
+}

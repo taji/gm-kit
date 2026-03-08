@@ -240,7 +240,9 @@ Following Constitution III (Test-First, NON-NEGOTIABLE):
 | Instruction storage | Markdown templates (Python for step 7.7 only) | instructions/step_X_Y.md: human-readable, {variable} slots substituted by agent_step.py before writing to workspace; step_7_7.py is Python-only due to two-pass logic (text_scan + vision template selection) |
 | Contract format | JSON Schema Draft-07 | Python jsonschema library mature; deterministic validation |
 | Table detection | Two-pass multimodal (text scan → on-demand image render → vision) | Step 7.7: agent reads extracted text to identify likely table pages; PyMuPDF Code utility renders those pages as images on-demand; agent reads images and returns bounding boxes; step 8.7 crops and reconstructs markdown. No pre-rendered page images — rendering is on-demand only (FR-014) |
-| Step output format | JSON with shared metadata envelope | Consistent validation; envelope has step_id, warnings, errors |
+| Step 8.7 image path format | Relative to project root | Fixtures use paths like `tests/fixtures/pdf_convert/agents/inputs/table_pages/page_005.png` |
+| Corpus test justfile commands | `test-corpus-homebrewery`, `test-corpus-b2`, `test-corpus-coc` | Enables parallel CI jobs per PDF |
+| Image retention | Keep after pipeline | Remind user of workspace size; offer cleanup helper |
 | Agent step library | Subpackage under pdf_convert | Library-first (Constitution I); self-contained, independently testable |
 | Token heuristic | Configurable via env var `GM_TOKEN_THRESHOLD` (default 100000) | ~4 chars/token estimate (~80-120 two-column pages); threshold checked before quality-assessment steps (9.2-9.5, 9.7-9.8, 10.2-10.3) which receive the full document; warning explicitly flags heading hierarchy and TOC alignment as the most likely accuracy casualties for large documents; user may proceed or skip |
 | Page image DPI | 150 DPI (configurable via `GM_PAGE_IMAGE_DPI`) | Balances file size vs. table text legibility; 150 DPI sufficient for vision LLM recognition; override for high-density tables |

@@ -19,6 +19,10 @@ This feature defines JSON Schema contracts per agent step. Each contract include
 
 ## Step-Specific Output Summaries
 
+**Note on rubric evaluation**: Agent performs self-evaluation against rubric dimensions; scores are included in `step-output.json` (e.g., `score` field per quality dimension). No separate evaluation artifact is produced.
+
+**Note on step 8.7 image paths**: Image paths in `step-input.json` are relative to project root (e.g., `tests/fixtures/pdf_convert/agents/inputs/table_pages/...`).
+
 | Step | Output Type | Key Fields |
 |------|------------|------------|
 | 3.2 | Visual TOC | `entries[]` with `level`, `title`, `page`; written to `toc-extracted.txt` as indented text (2 spaces per level, `(page N)` notation) matching step 3.1 output format |

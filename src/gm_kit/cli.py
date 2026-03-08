@@ -75,7 +75,7 @@ def init(
     temp_path: str = typer.Argument(..., help="Path to temp workspace"),
     agent: str | None = typer.Option(
         None,
-        help="Agent name (claude, codex-cli, gemini, qwen)",
+        help="Agent name (claude, codex-cli, opencode, gemini, qwen)",
     ),
     os: str | None = typer.Option(
         None,

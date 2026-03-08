@@ -6,56 +6,52 @@ This file defines the standards, conventions, and expectations for AI-assisted d
 
 - When renaming or moving tracked files, use `git mv` so history and rename detection stay intact.
 
-## Session Journal
+## Feature Journal
 
-Before ending a session where feature work was performed, update the feature's `feature-implementation-journal.txt` in the spec folder (e.g., `specs/007-agent-pipeline/feature-implementation-journal.txt`). If the file does not exist, create it following the format from any existing journal (e.g., `specs/006-code-pdf-pipeline/feature-implementation-journal.txt`).
+Each feature — whether formally specced in spec-kit or informally described — has a `feature_journal.md` in its spec folder. The journal is the canonical, agent-agnostic record of progress for that feature.
 
-Each journal entry must include:
+### When to create one
 
-1. **Session header**: Date and short title (e.g., `Session: 2026-02-16 - Clarify Completion & Planning`)
-2. **Work completed**: Bullet list of what was done this session
-3. **Key decisions**: Any decisions made regarding the feature (design choices, trade-offs, user preferences)
-4. **Current state**: What is done, what is in progress, what is blocked
-5. **Next steps**: Numbered list of what to do next, in order
-6. **Agent attribution**: At the end of the entry, include the line:
-   `Recorded by: <model-name> (e.g., claude-opus-4-6, claude-sonnet-4-5, gemini-2.5-pro)`
+Create `specs/<feature-name>/feature_journal.md` at the very start of any feature work, before writing any code or spec content. If the `specs/<feature-name>/` directory does not exist yet, create it.
 
-This journal is the primary handoff mechanism between sessions and between different AI agents. Write entries with enough detail that a different agent (or the same agent in a new context window) can resume the work without asking the user to re-explain.
+### Entry format
 
-<!-- GENERATED:MEMORY_GUIDELINES_START -->
+Each session appends a new entry to the bottom of the file. Use this structure:
 
-Follow these steps for each interaction:
+```
+Session: <YYYY-MM-DD> - <Short descriptive title>
+--------------------------------------------------------
+Branch: <branch-name>
+Date: <YYYY-MM-DD>
 
-1. User Identification:
-   - You should assume that you are interacting with default_user
-   - If you have not identified default_user, proactively try to do so.
+Work Completed:
+1. <What was actually done this session>
+2. ...
 
-2. Memory Retrieval:
-   - Always begin your chat by saying only "Remembering..." and immediately call a memory read (e.g., `aim_read_graph`) to load all relevant information from your knowledge graph before writing anything else.
-   - Always refer to your knowledge graph as your "memory".
-   - If the memory read was not executed, state that explicitly and retry the read before answering.
+Key Decisions:
+- <Architectural or design choices made, with rationale>
 
-3. Memory
-   - While conversing with the user, be attentive to any new information that falls into these categories:
-     a) Basic Identity (age, gender, location, job title, education level, etc.)
-     b) Behaviors (interests, habits, etc.)
-     c) Preferences (communication style, preferred language, etc.)
-     d) Goals (goals, targets, aspirations, etc.)
-     e) Relationships (personal and professional relationships up to 3 degrees of separation)
+Current State:
+- <Point-in-time snapshot of where things stand right now>
 
-5. Progress tracking (Backlog → memory)
-   - When reading or updating BACKLOG.md, create or refresh memory entities for each epic/feature with status (COMPLETED/DRAFT/PARTIAL/NOT SPECCED), key blockers, and next steps (e.g., E1-03 CLI surface mismatch + missing dry-run/logging tests; E1-04 Cardinal palette gap; E1-05 Xvfb/Zenity modal blocks test enablement; E1-09 pending CLI rename). Keep this detail out of the BACKLOG title; record it as lines under the feature.
-   - Record spec folder links and doc-sync state per epic (quickstart synced to docs/user/user-guide.md, plan/research/data-model synced to ARCHITECTURE.md). Note pending sync actions and the file that must be updated/marked **SYNCED** in BACKLOG.md. When a feature has a spec folder, include it directly in the BACKLOG feature title, using the format shown in E2-02 (e.g., `### E2-02. Installation and Walking Skeleton **[FEATURE, COMPLETED as specs/002-installer-skeleton/spec.md]**`), and put doc-sync state on its own line under the feature.
-   - On any status change or newly discovered blocker, immediately update memory with observations and relations to the epic entity (e.g., `E1-03` relates to `specs/001-cli-fxp-conversion`, `docs/user/user-guide.md`).
-   - If `docs/user/user-guide.md` or `ARCHITECTURE.md` conflicts with a spec, add a "needs clarification" note in the spec file and capture that unresolved item in memory until resolved.
+Next Steps:
+1. <What a new agent should do first>
+2. ...
 
-4. Memory Update:
-   - If any new information was gathered during the interaction, update your memory as follows:
-     a) Create entities for recurring organizations, people, and significant events
-     b) Connect them to the current entities using relations
-     c) Store facts about them as observations
+Recorded by: <agent-name>
+```
 
-<!-- GENERATED:MEMORY_GUIDELINES_END -->
+Keep entries factual and brief. **Next Steps** is the most important field for handoffs — it should be specific enough that a new agent can start immediately without re-reading the whole journal.
+
+### Agent handoff
+
+When starting a session on an in-progress feature, read the feature's `feature_journal.md` before doing anything else — specifically the most recent entry's **Current State** and **Next Steps**. It is the fastest way to restore context across agent switches, compacted context windows, or resumed sessions.
+
+At the end of every session, append a new entry recording what you did, any decisions made, the current state, and what comes next. Include your agent name in `Recorded by`.
+
+### Lifecycle
+
+The journal is a living document during feature development. Once the feature is complete and merged, leave it in place as a historical record. It does not need to be pruned, compacted, or loaded in future sessions — it is self-contained to the feature.
 
 <!-- GENERATED:SPEC_KIT_GUIDELINES_START -->
 

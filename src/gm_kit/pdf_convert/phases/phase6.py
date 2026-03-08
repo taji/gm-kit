@@ -6,6 +6,7 @@ Agent step 6.4 is stubbed (spelling correction).
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -127,15 +128,60 @@ class Phase6(Phase):
                 )
             )
 
-            # Step 6.4: Fix OCR spelling artifacts (AGENT STEP - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="6.4",
-                    description="Fix OCR spelling artifacts (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
+            # Step 6.4: Fix OCR spelling artifacts (AGENT STEP)
+            try:
+                from gm_kit.pdf_convert.agents import AgentStepRuntime
+                from gm_kit.pdf_convert.agents.step_builders import build_ocr_correction_payload
+
+                runtime = AgentStepRuntime(str(output_dir))
+
+                # Load font signatures for domain term preservation
+                font_mapping_path = output_dir / "font-family-mapping.json"
+                font_signatures = {}
+                if font_mapping_path.exists():
+                    with open(font_mapping_path) as f:
+                        mapping = json.load(f)
+                        font_signatures = {s["id"]: s for s in mapping.get("signatures", [])}
+
+                inputs = build_ocr_correction_payload(
+                    phase6_file=str(output_path),
+                    font_signatures=font_signatures,
+                    workspace=str(output_dir),
                 )
-            )
+
+                envelope, _status = runtime.execute_step("6.4", inputs)
+
+                if envelope:
+                    result.add_step(
+                        StepResult(
+                            step_id="6.4",
+                            description="Fix OCR spelling artifacts (AGENT)",
+                            status=PhaseStatus.SUCCESS,
+                            message=(
+                                f"Made {envelope.data.get('changes_made', 0)} corrections, "
+                                f"flagged {len(envelope.data.get('flags', []))} terms"
+                            ),
+                        )
+                    )
+                else:
+                    result.add_step(
+                        StepResult(
+                            step_id="6.4",
+                            description="Fix OCR spelling artifacts (AGENT)",
+                            status=PhaseStatus.WARNING,
+                            message="Agent step returned no envelope",
+                        )
+                    )
+            except Exception as e:
+                logger.warning(f"Step 6.4 failed: {e}")
+                result.add_step(
+                    StepResult(
+                        step_id="6.4",
+                        description="Fix OCR spelling artifacts (AGENT)",
+                        status=PhaseStatus.WARNING,
+                        message=f"Agent step failed: {e}",
+                    )
+                )
 
             # Save output
             with open(output_path, "w", encoding="utf-8") as f:

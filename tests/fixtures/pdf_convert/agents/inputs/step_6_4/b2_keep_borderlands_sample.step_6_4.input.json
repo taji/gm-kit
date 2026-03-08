@@ -1,0 +1,10 @@
+{
+  "step_id": "6.4",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "phase6_excerpt": "MONSTER DESCRIPTIONS\n\nAC: 7 (or 5 with shield)\nHP: 5-10\nTHAC0: 19\n\nThese goblins are wea1thy for their kind, having accumulated considefable treasure from years of raiding. The chieftain wears a +1 mace taken from a previous victim. The lair is 1ocated in the westernmost cave, defended by pit traps and ambush positions.",
+  "font_signatures": {
+    "sig001": {"samples": ["MONSTER", "DESCRIPTIONS", "goblins"]},
+    "sig002": {"samples": ["AC", "HP", "THAC0"]}
+  },
+  "fixture_notes": "Synthetic OCR artifact example for B2-style content. Contains common OCR errors: 'wea1thy' (l→1), 'considefable' (rn→m), '1ocated' (l→1). Tests OCR correction with TTRPG term preservation."
+}

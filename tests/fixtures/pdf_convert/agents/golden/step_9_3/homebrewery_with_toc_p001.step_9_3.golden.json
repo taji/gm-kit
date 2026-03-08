@@ -1,0 +1,15 @@
+{
+  "fixture_id": "homebrewery_with_toc_p001",
+  "step_id": "9.3",
+  "status": "success",
+  "data": {
+    "flow_issues": [],
+    "readability_score": 5
+  },
+  "rubric_scores": {
+    "reading_order": 5,
+    "paragraph_integrity": 5,
+    "flow_continuity": 5
+  },
+  "warnings": []
+}

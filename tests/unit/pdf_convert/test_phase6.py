@@ -4,12 +4,25 @@ Tests for hyphenation fixes, bullet list formatting, and indentation preservatio
 """
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from gm_kit.pdf_convert.phases.base import PhaseStatus
 from gm_kit.pdf_convert.phases.phase6 import Phase6
 from gm_kit.pdf_convert.state import ConversionState
+
+
+@pytest.fixture(autouse=True)
+def mock_agent_step_runtime():
+    """Mock AgentStepRuntime to prevent actual agent invocation in tests."""
+    with patch("gm_kit.pdf_convert.agents.AgentStepRuntime") as mock_runtime_class:
+        mock_runtime = MagicMock()
+        mock_envelope = MagicMock()
+        mock_envelope.data = {"changes_made": 0, "flags": []}
+        mock_runtime.execute_step.return_value = (mock_envelope, MagicMock())
+        mock_runtime_class.return_value = mock_runtime
+        yield mock_runtime_class
 
 
 class TestPhase6HyphenationFixes:

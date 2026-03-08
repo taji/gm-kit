@@ -31,6 +31,16 @@
 
 - Rubric evaluation mechanism: LLM-based (Option A). Agent scores outputs against rubric criteria using temperature=0 and structured output. SC-003 "deterministic" means consistent/reproducible, not bit-identical.
 
+### Session 2026-02-26 (Pre-Implementation Alignment)
+
+- Q: Remove step 9.1 stub entirely? → A: Yes, remove completely (not just no-op).
+- Q: Exact token threshold value? → A: 100,000 tokens default, override via `GM_TOKEN_THRESHOLD` env var.
+- Q: Medium criticality escalation behavior? → A: Flag for user AND continue (not skip) — provides debugging visibility.
+- Q: Step 7.7/8.7 image retention policy? → A: Keep images after pipeline completes; remind user about workspace cleanup and offer deletion helper.
+- Q: Rubric evaluation output format? → A: Self-evaluation scores included in step-output.json (not separate artifact).
+- Q: Corpus test justfile command names? → A: `test-corpus-homebrewery`, `test-corpus-b2`, `test-corpus-coc` for parallel CI jobs.
+- Q: Step 8.7 image path format? → A: Relative paths from project root (e.g., `tests/fixtures/pdf_convert/agents/inputs/table_pages/...`).
+
 ### Steps Covered (Agent) (13 steps)
 
 | Step | Phase | Description | Criticality |
@@ -130,7 +140,7 @@ As a developer, I want the agent-step prompts, contracts, and rubrics aligned wi
 - **FR-007**: The reference test corpus MUST include The Homebrewery (with TOC), The Homebrewery (without TOC), and Call of Cthulhu.
 - **FR-008**: Missing or incomplete step inputs MUST fail the step with a structured error in the format: `{"step_id": "X.Y", "error": "description of what is missing", "recovery": "actionable guidance to fix"}` (e.g., `{"step_id": "3.2", "error": "toc-extracted.txt not found", "recovery": "Re-run Phase 3 to generate TOC extraction output"}`).
 - **FR-009**: Agent step outputs MUST be validated against their contract before acceptance; invalid outputs trigger retry (max 3 attempts) with the validation error appended to the retry prompt.
-- **FR-010**: After max retries, the system MUST follow criticality-based escalation: High criticality steps halt the pipeline; Medium steps flag for user or skip with degraded output; Low steps skip silently. For this feature, a "critical failure" includes either a rubric-declared critical failure (FR-004) or an unrecoverable contract/input failure after retry exhaustion.
+- **FR-010**: After max retries, the system MUST follow criticality-based escalation: High criticality steps halt the pipeline; Medium steps flag for user **and continue** (not skip) with degraded output for debugging visibility; Low steps skip silently. For this feature, a "critical failure" includes either a rubric-declared critical failure (FR-004) or an unrecoverable contract/input failure after retry exhaustion.
 - **FR-011**: The agent-step scope MUST cover exactly 13 steps: 3.2, 4.5, 6.4, 7.7, 8.7, 9.2-9.5, 9.7-9.8, and 10.2-10.3. Step 9.1 (completeness check) was dropped — Phase 4 already guarantees all page markers are present by iterating every page explicitly; a code-level word-count check is sufficient and does not require agent judgment.
 - **FR-012**: Step 3.2 (visual TOC parsing) MUST produce output in the same indented text format as the embedded TOC extractor (step 3.1): each entry on its own line, indented with 2 spaces per heading level (level 1 = no indent, level 2 = 2 spaces, etc.), with page number in `(page N)` notation (e.g., `Chapter One: The Village of Barovia (page 4)` / `  Section 1.1: Something (page 5)`). Output is written to `toc-extracted.txt` so downstream phases consume it identically regardless of which step produced it.
 - **FR-013**: Step 6.4 (OCR spelling correction) addresses OCR artifacts in two scenarios: (1) PDFs that were scanned and OCR-processed before creation, leaving character substitution errors in the embedded text layer; (2) agent-driven OCR workflows where an AI agent with native OCR capability processes a scanned PDF externally and feeds the resulting text into the pipeline via the resume-from-phase feature. The pipeline itself does not perform OCR — step 6.4 is the cleanup and correction layer for either input path. Step 6.4 MUST preserve domain-specific TTRPG terminology (capitalized words, repeated terms, TOC/heading terms) and MUST err on the side of flagging rather than auto-fixing uncertain corrections, especially near table-like content with abbreviations.

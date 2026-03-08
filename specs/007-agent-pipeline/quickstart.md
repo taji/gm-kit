@@ -37,7 +37,16 @@ GM_AGENT=codex uv run --python "$(cat .python-version)" --extra dev -- pytest te
 ```
 Requires a supported agent CLI that can read/write workspace files and resume the pipeline. Validates against the reference corpus using the agent-orchestrated workflow. Checks SC-002 (90% first-pass), SC-003 (reproducible outcomes), and SC-005 (zero false TTRPG corrections).
 
-### 4. Run full pipeline end-to-end
+### 4. Run corpus-specific integration tests (parallel CI)
+```bash
+# Run tests against specific PDFs (for parallel CI jobs)
+just test-corpus-homebrewery  # Homebrewery with TOC
+just test-corpus-b2           # Keep on the Borderlands (requires download)
+just test-corpus-coc          # Call of Cthulhu (requires download)
+```
+Each command runs the full pipeline against one reference corpus PDF, enabling parallel test execution in CI. Run `download_b2_fixture.sh` and `download_cofc_fixture.sh` first if needed.
+
+### 5. Run full pipeline end-to-end
 ```bash
 uv run --python "$(cat .python-version)" --extra dev -- gmkit pdf-convert "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" --output ./output
 ```

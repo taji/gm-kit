@@ -1,0 +1,36 @@
+{
+  "fixture_id": "cofc_quickstart_p006",
+  "step_id": "9.7",
+  "status": "success",
+  "data": {
+    "gaps": [
+      {
+        "type": "level_mismatch",
+        "toc_entry": "Winners and Losers",
+        "heading_level": 2,
+        "expected_level": 1,
+        "note": "possible false positive - font-inferred heading (TOC shows H1 but document renders as H2 subsection under 'What Is Roleplaying?')"
+      },
+      {
+        "type": "level_mismatch",
+        "toc_entry": "Dice Roll Variations",
+        "heading_level": 2,
+        "expected_level": 1,
+        "note": "possible false positive - font-inferred heading (TOC shows H1 but document renders as H2 subsection)"
+      }
+    ],
+    "duplicates": [],
+    "suggestions": [
+      "Verify TOC hierarchy - 'Winners and Losers' and 'Dice Roll Variations' may be subsections, not top-level",
+      "Check if font-family-mapping.json shows these as font-inferred (candidate_heading: true) vs TOC-sourced"
+    ],
+    "score": 4
+  },
+  "rubric_scores": {
+    "gap_detection": 4,
+    "duplicate_detection": 5,
+    "actionable_suggestions": 5,
+    "font_source_awareness": 5
+  },
+  "warnings": ["2 possible font-inferred heading mismatches detected"]
+}

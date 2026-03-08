@@ -36,6 +36,7 @@
   - `optional_artifacts` (dict[str, str]): Optional inputs (e.g., `font-family-mapping.json` for 9.7)
   - `context` (dict): Step-specific parameters (thresholds, flags, corpus metadata, etc.)
   - `output_contract` (str): Contract schema path or identifier
+  - `image_paths` (dict[str, str] | None): For multimodal steps (7.7, 8.7), paths to page/crop images **relative to project root** (e.g., `tests/fixtures/pdf_convert/agents/inputs/table_pages/...`)
 - **Validation**: Presence/shape checked by Python before writing workspace request
 
 ### AgentStepOutputEnvelope
@@ -44,9 +45,12 @@
   - `step_id` (str)
   - `status` (enum): `success`, `warning`, `failed`
   - `data` (dict): Step-specific result payload (or metadata-only payload for in-place markdown edits)
+  - `rubric_scores` (dict[str, int] | None): Self-evaluation scores per dimension (1-5) for quality-assessed steps
+  - `critical_failures` (list[str] | None): Any rubric-declared critical failures
   - `warnings` (list[str]): Non-fatal issues
   - `notes` (str | None): Additional agent notes
 - **Validation**: Must conform to per-step JSON Schema before pipeline resumes
+- **Note**: For steps 4.5, 6.4, 8.7 (markdown-modifying steps), `data` contains metadata only (status, changes_made); the actual content is written directly to the phase file specified in `step-input.json`
 
 ### AgentStepErrorEnvelope
 - **Represents**: Structured step failure for missing inputs or repeated validation failures (FR-008)
@@ -107,7 +111,7 @@
 - **Key attributes**:
   - `step_id` (str)
   - `estimated_tokens` (int)
-  - `threshold` (int)
+  - `threshold` (int): Default 100,000 tokens, override via `GM_TOKEN_THRESHOLD` env var
   - `exceeds_threshold` (bool)
   - `user_choice` (enum | None): `proceed`, `skip`, `auto_proceed`
 - **Applies to**: Quality Assessment + Reporting steps that send full markdown

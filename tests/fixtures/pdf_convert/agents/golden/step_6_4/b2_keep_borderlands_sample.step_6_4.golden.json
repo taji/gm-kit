@@ -1,0 +1,41 @@
+{
+  "fixture_id": "b2_keep_borderlands_sample",
+  "step_id": "6.4",
+  "status": "success",
+  "data": {
+    "changes_made": 3,
+    "corrections": [
+      {
+        "original": "wea1thy",
+        "replacement": "wealthy",
+        "confidence": "high",
+        "location": "paragraph_2"
+      },
+      {
+        "original": "considefable",
+        "replacement": "considerable",
+        "confidence": "high",
+        "location": "paragraph_2"
+      },
+      {
+        "original": "1ocated",
+        "replacement": "located",
+        "confidence": "high",
+        "location": "paragraph_3"
+      }
+    ],
+    "flags": [
+      {
+        "text": "THAC0",
+        "reason": "TTRPG abbreviation - not a correction target",
+        "location": "stat_block"
+      }
+    ]
+  },
+  "rubric_scores": {
+    "correction_accuracy": 5,
+    "false_positive_rate": 5,
+    "domain_term_preservation": 5
+  },
+  "warnings": []
+}

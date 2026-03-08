@@ -1,0 +1,7 @@
+{
+  "step_id": "4.5",
+  "source_pdf": "temp-resources/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "page_boundary": "pages 10-11",
+  "phase4_excerpt": "The Caves of Chaos are a series of tunnels and caverns that wind through the limestone cliffs behind the Keep. The caves are inhabited by various tribes of humanoids who have been raiding the surrounding countryside. The local lord has put out a call for brave adventurers to enter the caves and put an end to the raids. The caverns are apart-\nment complexes carved out by ancient dwarves, now overrun by goblins, orcs, and worse.",
+  "fixture_notes": "B2 pages 10-11 boundary. Tests hyphenation fix: 'apart-ment' should become 'apartment'. Real example from corpus."
+}

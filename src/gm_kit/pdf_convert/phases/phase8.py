@@ -1,7 +1,7 @@
 """Phase 8: Heading Insertion.
 
 Code steps 8.1-8.5, 8.9-8.11: Apply headings, blockquotes, and hierarchy.
-Agent step 8.7 is stubbed (table conversion).
+Agent step 8.7: table conversion.
 
 This phase reads font signature markers from Phase 4 output and converts
 them to markdown headings based on font-family-mapping.json labels.
@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 
 # Pattern to match font signature markers: «sigXXX:text»
 FONT_MARKER_PATTERN = re.compile(r"«(sig[a-z0-9]+):([^»]+)»")
+TABLE_ROW_MIN_SPACE_COUNT = 3
+TABLE_LINE_SCAN_LIMIT = 50
 
 
 def _build_sig_id_to_label_mapping(mapping_path: Path) -> dict[str, str]:
@@ -321,7 +323,93 @@ class Phase8(Phase):
         processed_content = "\n".join(formatted_lines)
         return processed_content, heading_count, callout_count_list[0], callout_blocks_with_warnings
 
-    def execute(self, state: ConversionState) -> PhaseResult:
+    def _extract_table_flat_text(self, content: str, page_number: int, bbox_pixels: dict) -> str:
+        """Extract flat text from table area for context.
+
+        This is a simplified extraction that gets text near the table
+        marker. In production, you'd use precise coordinate matching.
+
+        Args:
+            content: Full phase content
+            page_number: Page number (1-based) where table is located
+            bbox_pixels: Bounding box in pixels (not used in simplified version)
+
+        Returns:
+            Extracted flat text from table area
+        """
+        # Find the page marker for this table
+        page_marker = f"<!-- Page {page_number} -->"
+        lines = content.split("\n")
+
+        # Find lines after the page marker that might be table content
+        # (look for patterns typical of garbled table text)
+        in_table_area = False
+        table_lines = []
+
+        for line in lines:
+            if page_marker in line:
+                in_table_area = True
+                continue
+
+            if in_table_area:
+                # Look for lines that might be table rows (contain multiple spaces or tabs)
+                if (
+                    "  " in line
+                    or "\t" in line
+                    or line.strip().count(" ") > TABLE_ROW_MIN_SPACE_COUNT
+                ):
+                    table_lines.append(line)
+                # Stop after collecting a reasonable amount
+                if len(table_lines) > TABLE_LINE_SCAN_LIMIT:
+                    break
+
+        return "\n".join(table_lines) if table_lines else ""
+
+    def _replace_table_with_markdown(
+        self, content: str, page_number: int, markdown_table: str
+    ) -> str:
+        """Replace garbled table text with markdown table.
+
+        Args:
+            content: Full phase content
+            page_number: Page number where table is located
+            markdown_table: Markdown table to insert
+
+        Returns:
+            Updated content with markdown table
+        """
+        page_marker = f"<!-- Page {page_number} -->"
+
+        # Find the area after the page marker to insert the table
+        # This is a simplified replacement strategy
+        lines = content.split("\n")
+        result_lines = []
+        page_found = False
+        table_inserted = False
+
+        for i, line in enumerate(lines):
+            result_lines.append(line)
+
+            if page_marker in line:
+                page_found = True
+                continue
+
+            if (
+                page_found
+                and not table_inserted
+                and i + 1 < len(lines)
+                and lines[i + 1].strip() == ""
+            ):
+                # Look for table-like content to replace
+                # Skip blank lines and then insert table
+                # Found a good insertion point after a blank line
+                result_lines.append("")
+                result_lines.append(markdown_table)
+                table_inserted = True
+
+        return "\n".join(result_lines)
+
+    def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
         """Execute heading insertion and callout formatting steps.
 
         Args:
@@ -435,15 +523,89 @@ class Phase8(Phase):
                 )
             )
 
-            # Step 8.7: Convert tables to markdown (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="8.7",
-                    description="Convert tables to markdown format (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
+            # Step 8.7: Convert tables to markdown (AGENT STEP)
+            try:
+                from gm_kit.pdf_convert.agents import AgentStepRuntime
+                from gm_kit.pdf_convert.agents.table_steps import (
+                    build_step_8_7_input_payload,
+                    crop_table_image,
                 )
-            )
+
+                runtime = AgentStepRuntime(str(output_dir))
+
+                # Load table detection results from step 7.7
+                tables_manifest_path = output_dir / "tables-manifest.json"
+                if tables_manifest_path.exists():
+                    with open(tables_manifest_path, encoding="utf-8") as f:
+                        tables_manifest = json.load(f)
+
+                    tables_converted = 0
+                    for table_data in tables_manifest.get("tables", []):
+                        # Build payload for table conversion
+                        table_id = table_data["table_id"]
+                        page_image_path = table_data["page_image"]
+                        bbox_pixels = table_data["bbox_pixels"]
+
+                        # Crop table image if needed
+                        table_crops_dir = output_dir / "table_crops"
+                        table_crops_dir.mkdir(parents=True, exist_ok=True)
+                        crop_path = table_crops_dir / f"{table_id}_crop.png"
+
+                        if not crop_path.exists():
+                            crop_table_image(page_image_path, bbox_pixels, str(crop_path))
+
+                        # Extract flat text from table area for context
+                        flat_text = self._extract_table_flat_text(
+                            content, table_data["page_number_1based"], bbox_pixels
+                        )
+
+                        # Build and execute payload
+                        inputs = build_step_8_7_input_payload(
+                            table_data=table_data,
+                            page_image_path=page_image_path,
+                            flat_text_path=flat_text,
+                            workspace=str(output_dir),
+                        )
+
+                        envelope, _status = runtime.execute_step("8.7", inputs)
+
+                        if envelope and envelope.data.get("markdown_table"):
+                            # Replace the garbled table text with markdown table
+                            content = self._replace_table_with_markdown(
+                                content,
+                                table_data["page_number_1based"],
+                                envelope.data["markdown_table"],
+                            )
+                            tables_converted += 1
+
+                    result.add_step(
+                        StepResult(
+                            step_id="8.7",
+                            description="Convert tables to markdown format (AGENT)",
+                            status=PhaseStatus.SUCCESS,
+                            message=f"Converted {tables_converted} table(s) to markdown",
+                        )
+                    )
+                else:
+                    # No tables detected in step 7.7 - skip
+                    result.add_step(
+                        StepResult(
+                            step_id="8.7",
+                            description="Convert tables to markdown format (AGENT)",
+                            status=PhaseStatus.SKIPPED,
+                            message="No tables detected in Phase 7",
+                        )
+                    )
+            except Exception as e:
+                logger.warning(f"Step 8.7 failed: {e}")
+                result.add_step(
+                    StepResult(
+                        step_id="8.7",
+                        description="Convert tables to markdown format (AGENT)",
+                        status=PhaseStatus.WARNING,
+                        message=f"Agent step failed: {e}",
+                    )
+                )
 
             # Step 8.9: Insert figure/map placeholders with image links (logic unchanged)
             manifest_path = output_dir / "images" / "image-manifest.json"

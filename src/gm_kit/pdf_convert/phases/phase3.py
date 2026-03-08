@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 
 import fitz  # PyMuPDF
 
+from gm_kit.pdf_convert.agents import AgentStepRuntime
+from gm_kit.pdf_convert.agents.step_builders import build_toc_parsing_payload
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
 if TYPE_CHECKING:
@@ -25,6 +27,10 @@ MAX_FONT_SAMPLES = 3
 
 # Maximum heading level for candidate detection
 MAX_HEADING_LEVEL = 3
+
+# Visual TOC heuristic thresholds
+MIN_TOC_PAGE_NUMBER_LINES = 5
+MIN_TOC_TOTAL_LINES = 8
 
 
 class Phase3(Phase):
@@ -469,15 +475,67 @@ class Phase3(Phase):
         # Step 3.1: Extract embedded TOC
         self._extract_toc(pdf_path, output_dir, result)
 
-        # Step 3.2: Parse visual TOC page (AGENT STEP - STUBBED)
-        result.add_step(
-            StepResult(
-                step_id="3.2",
-                description="Parse visual TOC page (AGENT)",
-                status=PhaseStatus.SUCCESS,
-                message="Stub: Agent step will be implemented in E4-07b",
+        # Step 3.2: Parse visual TOC page (AGENT STEP)
+        try:
+            # Check if visual TOC page exists (pages 1-3 typically)
+            visual_toc_text = self._extract_visual_toc_text(pdf_path)
+
+            if visual_toc_text:
+                runtime = AgentStepRuntime(str(output_dir))
+                inputs = build_toc_parsing_payload(
+                    toc_text=visual_toc_text,
+                    total_pages=self._get_total_pages(pdf_path),
+                    workspace=str(output_dir),
+                )
+
+                envelope, status = runtime.execute_step("3.2", inputs)
+
+                if envelope:
+                    # Write visual TOC to file
+                    visual_toc_path = output_dir / "toc-visual-extracted.txt"
+                    self._write_visual_toc(envelope.data.get("entries", []), visual_toc_path)
+
+                    result.add_step(
+                        StepResult(
+                            step_id="3.2",
+                            description="Parse visual TOC page (AGENT)",
+                            status=PhaseStatus.SUCCESS,
+                            message=(
+                                f"Extracted {len(envelope.data.get('entries', []))} "
+                                "visual TOC entries"
+                            ),
+                            output_file=str(visual_toc_path),
+                        )
+                    )
+                else:
+                    result.add_step(
+                        StepResult(
+                            step_id="3.2",
+                            description="Parse visual TOC page (AGENT)",
+                            status=PhaseStatus.WARNING,
+                            message="Agent step returned no envelope",
+                        )
+                    )
+            else:
+                result.add_step(
+                    StepResult(
+                        step_id="3.2",
+                        description="Parse visual TOC page (AGENT)",
+                        status=PhaseStatus.SKIPPED,
+                        message="No visual TOC page found (using embedded TOC only)",
+                    )
+                )
+
+        except Exception as e:
+            logger.warning(f"Step 3.2 failed: {e}")
+            result.add_step(
+                StepResult(
+                    step_id="3.2",
+                    description="Parse visual TOC page (AGENT)",
+                    status=PhaseStatus.WARNING,
+                    message=f"Agent step failed: {e}",
+                )
             )
-        )
 
         # Step 3.3: Sample fonts from body text
         font_signatures = self._sample_fonts(pdf_path, result)
@@ -511,7 +569,9 @@ class Phase3(Phase):
         result.complete()
         return result
 
-    def _analyze_footer_watermarks(self, pdf_path: Path, mapping: dict, output_dir: Path) -> dict:  # noqa: PLR0912
+    def _analyze_footer_watermarks(  # noqa: PLR0912
+        self, pdf_path: Path, mapping: dict, output_dir: Path
+    ) -> dict:
         """Analyze PDF for footer, watermark, and page number signatures.
 
         Detection order:
@@ -880,3 +940,95 @@ class Phase3(Phase):
             json.dump(result, f, indent=2)
 
         return result
+
+    def _extract_visual_toc_text(self, pdf_path: Path) -> str:
+        """Extract text from potential visual TOC pages (pages 1-3).
+
+        Args:
+            pdf_path: Path to the PDF file
+
+        Returns:
+            Text content if visual TOC found, empty string otherwise
+        """
+        try:
+            doc = fitz.open(pdf_path)
+            visual_toc_text = ""
+
+            # Check first 3 pages for visual TOC
+            for page_num in range(min(3, doc.page_count)):
+                page = doc[page_num]
+                text = str(page.get_text())
+
+                # Look for TOC indicators
+                if self._is_visual_toc_page(text):
+                    visual_toc_text = text
+                    break
+
+            doc.close()
+            return str(visual_toc_text)
+
+        except Exception as e:
+            logger.warning(f"Failed to extract visual TOC: {e}")
+            return ""
+
+    def _is_visual_toc_page(self, text: str) -> bool:
+        """Check if page text appears to be a visual TOC.
+
+        Args:
+            text: Page text content
+
+        Returns:
+            True if visual TOC indicators found
+        """
+        # TOC indicators
+        toc_keywords = ["contents", "table of contents", "index"]
+        text_lower = text.lower()
+
+        # Check for TOC heading
+        has_toc_header = any(keyword in text_lower[:500] for keyword in toc_keywords)
+
+        # Check for page number patterns
+        lines = text.split("\n")
+        page_number_lines = sum(
+            1
+            for line in lines
+            if "page " in line.lower()
+            or line.strip().endswith(tuple(str(i) for i in range(1, 100)))
+        )
+
+        # Likely TOC if it has TOC header or many lines with page numbers
+        return has_toc_header or (
+            page_number_lines >= MIN_TOC_PAGE_NUMBER_LINES and len(lines) >= MIN_TOC_TOTAL_LINES
+        )
+
+    def _get_total_pages(self, pdf_path: Path) -> int:
+        """Get total page count from PDF.
+
+        Args:
+            pdf_path: Path to the PDF file
+
+        Returns:
+            Total number of pages
+        """
+        try:
+            doc = fitz.open(pdf_path)
+            count = int(doc.page_count)
+            doc.close()
+            return count
+        except Exception:
+            return 0
+
+    def _write_visual_toc(self, entries: list, toc_path: Path) -> None:
+        """Write visual TOC entries to file in standard format.
+
+        Args:
+            entries: List of TOC entry dicts with level, title, page
+            toc_path: Path to write TOC file
+        """
+        with open(toc_path, "w", encoding="utf-8") as f:
+            for entry in entries:
+                level = entry.get("level", 1)
+                title = entry.get("title", "")
+                page = entry.get("page", 0)
+                indent = "  " * (level - 1)
+                f.write(f"{indent}{title} (page {page})\n")

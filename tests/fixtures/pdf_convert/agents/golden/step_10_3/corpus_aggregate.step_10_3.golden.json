@@ -1,0 +1,22 @@
+{
+  "fixture_id": "corpus_aggregate",
+  "step_id": "10.3",
+  "status": "success",
+  "data": {
+    "issues": [
+      {
+        "severity": "low",
+        "description": "TOC shows 'Winners and Losers' and 'Dice Roll Variations' as top-level sections but document renders them as subsections",
+        "example": "TOC lists 'Winners and Losers' page 6, but in document it appears as H2 under 'What Is Roleplaying?'",
+        "suggested_fix": "Verify if these are actually subsections; if so, TOC hierarchy may need adjustment or they may be correctly placed as H2",
+        "location": "CoC_pages_6-7"
+      }
+    ]
+  },
+  "rubric_scores": {
+    "issue_clarity": 5,
+    "example_quality": 5,
+    "actionable_guidance": 5
+  },
+  "warnings": []
+}
