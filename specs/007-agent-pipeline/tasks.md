@@ -161,7 +161,7 @@
 - [x] T072 Run and document unit + contract test pass commands for agent-step package in `specs/007-agent-pipeline/feature-implementation-journal.txt`
 - [x] T073 Run and document targeted integration smoke run (manual/live agent) results in `specs/007-agent-pipeline/feature-implementation-journal.txt`
 - [x] T074 Perform final code cleanup and export surface review in `src/gm_kit/pdf_convert/agents/__init__.py`
-- [ ] T075 Run quickstart validation flow and reconcile any drift in `specs/007-agent-pipeline/quickstart.md`
+- [x] T075 Run quickstart validation flow and reconcile any drift in `specs/007-agent-pipeline/quickstart.md`
 
 ---
 

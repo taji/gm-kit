@@ -690,6 +690,42 @@ Next Steps:
 
 Recorded by: gpt-5-codex
 
+Session: 2026-03-08 - T075 Quickstart Validation + Drift Reconciliation
+--------------------------------------------------------
+Branch: 007-agent-pipeline-implementation
+Date: 2026-03-08
+
+Work Completed:
+1. Executed quickstart validation commands:
+   - `UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev -- pytest tests/unit/pdf_convert/agents/ -v` -> `103 passed`
+   - `UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev -- pytest tests/contract/pdf_convert/agents/ -v` -> `3 passed`
+   - `GM_AGENT=codex UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev -- pytest tests/integration/pdf_convert/agents/ -v` -> `2 passed, 1 warning`
+2. Validated quickstart command drift:
+   - `just test-corpus-homebrewery` failed because recipe does not exist in `justfile`.
+   - Confirmed available task-runner recipe is `just test-integration`.
+3. Re-ran live end-to-end command from quickstart:
+   - `GM_AGENT=codex UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev -- gmkit pdf-convert "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" --output ./tmp/t075-quickstart-e2e --yes`
+   - Result: fails at high-critical step `9.2` with `Agent exited with code 1` (tracked as live-agent runtime issue).
+4. Updated `specs/007-agent-pipeline/quickstart.md` to match actual behavior:
+   - Integration tests now documented as deterministic (monkeypatched runtime), not live LLM runs.
+   - Replaced non-existent corpus-specific `just test-corpus-*` commands with existing `just test-integration`.
+   - Added fixture download script commands that actually exist.
+   - Updated e2e example to use repo-local output dir and noted current codex live-run behavior.
+5. Marked `T075` complete in `specs/007-agent-pipeline/tasks.md`.
+
+Key Decisions:
+- Keep quickstart accurate to current executable commands even when live codex runs are still flaky at runtime.
+
+Current State:
+- Phase 6 polish tasks `T068-T075` are now all marked complete.
+- Quickstart is reconciled with current command surface and observed outcomes.
+
+Next Steps:
+1. Run full branch validation (`just lint`, `just typecheck`, `just test-unit`) and capture outputs before final review.
+2. Perform end-to-end spec conformance review vs `spec.md` / `plan.md` and compile final review checklist.
+
+Recorded by: gpt-5-codex
+
 Session: 2026-03-08 - Codex Dispatch Shell-Safety Fix + Smoke Re-Run
 --------------------------------------------------------
 Branch: 007-agent-pipeline-implementation

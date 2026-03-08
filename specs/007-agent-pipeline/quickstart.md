@@ -5,8 +5,8 @@ Validate agent-step prompt outputs against JSON contracts and rubrics for the re
 
 ## Prerequisites
 - Python 3.8+ with project dependencies installed (`uv sync --extra dev`)
-- A supported agent CLI installed and authenticated/configured (for live agent-step integration testing), e.g. Claude Code, Codex CLI, or OpenCode
-- Optional: set `GM_AGENT` to choose agent for integration tests (default is `codex`)
+- A supported agent CLI installed and authenticated/configured for live end-to-end runs (for example: Claude Code, Codex CLI, or OpenCode)
+- Optional: set `GM_AGENT` to choose the agent for live end-to-end runs (default is `codex`)
 - Reference corpus PDFs in `tests/fixtures/pdf_convert/`:
   - `The Homebrewery - NaturalCrit.pdf` (with TOC)
   - `The Homebrewery - NaturalCrit - Without TOC.pdf`
@@ -31,26 +31,29 @@ uv run --python "$(cat .python-version)" --extra dev -- pytest tests/contract/pd
 ```
 Validates each step's output schema with fixture outputs and structural checks.
 
-### 3. Run integration tests (live agent execution)
+### 3. Run integration tests (deterministic, no live LLM calls)
 ```bash
 GM_AGENT=codex uv run --python "$(cat .python-version)" --extra dev -- pytest tests/integration/pdf_convert/agents/ -v
 ```
-Requires a supported agent CLI that can read/write workspace files and resume the pipeline. Validates against the reference corpus using the agent-orchestrated workflow. Checks SC-002 (90% first-pass), SC-003 (reproducible outcomes), and SC-005 (zero false TTRPG corrections).
+Runs integration coverage with a monkeypatched runtime to validate pause/resume and cross-phase artifact handoff deterministically. This does not execute a live external LLM CLI.
 
-### 4. Run corpus-specific integration tests (parallel CI)
+### 4. Run full integration suite from task runner
 ```bash
-# Run tests against specific PDFs (for parallel CI jobs)
-just test-corpus-homebrewery  # Homebrewery with TOC
-just test-corpus-b2           # Keep on the Borderlands (requires download)
-just test-corpus-coc          # Call of Cthulhu (requires download)
+just test-integration
 ```
-Each command runs the full pipeline against one reference corpus PDF, enabling parallel test execution in CI. Run `download_b2_fixture.sh` and `download_cofc_fixture.sh` first if needed.
+For corpus fixtures used in broader tests, download scripts are:
+```bash
+bash tests/fixtures/pdf_convert/download_b2_fixture.sh
+bash tests/fixtures/pdf_convert/download_cofc_fixture.sh
+```
 
 ### 5. Run full pipeline end-to-end
 ```bash
-uv run --python "$(cat .python-version)" --extra dev -- gmkit pdf-convert "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" --output ./output
+GM_AGENT=codex uv run --python "$(cat .python-version)" --extra dev -- gmkit pdf-convert "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" --output ./tmp/quickstart-e2e --yes
 ```
-Verifies SC-004: agent steps replace stubs without changing pipeline behavior. The pipeline will pause at agent steps, write `step-input.json` and `step-instructions.md`, and resume after the agent writes `step-output.json` and runs `uv run --python "$(cat .python-version)" --extra dev -- gmkit pdf-convert --resume <workspace>`.
+Verifies SC-004: agent steps replace stubs without changing pipeline behavior. Use an output folder inside the repository to avoid trust-directory errors with some CLIs.
+
+Current known behavior for Codex live runs: if agent steps fail with `Agent exited with code 1`, inspect `<output>/conversion.log` and `<output>/agent_steps/step_*/` artifacts to diagnose agent runtime/auth issues.
 
 ## Success Criteria
 - All 13 agent steps pass schema validation and rubric checks for the reference corpus
