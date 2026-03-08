@@ -690,6 +690,39 @@ Next Steps:
 
 Recorded by: gpt-5-codex
 
+Session: 2026-03-08 - Codex Dispatch Shell-Safety Fix + Smoke Re-Run
+--------------------------------------------------------
+Branch: 007-agent-pipeline-implementation
+Date: 2026-03-08
+
+Work Completed:
+1. Fixed codex/opencode dispatch shell-fragility in `src/gm_kit/pdf_convert/agents/dispatch.py`:
+   - Removed shell-string execution path (`shell=True` with `" ".join(cmd)`).
+   - Switched to argv-list invocation for all agents.
+   - Replaced shell redirection with `stdout/stderr=subprocess.DEVNULL` when suppression is requested.
+2. Added unit coverage in `tests/unit/pdf_convert/agents/test_runtime.py`:
+   - codex invoke path now asserted to use argv + DEVNULL (no `shell=True`).
+   - capture-output path asserted to preserve captured streams.
+3. Validation:
+   - `UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev --editable -- pytest tests/unit/pdf_convert/agents/test_runtime.py -q` -> `19 passed`
+   - `UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev --editable -- ruff check src/gm_kit/pdf_convert/agents/dispatch.py tests/unit/pdf_convert/agents/test_runtime.py` -> `All checks passed!`
+4. Re-ran live smoke in trusted repo path:
+   - `GM_AGENT=codex UV_CACHE_DIR=/tmp/uvcache uv run --python "$(cat .python-version)" --extra dev --editable -- gmkit pdf-convert "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" --output /home/todd/Dev/gm-kit/tmp/t073-codex-smoke-repo-fix --yes`
+   - Result still failed at high-critical `9.2`, but prior shell parse/trust errors were eliminated (now plain `Agent exited with code 1` on agent steps).
+
+Key Decisions:
+- Keep dispatch safe by default via argv-list execution; do not reintroduce shell command construction for prompt transport.
+
+Current State:
+- The command-construction bug is fixed and regression-tested.
+- Remaining live-run blocker is now upstream codex execution behavior (`exit code 1`) rather than shell parsing/trust-directory issues.
+
+Next Steps:
+1. Capture codex CLI stderr/stdout for failed live steps to classify the remaining `exit code 1` cause.
+2. Complete `T075` quickstart validation and reconcile any command guidance drift.
+
+Recorded by: gpt-5-codex
+
 Session: 2026-03-08 - T073 Live Agent Smoke Run (Codex)
 --------------------------------------------------------
 Branch: 007-agent-pipeline-implementation

@@ -13,6 +13,7 @@ from gm_kit.pdf_convert.agents.dispatch import (
     get_ci_tested_agents,
     get_current_agent,
     get_supported_agents,
+    invoke_agent,
     is_agent_available,
 )
 from gm_kit.pdf_convert.agents.runtime import (
@@ -139,6 +140,44 @@ class TestIsAgentAvailable:
         result = is_agent_available("codex")
 
         assert result is False
+
+
+class TestInvokeAgent:
+    """Test invoke_agent function."""
+
+    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
+    def test_codex_invocation_uses_argv_and_devnull(self, mock_run):
+        """Should invoke codex without shell string parsing."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        invoke_agent("Line1\nLine2 (test)", workspace="/tmp/workspace", agent_name="codex")
+
+        _, kwargs = mock_run.call_args
+        called_cmd = mock_run.call_args.args[0]
+        assert isinstance(called_cmd, list)
+        assert kwargs.get("cwd") == "/tmp/workspace"
+        from subprocess import DEVNULL
+
+        assert kwargs.get("stdout") is DEVNULL
+        assert kwargs.get("stderr") is DEVNULL
+        assert "shell" not in kwargs
+
+    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
+    def test_capture_output_disables_devnull_redirect(self, mock_run):
+        """Should preserve stdout/stderr when capture_output is requested."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        invoke_agent(
+            "Process this text",
+            workspace="/tmp/workspace",
+            agent_name="codex",
+            capture_output=True,
+        )
+
+        _, kwargs = mock_run.call_args
+        assert kwargs.get("capture_output") is True
+        assert "stdout" not in kwargs
+        assert "stderr" not in kwargs
 
 
 class TestAgentStepRuntime:

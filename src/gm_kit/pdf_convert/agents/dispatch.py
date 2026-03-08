@@ -17,7 +17,7 @@ class AgentConfigDict(TypedDict, total=False):
     cli: str
     args: list[str]
     supports_stdin: bool
-    output_redirect: str
+    suppress_output: bool
 
 
 # Agent CLI invocation templates
@@ -31,13 +31,13 @@ AGENT_DISPATCH_TABLE: dict[str, AgentConfigDict] = {
         "cli": "codex",
         "args": ["exec", "--full-auto", "-s", "workspace-write"],
         "supports_stdin": False,
-        "output_redirect": "> /dev/null 2>&1",  # Suppress CLI output
+        "suppress_output": True,
     },
     "opencode": {
         "cli": "opencode",
         "args": ["run"],
         "supports_stdin": False,
-        "output_redirect": "> /dev/null 2>&1",
+        "suppress_output": True,
     },
     "gemini": {
         "cli": "gemini",
@@ -154,23 +154,21 @@ def invoke_agent(
     # Build command
     cmd = build_agent_command(prompt, workspace, agent_name)
 
-    # Add redirect for agents that need it
-    redirect = config.get("output_redirect", "")
+    suppress_output = config.get("suppress_output", False)
 
     try:
-        if redirect:
-            # Use shell for redirects
-            cmd_str = " ".join(cmd) + " " + redirect
+        # Always execute with argv list (never shell command strings) to keep
+        # multi-line prompts intact and avoid shell parsing issues.
+        if suppress_output and not capture_output:
             result = subprocess.run(
-                cmd_str,
-                shell=True,
+                cmd,
                 cwd=workspace,
-                capture_output=capture_output,
                 text=True,
-                timeout=300,  # 5 minute timeout for agent step
+                timeout=300,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
             )
         else:
-            # Direct execution
             result = subprocess.run(
                 cmd,
                 cwd=workspace,
