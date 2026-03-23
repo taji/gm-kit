@@ -1,11 +1,13 @@
 """Unit tests for orchestrator resume logic (T038) and copyright notice (T056)."""
 
 import re
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
 from rich.console import Console
 
+from gm_kit.pdf_convert.agents.errors import AgentStepPause
 from gm_kit.pdf_convert.errors import ExitCode
 from gm_kit.pdf_convert.metadata import PDFMetadata
 from gm_kit.pdf_convert.orchestrator import (
@@ -906,6 +908,38 @@ class TestPhaseFailure:
         assert exit_code == ExitCode.SUCCESS
         assert called["bundle"] is True
 
+    def test_run_phases__should_pause_cleanly__when_agent_step_requires_handoff(
+        self, tmp_path, capsys
+    ):
+        """Pipeline returns success and shows handoff instructions on agent pause."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.write_bytes(b"%PDF-1.4 test content")
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            completed_phases=[0],
+        )
+        save_state(state)
+
+        class PausePhase:
+            phase_num = 1
+
+            def execute(self, _state):
+                raise AgentStepPause(
+                    step_id="3.2",
+                    step_dir=str(tmp_path / "agent_steps" / "step_3_2"),
+                    recovery="Run gmkit pdf-convert --resume",
+                )
+
+        phases = [PausePhase() if i == 1 else MockPhaseRegistry().get_phase(i) for i in range(11)]
+        orchestrator = Orchestrator(phases=phases)
+
+        exit_code = orchestrator._run_phases(state, start_phase=1)
+
+        assert exit_code == ExitCode.SUCCESS
+        captured = capsys.readouterr()
+        assert "Paused for agent step 3.2" in captured.out
+
 
 class TestOutputDirectory:
     """Tests for output directory creation."""
@@ -928,6 +962,28 @@ class TestOutputDirectory:
             create_output_directory(pdf_path)
 
         assert "Cannot create output directory" in str(excinfo.value)
+
+
+class TestCompletionSummary:
+    """Tests for conversion completion summary output."""
+
+    def test_print_completion_summary__should_use_run_started_at__when_present(self, capsys):
+        """Duration should be computed from run_started_at for resumed runs."""
+        orchestrator = Orchestrator()
+        now = datetime.now()
+        state = ConversionState(
+            pdf_path="/tmp/test.pdf",
+            output_dir="/tmp",
+            started_at=(now - timedelta(days=3)).isoformat(),
+            updated_at=now.isoformat(),
+            config={"run_started_at": (now - timedelta(seconds=42)).isoformat()},
+        )
+
+        orchestrator._print_completion_summary(state)
+
+        captured = capsys.readouterr()
+        assert "Total conversion time" in captured.out
+        assert "42s" in captured.out
 
     def test_create_output_dir__should_create_subdirs__when_output_dir_provided(self, tmp_path):
         """Provided output directory gets required subfolders."""
@@ -1055,8 +1111,8 @@ class TestRunNewConversion:
         )
         assert exit_code == ExitCode.SUCCESS
         assert called["delegated"] is True
-        assert called["args"][6] == ["Keeper", "Referee"]
-        assert called["args"][7] == "custom-callouts.json"
+        assert called["args"][7] == ["Keeper", "Referee"]
+        assert called["args"][8] == "custom-callouts.json"
 
     def test_handle_existing_state__should_resume__when_auto_proceed(self, tmp_path, monkeypatch):
         """Auto-proceed defaults to resume."""
@@ -1121,8 +1177,8 @@ class TestRunNewConversion:
         assert exit_code == ExitCode.SUCCESS
         assert called["restarted"] is True
         assert state_file.exists() is False
-        assert called["args"][5] == ["Keeper"]
-        assert called["args"][6] == "custom-callouts.json"
+        assert called["args"][6] == ["Keeper"]
+        assert called["args"][7] == "custom-callouts.json"
 
     def test_handle_existing_state__should_abort__when_input_fails(self, tmp_path, monkeypatch):
         """EOF/interrupt defaults to abort."""

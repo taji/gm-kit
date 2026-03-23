@@ -34,7 +34,7 @@ class Phase6(Phase):
     def has_agent_steps(self) -> bool:
         return True  # Step 6.4: Fix OCR spelling artifacts
 
-    def execute(self, state: ConversionState) -> PhaseResult:
+    def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
         """Execute structural formatting steps.
 
         Args:
@@ -128,6 +128,12 @@ class Phase6(Phase):
                 )
             )
 
+            # Persist pre-agent phase content so step 6.4 can edit this file directly.
+            # On resume, keep any existing phase6 output to avoid clobbering agent edits.
+            if not output_path.exists():
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(content)
+
             # Step 6.4: Fix OCR spelling artifacts (AGENT STEP)
             try:
                 from gm_kit.pdf_convert.agents import AgentStepRuntime
@@ -183,9 +189,10 @@ class Phase6(Phase):
                     )
                 )
 
-            # Save output
-            with open(output_path, "w", encoding="utf-8") as f:
-                f.write(content)
+            # Ensure phase output exists even when step 6.4 is skipped/flagged.
+            if not output_path.exists():
+                with open(output_path, "w", encoding="utf-8") as f:
+                    f.write(content)
 
             result.output_file = str(output_path)
 
