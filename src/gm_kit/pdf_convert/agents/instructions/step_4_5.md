@@ -37,6 +37,11 @@ Write metadata to `step-output.json`:
 }
 ```
 
+## Rubric Scoring Requirements
+- `rubric_scores` MUST include all required dimensions: `correct_joins`, `no_false_joins`, `readability`.
+- Each dimension score MUST be an integer from 1 to 5.
+- `warnings` MUST always be present (use `[]` when there are no warnings).
+
 ## Edge Cases
 - Be conservative: don't join across paragraph boundaries
 - Preserve intentional line breaks in poetry/blockquotes

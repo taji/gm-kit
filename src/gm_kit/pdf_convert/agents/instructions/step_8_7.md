@@ -63,6 +63,11 @@ Write to `step-output.json`:
 - Use appropriate alignment based on content (numbers right-aligned, text left-aligned)
 - The `step-output.json` contains metadata only; actual table content goes in phase8.md
 
+## Rubric Scoring Requirements
+- `rubric_scores` MUST include all required dimensions: `row_column_fidelity`, `markdown_validity`, `content_preservation`.
+- Each dimension score MUST be an integer from 1 to 5.
+- `warnings` MUST always be present (use `[]` when there are no warnings).
+
 ## Edge Cases
 - Wide tables that may need horizontal scrolling in markdown
 - Tables with merged cells (use empty cells or note the merge)

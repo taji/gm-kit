@@ -1,7 +1,13 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["step_id", "status", "data"],
+  "required": [
+    "step_id",
+    "status",
+    "data",
+    "rubric_scores",
+    "warnings"
+  ],
   "properties": {
     "step_id": {
       "type": "string",
@@ -9,7 +15,11 @@
     },
     "status": {
       "type": "string",
-      "enum": ["success", "warning", "failed"],
+      "enum": [
+        "success",
+        "warning",
+        "failed"
+      ],
       "description": "Execution status"
     },
     "data": {
@@ -18,8 +28,11 @@
     },
     "warnings": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "Non-fatal warning messages"
+      "items": {
+        "type": "string"
+      },
+      "description": "Non-fatal warning messages",
+      "default": []
     },
     "notes": {
       "type": "string",
@@ -27,11 +40,42 @@
     },
     "rubric_scores": {
       "type": "object",
-      "description": "Self-evaluation scores per dimension"
+      "description": "Self-evaluation scores per dimension",
+      "required": [
+        "gap_detection",
+        "duplicate_detection",
+        "actionable_suggestions",
+        "font_source_awareness"
+      ],
+      "properties": {
+        "gap_detection": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "duplicate_detection": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "actionable_suggestions": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "font_source_awareness": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
     },
     "critical_failures": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "List of critical failures"
     }
   }

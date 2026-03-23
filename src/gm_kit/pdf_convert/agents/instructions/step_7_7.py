@@ -55,13 +55,18 @@ Write to `step-output.json`:
   }},
   "rubric_scores": {{
     "detection_recall": 5,
-    "detection_precision": 5
+    "detection_precision": 5,
+    "boundary_accuracy": 5
   }},
   "warnings": []
 }}
 ```
 
 If table likelihood > 50, the system will render this page as an image for Pass 2.
+`rubric_scores` MUST include `detection_recall`, `detection_precision`, and `boundary_accuracy`
+with integer values from 1 to 5.
+`warnings` MUST always be present (use `[]` when no warnings apply).
+If this pass does not produce table boundaries, set `boundary_accuracy` to 5 (N/A in text scan).
 """
 
 
@@ -122,6 +127,10 @@ Write to `step-output.json`:
   "warnings": []
 }}
 ```
+
+`rubric_scores` MUST include `detection_recall`, `detection_precision`, and `boundary_accuracy`
+with integer values from 1 to 5.
+`warnings` MUST always be present (use `[]` when no warnings apply).
 
 ## Critical Failures
 - Missing a table entirely

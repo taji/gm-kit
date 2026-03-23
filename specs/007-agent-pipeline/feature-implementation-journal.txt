@@ -1885,3 +1885,34 @@ Next Steps:
 2. If review is clean, prepare PR summary and merge plan.
 
 Recorded by: gpt-5-codex
+
+Session: 2026-03-23 - Tightened Rubric Contracts and Prompt Guidance
+--------------------------------------------------------
+Branch: 007-agent-pipeline-implementation
+Date: 2026-03-23
+
+Work Completed:
+1. Tightened all agent-step JSON schemas (3.2, 4.5, 6.4, 7.7, 8.7, 9.2-9.5, 9.7-9.8, 10.2-10.3):
+   - `rubric_scores` now required.
+   - `warnings` now required (empty array allowed).
+   - `rubric_scores` now enforces step-specific required keys and 1-5 integer ranges.
+2. Updated instruction templates to explicitly require rubric dimensions and warnings output shape.
+3. Updated step 7.7 prompt builder (`step_7_7.py`) to explicitly require rubric keys and warnings in both pass-1 and pass-2 prompts.
+4. Re-ran validation after tightening:
+   - `just lint`: PASS
+   - `just typecheck`: PASS
+   - `just test-unit`: PASS (566 passed)
+
+Key Decisions:
+- Enforce rubric presence and key correctness at contract layer (schema) rather than relying on best-effort prompt interpretation.
+- Keep warnings mandatory to eliminate shape drift (`warnings` always present, `[]` when none).
+
+Current State:
+- Rubric/contract strictness is now consistent across all agent steps in E4-07b scope.
+- Branch is ready for manual review and then a fresh end-to-end live run using the handoff loop script.
+
+Next Steps:
+1. User manual code review pass.
+2. Execute one fresh end-to-end SC004 run with `pdf_convert_agent_handoff_loop.sh` to validate stricter contracts under live handoff conditions.
+
+Recorded by: gpt-5-codex

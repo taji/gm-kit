@@ -50,6 +50,11 @@ Write to `step-output.json`:
 }
 ```
 
+## Rubric Scoring Requirements
+- `rubric_scores` MUST include all required dimensions: `order_correctness`, `confidence_flagging`, `threshold_adherence`.
+- Each dimension score MUST be an integer from 1 to 5.
+- `warnings` MUST always be present (use `[]` when there are no warnings).
+
 ## Critical Failures
 - Malformed assessment JSON
 - Missing required fields

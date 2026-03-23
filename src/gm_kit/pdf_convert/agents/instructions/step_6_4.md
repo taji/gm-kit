@@ -44,6 +44,11 @@ Write metadata to `step-output.json`:
 }
 ```
 
+## Rubric Scoring Requirements
+- `rubric_scores` MUST include all required dimensions: `correction_accuracy`, `false_positive_rate`, `domain_term_preservation`.
+- Each dimension score MUST be an integer from 1 to 5.
+- `warnings` MUST always be present (use `[]` when there are no warnings).
+
 ## Edge Cases
 - Scanned PDFs with pre-baked OCR errors
 - Agent-driven OCR workflows (user provides OCR'd text externally)

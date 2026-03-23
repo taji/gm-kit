@@ -22,6 +22,10 @@ Evaluate the structural clarity of the converted markdown document.
    - Proper indentation of subsections
    - Consistent nesting depth
 
+4. Normalization rules for this project:
+   - Treat leading figure placeholders and paired image-comment lines as
+     non-structural content (e.g., `[FIGURE: ...]` and `<!-- ![[...]] -->`).
+
 ## Output Format
 Write to `step-output.json`:
 ```json
@@ -41,6 +45,11 @@ Write to `step-output.json`:
   "warnings": []
 }
 ```
+
+## Rubric Scoring Requirements
+- `rubric_scores` MUST include all required dimensions: `heading_hierarchy`, `section_coherence`, `nesting_correctness`.
+- Each dimension score MUST be an integer from 1 to 5.
+- `warnings` MUST always be present (use `[]` when there are no warnings).
 
 ## Critical Failures
 - Malformed assessment JSON
