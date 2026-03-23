@@ -1817,3 +1817,41 @@ Next Steps:
 2. If needed, tune helper behavior (pause cap, logging verbosity, sandbox mode defaults) based on the first real run.
 
 Recorded by: gpt-5-codex
+
+Session: 2026-03-23 - 7.7 Reliability Hardening + Reconciliation + Gate Run
+--------------------------------------------------------
+Branch: 007-agent-pipeline-implementation
+Date: 2026-03-23
+
+Work Completed:
+1. Hardened agent runtime for repeated same-step invocations (notably 7.7 text-scan + vision pass loops):
+   - `AgentStepRuntime` now only consumes pending `step-output.json` when the persisted `step-input.json` matches the current call inputs.
+   - Added test coverage for stale-output mismatch behavior.
+2. Prevented stale output reuse between consecutive invocations of the same step id:
+   - `write_agent_inputs()` now removes prior `step-output.json` before creating a new handoff.
+   - Added unit test coverage.
+3. Refined 7.7 rubric boundary-score normalization behavior:
+   - Boundary score is now required only when output includes real boundary evidence (vision phase or bbox data), avoiding false rubric failures on text-scan-only outputs.
+4. Reconciled feature status wording in canonical docs:
+   - Updated E4-07b status wording in `BACKLOG.md`.
+   - Updated architecture status line in `ARCHITECTURE.md` to reflect active implementation status on branch.
+5. Ran targeted validation and full-gate checks.
+
+Key Decisions:
+- Keep `tables-manifest.json` as the downstream table-validation contract; avoid forcing boundary accuracy rubric constraints on text-scan outputs that do not include bbox evidence.
+- Maintain strict stale-output protection for re-entrant agent steps instead of relying on global step status only.
+
+Current State:
+- Helper/docs milestone commit already landed (`3410265`).
+- 7.7 runtime hardening changes are implemented with targeted tests passing.
+- Full gate snapshot:
+  - `just typecheck`: PASS
+  - `just test-unit`: FAIL (8 unrelated pre-existing failures in orchestrator/CLI signatures around `agent_debug` argument)
+  - `just lint`: FAIL (pre-existing complexity rule on `phase6.execute`)
+
+Next Steps:
+1. Decide whether to include the existing orchestrator/CLI test failures in this scope or defer as separate cleanup (they predate this 7.7 patch set).
+2. If in scope, patch failing tests/signatures and re-run full gates.
+3. After gates are green (or deferrals are explicitly accepted), proceed to your manual code review pass.
+
+Recorded by: gpt-5-codex

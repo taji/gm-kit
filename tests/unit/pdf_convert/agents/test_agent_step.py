@@ -57,7 +57,22 @@ class TestWriteAgentInputs:
         content = instruction_file.read_text()
         assert "3.2" in content
         assert "step-output.json" in content
-        assert "gmkit pdf-convert --resume" in content
+        assert "gmkit pdf-convert --resume" not in content
+
+    def test_clears_stale_output_file(self, tmp_path):
+        """Should remove stale step-output.json when creating a new handoff."""
+        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir.mkdir(parents=True)
+        output_file = step_dir / "step-output.json"
+        output_file.write_text('{"status":"success"}', encoding="utf-8")
+
+        write_agent_inputs(
+            step_id="3.2",
+            workspace=str(tmp_path),
+            inputs={"context": "fresh-run"},
+        )
+
+        assert not output_file.exists()
 
 
 class TestReadAgentOutput:

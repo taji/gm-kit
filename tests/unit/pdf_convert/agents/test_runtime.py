@@ -1,12 +1,15 @@
 """Tests for agent dispatch and runtime."""
 
+import json
 import os
+import subprocess
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
 from gm_kit.pdf_convert.agents.dispatch import (
     DEFAULT_AGENT,
+    AgentDispatchError,
     UnsupportedAgentError,
     build_agent_command,
     get_agent_config,
@@ -16,6 +19,7 @@ from gm_kit.pdf_convert.agents.dispatch import (
     invoke_agent,
     is_agent_available,
 )
+from gm_kit.pdf_convert.agents.errors import AgentStepError
 from gm_kit.pdf_convert.agents.runtime import (
     AgentStepRuntime,
     run_agent_step,
@@ -70,7 +74,7 @@ class TestBuildAgentCommand:
 
         assert "codex" in cmd
         assert "exec" in cmd
-        assert "Process this text" in cmd
+        assert cmd[-1] == "-"
 
     def test_builds_claude_command(self):
         """Should build claude command."""
@@ -155,11 +159,13 @@ class TestInvokeAgent:
         _, kwargs = mock_run.call_args
         called_cmd = mock_run.call_args.args[0]
         assert isinstance(called_cmd, list)
+        assert called_cmd[-1] == "-"
         assert kwargs.get("cwd") == "/tmp/workspace"
         from subprocess import DEVNULL
 
         assert kwargs.get("stdout") is DEVNULL
         assert kwargs.get("stderr") is DEVNULL
+        assert kwargs.get("input") == "Line1\nLine2 (test)"
         assert "shell" not in kwargs
 
     @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
@@ -176,8 +182,40 @@ class TestInvokeAgent:
 
         _, kwargs = mock_run.call_args
         assert kwargs.get("capture_output") is True
+        assert kwargs.get("input") == "Process this text"
         assert "stdout" not in kwargs
         assert "stderr" not in kwargs
+
+    @patch.dict(os.environ, {"GM_AGENT_TIMEOUT_SEC": "123"})
+    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
+    def test_timeout_uses_env_override(self, mock_run):
+        """Should use GM_AGENT_TIMEOUT_SEC when provided."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        invoke_agent("Process this text", workspace="/tmp/workspace", agent_name="codex")
+
+        _, kwargs = mock_run.call_args
+        assert kwargs.get("timeout") == 123
+
+    @patch.dict(os.environ, {"GM_AGENT_TIMEOUT_SEC": "bogus"})
+    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
+    def test_timeout_falls_back_to_default_when_env_invalid(self, mock_run):
+        """Should default timeout when GM_AGENT_TIMEOUT_SEC is not an int."""
+        mock_run.return_value = MagicMock(returncode=0)
+
+        invoke_agent("Process this text", workspace="/tmp/workspace", agent_name="codex")
+
+        _, kwargs = mock_run.call_args
+        assert kwargs.get("timeout") == 300
+
+    @patch.dict(os.environ, {"GM_AGENT_TIMEOUT_SEC": "17"})
+    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
+    def test_timeout_error_message_reports_configured_seconds(self, mock_run):
+        """Should include configured timeout in timeout error message."""
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd=["codex"], timeout=17)
+
+        with pytest.raises(AgentDispatchError, match="timed out after 17 seconds"):
+            invoke_agent("Process this text", workspace="/tmp/workspace", agent_name="codex")
 
 
 class TestAgentStepRuntime:
@@ -190,40 +228,53 @@ class TestAgentStepRuntime:
         assert runtime.workspace == str(tmp_path)
         assert runtime.max_retries == 3
 
+    def test_initialization_reads_agent_debug_from_state(self, tmp_path):
+        """Should enable debug mode when state config requests it."""
+        (tmp_path / ".state.json").write_text(
+            json.dumps({"config": {"agent_debug": True}}), encoding="utf-8"
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+
+        assert runtime.agent_debug is True
+
     @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
     @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
-    @patch("gm_kit.pdf_convert.agents.runtime.invoke_agent")
-    @patch("gm_kit.pdf_convert.agents.runtime.read_agent_output")
-    def test_execute_step_success(
-        self, mock_read, mock_invoke, mock_write, mock_evaluate, tmp_path
+    def test_execute_step__should_pause_and_then_complete_when_output_written(
+        self, mock_write, mock_evaluate, tmp_path
     ):
-        """Should execute step successfully."""
-        # Create step directory and instruction file
-        step_dir = tmp_path / "step_3_2"
-        step_dir.mkdir(parents=True)
-        (step_dir / "step-instructions.md").write_text("# Instructions")
-
-        # Mock successful execution
-        mock_write.return_value = step_dir
-        mock_invoke.return_value = MagicMock(returncode=0)
-
-        from gm_kit.pdf_convert.agents.base import AgentStepOutputEnvelope
+        """Should pause on first call and complete on resume call."""
+        from gm_kit.pdf_convert.agents.errors import AgentStepPause
         from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
 
-        mock_envelope = AgentStepOutputEnvelope(
-            step_id="3.2", status="success", data={}, warnings=[], rubric_scores={"completeness": 5}
-        )
-        mock_read.return_value = mock_envelope
+        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-instructions.md").write_text("# Instructions", encoding="utf-8")
 
-        # Mock successful evaluation
+        mock_write.return_value = step_dir
         mock_evaluate.return_value = EvaluationResult(
             step_id="3.2",
             passed=True,
             dimension_scores={"completeness": 5},
             critical_failures=[],
         )
-
         runtime = AgentStepRuntime(str(tmp_path))
+
+        with pytest.raises(AgentStepPause):
+            runtime.execute_step(step_id="3.2", inputs={"test": "data"}, attempt=1)
+
+        (step_dir / "step-output.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "3.2",
+                    "status": "success",
+                    "data": {"entries": []},
+                    "rubric_scores": {"completeness": 5},
+                    "warnings": [],
+                }
+            ),
+            encoding="utf-8",
+        )
 
         with patch.object(runtime.validator, "validate"):
             envelope, status = runtime.execute_step(
@@ -231,6 +282,216 @@ class TestAgentStepRuntime:
             )
 
         assert status.name == "COMPLETED"
+        assert envelope is not None
+        assert envelope.step_id == "3.2"
+        assert (tmp_path / ".state.json").exists()
+
+    @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
+    def test_execute_step__should_write_awaiting_state_when_handoff_created(
+        self, mock_write, tmp_path
+    ):
+        """Should persist AWAITING_AGENT state metadata on handoff."""
+        from gm_kit.pdf_convert.agents.errors import AgentStepPause
+
+        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-instructions.md").write_text("# Instructions", encoding="utf-8")
+        mock_write.return_value = step_dir
+        runtime = AgentStepRuntime(str(tmp_path), agent_debug=True)
+
+        with pytest.raises(AgentStepPause):
+            runtime.execute_step(step_id="3.2", inputs={"test": "data"}, attempt=2)
+
+        state = json.loads((tmp_path / ".state.json").read_text(encoding="utf-8"))
+        assert state["current_step"] == "3.2"
+        assert state["agent_step_status"] == "AWAITING_AGENT"
+        assert state["attempt"] == 2
+
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
+    def test_execute_step__should_consume_existing_output__when_state_status_not_awaiting(
+        self, mock_write, mock_evaluate, tmp_path
+    ):
+        """Should finalize existing step output even if state status is COMPLETED."""
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        step_dir = tmp_path / "agent_steps" / "step_9_3"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-output.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "9.3",
+                    "status": "success",
+                    "data": {"flow_issues": [], "readability_score": 4},
+                    "rubric_scores": {
+                        "reading_order": 4,
+                        "paragraph_integrity": 4,
+                        "flow_continuity": 4,
+                    },
+                    "warnings": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (tmp_path / ".state.json").write_text(
+            json.dumps(
+                {
+                    "current_step": "9.2",
+                    "agent_step_status": "COMPLETED",
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="9.3", passed=True, dimension_scores={}, critical_failures=[]
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+        with patch.object(runtime.validator, "validate"):
+            envelope, status = runtime.execute_step(step_id="9.3", inputs={"test": "data"}, attempt=1)
+
+        assert status.name == "COMPLETED"
+        assert envelope is not None
+        mock_write.assert_not_called()
+
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    def test_execute_step__should_fill_boundary_accuracy__when_step_7_7_has_no_tables(
+        self, mock_evaluate, tmp_path
+    ):
+        """Should normalize 7.7 no-table rubric scores before evaluation."""
+        step_dir = tmp_path / "agent_steps" / "step_7_7"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-output.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "7.7",
+                    "status": "success",
+                    "data": {"tables_detected": False, "tables": []},
+                    "warnings": [],
+                    "rubric_scores": {"detection_recall": 5, "detection_precision": 5},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (tmp_path / ".state.json").write_text(
+            json.dumps(
+                {
+                    "current_step": "7.7",
+                    "agent_step_status": "AWAITING_AGENT",
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="7.7", passed=True, dimension_scores={}, critical_failures=[]
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+
+        with patch.object(runtime.validator, "validate"):
+            runtime.execute_step(step_id="7.7", inputs={"test": "data"}, attempt=1)
+
+        rubric_scores = mock_evaluate.call_args.kwargs["rubric_scores"]
+        assert rubric_scores["boundary_accuracy"] == 5
+
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    def test_execute_step__should_not_fill_boundary_accuracy__when_step_7_7_has_table_boundary(
+        self, mock_evaluate, tmp_path
+    ):
+        """Should preserve missing boundary score failure path for table detections."""
+        step_dir = tmp_path / "agent_steps" / "step_7_7"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-output.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "7.7",
+                    "status": "success",
+                    "data": {
+                        "table_id": "t1",
+                        "bbox_pixels": {"x0": 1, "y0": 1, "x1": 2, "y1": 2},
+                    },
+                    "warnings": [],
+                    "rubric_scores": {"detection_recall": 5, "detection_precision": 5},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (tmp_path / ".state.json").write_text(
+            json.dumps(
+                {
+                    "current_step": "7.7",
+                    "agent_step_status": "AWAITING_AGENT",
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="7.7",
+            passed=False,
+            dimension_scores={},
+            critical_failures=[],
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+        with patch.object(runtime.validator, "validate"), pytest.raises(AgentStepError):
+            runtime.execute_step(step_id="7.7", inputs={"test": "data"}, attempt=1)
+
+        rubric_scores = mock_evaluate.call_args.kwargs["rubric_scores"]
+        assert "boundary_accuracy" not in rubric_scores
+
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
+    def test_execute_step__should_not_reuse_stale_output__when_inputs_do_not_match(
+        self, mock_write, mock_evaluate, tmp_path
+    ):
+        """Should create new handoff when existing output belongs to a different input payload."""
+        from gm_kit.pdf_convert.agents.errors import AgentStepPause
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        step_dir = tmp_path / "agent_steps" / "step_7_7"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-input.json").write_text(
+            json.dumps({"step_id": "7.7", "phase": "text_scan", "page_number_1based": 1}),
+            encoding="utf-8",
+        )
+        (step_dir / "step-output.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "7.7",
+                    "status": "success",
+                    "data": {"tables_detected": False, "tables": []},
+                    "warnings": [],
+                    "rubric_scores": {"detection_recall": 5, "detection_precision": 5},
+                }
+            ),
+            encoding="utf-8",
+        )
+        mock_write.return_value = step_dir
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="7.7",
+            passed=True,
+            dimension_scores={},
+            critical_failures=[],
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+
+        with pytest.raises(AgentStepPause):
+            runtime.execute_step(
+                step_id="7.7",
+                inputs={"phase": "text_scan", "page_number_1based": 2},
+                attempt=1,
+            )
+
+        mock_write.assert_called_once()
 
     @patch("gm_kit.pdf_convert.agents.runtime.Path.exists")
     @patch(

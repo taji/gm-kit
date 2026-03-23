@@ -11,8 +11,7 @@ from typing import Any
 from .agent_step import read_agent_output, write_agent_inputs
 from .base import AgentStepOutputEnvelope, Criticality, StepStatus
 from .contracts import ContractValidator
-from .dispatch import AgentDispatchError, invoke_agent
-from .errors import AgentStepError, ContractViolation, RetryExhaustedError
+from .errors import AgentStepError, AgentStepPause, ContractViolation, RetryExhaustedError
 from .evaluator import evaluate_step_output
 from .registry import get_registry
 
@@ -21,7 +20,11 @@ class AgentStepRuntime:
     """Runtime for executing agent steps with retry and resume support."""
 
     def __init__(
-        self, workspace: str, max_retries: int = 3, validator: ContractValidator | None = None
+        self,
+        workspace: str,
+        max_retries: int = 3,
+        validator: ContractValidator | None = None,
+        agent_debug: bool | None = None,
     ):
         """Initialize runtime.
 
@@ -34,6 +37,9 @@ class AgentStepRuntime:
         self.max_retries = max_retries
         self.validator = validator or ContractValidator()
         self.registry = get_registry()
+        self.agent_debug = (
+            self._load_agent_debug_from_state() if agent_debug is None else bool(agent_debug)
+        )
 
     def execute_step(
         self, step_id: str, inputs: dict[str, Any], attempt: int = 1
@@ -68,67 +74,37 @@ class AgentStepRuntime:
                 step_id=step_id, error=f"Unknown step: {step_id}", recovery="Check step_id is valid"
             )
 
-        # Write inputs to workspace
+        # Resume path: if this step is already awaiting output and output exists,
+        # consume it instead of re-writing handoff artifacts.
+        if self._has_pending_output(step_id, inputs):
+            current_attempt = self._get_attempt_from_state(default=attempt)
+            try:
+                envelope = read_agent_output(
+                    step_id=step_id,
+                    workspace=self.workspace,
+                    validate=False,
+                )
+            except AgentStepError as e:
+                return self._handle_failure(step_id, str(e), current_attempt, retryable=True)
+
+            return self._finalize_step(step_id, envelope, current_attempt)
+
+        # Initial handoff path: write step artifacts and pause for external agent.
         step_dir = write_agent_inputs(
             step_id=step_id, workspace=self.workspace, inputs=inputs, attempt=attempt
         )
 
-        # Update state to AWAITING_AGENT
+        # Update state to AWAITING_AGENT and hand control back to caller.
         self._update_state(step_id, StepStatus.AWAITING_AGENT, attempt)
 
-        # Load instruction file for prompt
-        instruction_file = step_dir / "step-instructions.md"
-        prompt = instruction_file.read_text()
-
-        # Invoke agent
-        try:
-            result = invoke_agent(prompt=prompt, workspace=self.workspace, capture_output=False)
-
-            if result.returncode != 0:
-                raise AgentDispatchError(f"Agent exited with code {result.returncode}")
-
-        except AgentDispatchError as e:
-            # Agent invocation failed - treat as retryable
-            return self._handle_failure(step_id, str(e), attempt, retryable=True)
-
-        # Read output
-        try:
-            envelope = read_agent_output(
-                step_id=step_id,
-                workspace=self.workspace,
-                validate=False,  # We'll validate manually
-            )
-        except AgentStepError as e:
-            return self._handle_failure(step_id, str(e), attempt, retryable=True)
-
-        # Validate against contract
-        try:
-            self.validator.validate(step_id=step_id, output=self._envelope_to_dict(envelope))
-        except ContractViolation as e:
-            return self._handle_failure(
-                step_id, f"Contract violation: {e.validation_errors}", attempt, retryable=True
-            )
-
-        # Evaluate against rubric
-        if envelope.rubric_scores:
-            eval_result = evaluate_step_output(
-                step_id=step_id,
-                rubric_scores=envelope.rubric_scores,
-                critical_failures_found=envelope.critical_failures or [],
-                feedback=envelope.notes,
-            )
-
-            if not eval_result.passed:
-                return self._handle_failure(
-                    step_id,
-                    f"Rubric evaluation failed: {eval_result.critical_failures}",
-                    attempt,
-                    retryable=True,
-                )
-
-        # Success!
-        self._update_state(step_id, StepStatus.COMPLETED, attempt)
-        return envelope, StepStatus.COMPLETED
+        raise AgentStepPause(
+            step_id=step_id,
+            step_dir=str(step_dir),
+            recovery=(
+                "Write step-output.json in the step directory, then run "
+                f"gmkit pdf-convert --resume \"{self.workspace}\""
+            ),
+        )
 
     def resume_step(self, step_id: str) -> tuple[AgentStepOutputEnvelope | None, StepStatus]:
         """Resume a step from AWAITING_AGENT state.
@@ -143,10 +119,9 @@ class AgentStepRuntime:
         """
         # Try to read existing output
         try:
-            envelope = read_agent_output(step_id=step_id, workspace=self.workspace, validate=True)
-
-            self._update_state(step_id, StepStatus.COMPLETED)
-            return envelope, StepStatus.COMPLETED
+            envelope = read_agent_output(step_id=step_id, workspace=self.workspace, validate=False)
+            current_attempt = self._get_attempt_from_state(default=1)
+            return self._finalize_step(step_id, envelope, current_attempt)
 
         except Exception as e:
             # No valid output yet - still waiting
@@ -229,7 +204,9 @@ class AgentStepRuntime:
             state = {}
 
         state["current_step"] = step_id
-        state["status"] = status.name
+        # Keep conversion lifecycle status (in_progress/completed/failed) intact.
+        # Agent-step lifecycle is tracked separately to avoid corrupting ConversionStatus.
+        state["agent_step_status"] = status.name
         if attempt:
             state["attempt"] = attempt
 
@@ -248,15 +225,155 @@ class AgentStepRuntime:
         Returns:
             Dictionary representation
         """
-        return {
+        payload = {
             "step_id": envelope.step_id,
             "status": envelope.status,
             "data": envelope.data,
             "warnings": envelope.warnings,
-            "notes": envelope.notes,
-            "rubric_scores": envelope.rubric_scores,
-            "critical_failures": envelope.critical_failures,
         }
+        if envelope.notes is not None:
+            payload["notes"] = envelope.notes
+        if envelope.rubric_scores is not None:
+            payload["rubric_scores"] = envelope.rubric_scores
+        if envelope.critical_failures is not None:
+            payload["critical_failures"] = envelope.critical_failures
+        return payload
+
+    def _load_agent_debug_from_state(self) -> bool:
+        """Load agent-debug flag from conversion state when available."""
+        state_file = Path(self.workspace) / ".state.json"
+        if not state_file.exists():
+            return False
+        try:
+            with open(state_file) as f:
+                state = json.load(f)
+        except Exception:
+            return False
+        config = state.get("config", {})
+        return bool(config.get("agent_debug", False))
+
+    def _normalize_rubric_scores(
+        self, step_id: str, envelope: AgentStepOutputEnvelope
+    ) -> None:
+        """Normalize known rubric edge cases before evaluation."""
+        if step_id != "7.7" or not envelope.rubric_scores:
+            return
+
+        if "boundary_accuracy" in envelope.rubric_scores:
+            return
+
+        if self._step_7_7_requires_boundary_score(envelope):
+            return
+
+        envelope.rubric_scores = {
+            **envelope.rubric_scores,
+            "boundary_accuracy": 5,
+        }
+
+    def _step_7_7_requires_boundary_score(self, envelope: AgentStepOutputEnvelope) -> bool:
+        """Return True when step 7.7 output includes concrete table boundaries."""
+        data = envelope.data or {}
+        tables = data.get("tables")
+        has_table_bboxes = isinstance(tables, list) and any(
+            isinstance(table, dict)
+            and isinstance(table.get("bbox_pixels"), dict)
+            and bool(table.get("bbox_pixels"))
+            for table in tables
+        )
+        has_top_level_bbox = isinstance(data.get("bbox_pixels"), dict) and bool(
+            data.get("bbox_pixels")
+        )
+        return (
+            data.get("tables_detected") is True
+            or data.get("phase") == "vision_confirmation"
+            or has_top_level_bbox
+            or has_table_bboxes
+        )
+
+    def _has_pending_output(self, step_id: str, inputs: dict[str, Any]) -> bool:
+        """Return True when this step already has output to finalize.
+
+        We intentionally do not gate on current agent-step status because phase-level
+        resume currently re-enters earlier agent steps (e.g. 9.2 before 9.3). In that
+        flow, a completed prior step may update state status and otherwise prevent
+        consuming already-written output for the next paused step.
+        """
+        output_file = self._step_dir(step_id) / "step-output.json"
+        if not output_file.exists():
+            return False
+
+        input_file = self._step_dir(step_id) / "step-input.json"
+        if not input_file.exists():
+            return True
+
+        try:
+            with open(input_file) as f:
+                persisted_input = json.load(f)
+        except Exception:
+            return True
+
+        if persisted_input.get("step_id") != step_id:
+            return False
+
+        return all(persisted_input.get(key) == value for key, value in inputs.items())
+
+    def _load_state(self) -> dict[str, Any]:
+        """Load state from workspace when present."""
+        state_file = Path(self.workspace) / ".state.json"
+        if not state_file.exists():
+            return {}
+
+        try:
+            with open(state_file) as f:
+                loaded = json.load(f)
+                return loaded if isinstance(loaded, dict) else {}
+        except Exception:
+            return {}
+
+    def _get_attempt_from_state(self, default: int) -> int:
+        """Read current step attempt from state with sane fallback."""
+        state = self._load_state()
+        attempt_value = state.get("attempt", default)
+        try:
+            attempt_int = int(attempt_value)
+        except (TypeError, ValueError):
+            return default
+        return attempt_int if attempt_int >= 1 else default
+
+    def _step_dir(self, step_id: str) -> Path:
+        """Return workspace step directory path."""
+        return Path(self.workspace) / "agent_steps" / f"step_{step_id.replace('.', '_')}"
+
+    def _finalize_step(
+        self, step_id: str, envelope: AgentStepOutputEnvelope, attempt: int
+    ) -> tuple[AgentStepOutputEnvelope | None, StepStatus]:
+        """Validate, score, and finalize an agent step output."""
+        try:
+            self.validator.validate(step_id=step_id, output=self._envelope_to_dict(envelope))
+        except ContractViolation as e:
+            return self._handle_failure(
+                step_id, f"Contract violation: {e.validation_errors}", attempt, retryable=True
+            )
+
+        if envelope.rubric_scores:
+            self._normalize_rubric_scores(step_id, envelope)
+            eval_result = evaluate_step_output(
+                step_id=step_id,
+                rubric_scores=envelope.rubric_scores,
+                critical_failures_found=envelope.critical_failures or [],
+                feedback=envelope.notes,
+            )
+
+            if not eval_result.passed:
+                return self._handle_failure(
+                    step_id,
+                    f"Rubric evaluation failed: {eval_result.critical_failures}",
+                    attempt,
+                    retryable=True,
+                )
+
+        self._update_state(step_id, StepStatus.COMPLETED, attempt)
+        return envelope, StepStatus.COMPLETED
 
 
 def run_agent_step(

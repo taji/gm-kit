@@ -182,7 +182,8 @@ class Phase(ABC):
 
 #### 4. Configuration Files
 
-**callout_config.json**: Defines GM callout boundaries by start/end text fragments
+**callout-rules.input.json**: Defines GM callout boundaries by start/end text fragments
+**callout-rules.resolved.json**: Normalized callout rules artifact used by downstream phases
 ```json
 [
   {
@@ -426,5 +427,5 @@ Core rules:
 
 ---
 
-*Last Updated: 2026-02-26*
-*Status: E4-07a (Code-driven pipeline) complete, E2-09 (agent audit) complete, E4-07b (Agent steps) pending implementation*
+*Last Updated: 2026-03-23*
+*Status: E4-07a (Code-driven pipeline) complete, E2-09 (agent audit) complete, E4-07b (Agent steps) in implementation on `007-agent-pipeline` branch (stabilization/validation in progress)*

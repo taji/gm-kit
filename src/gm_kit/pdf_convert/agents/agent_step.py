@@ -43,16 +43,15 @@ def write_agent_inputs(
     template = _load_instruction_template(step_id)
     instructions = _render_template(template, inputs)
 
-    # Add standard resume footer
-    resume_cmd = f'gmkit pdf-convert --resume "{workspace}"'
-    instructions += "\n\n## After Completing This Step\n\n"
-    instructions += "Write your output to `step-output.json` in this directory, then resume:\n"
-    instructions += f"```bash\n{resume_cmd}\n```"
-
     # Write step-instructions.md
     instruction_file = step_dir / "step-instructions.md"
     with open(instruction_file, "w") as f:
         f.write(instructions)
+
+    # Clear stale output from prior invocations of the same step id.
+    output_file = step_dir / "step-output.json"
+    if output_file.exists():
+        output_file.unlink()
 
     return step_dir
 
