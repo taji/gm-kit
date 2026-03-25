@@ -95,18 +95,43 @@ def emit_output(text: str, console_log_file: Path | None) -> None:
             f.write(text)
 
 
-def sanitize_agent_instructions(instructions: str) -> str:
-    """Strip in-prompt resume command so harness owns resume sequencing."""
+def sanitize_agent_instructions(instructions: str, step_dir: Path | None = None) -> str:
+    """Strip in-prompt resume command so harness owns resume sequencing.
+
+    Args:
+        instructions: Raw instruction text from step-instructions.md.
+        step_dir: Absolute path to the step directory. When provided, the
+            harness note includes the exact required output path so the agent
+            cannot accidentally write to the wrong location.
+    """
     marker = "\n## After Completing This Step"
     idx = instructions.find(marker)
     if idx != -1:
         instructions = instructions[:idx].rstrip() + "\n"
-    return (
-        instructions
-        + "\n\n## Harness Note\n"
-        + "Do not run `gmkit pdf-convert --resume` yourself. "
-        + "Write `step-output.json` only and exit.\n"
-    )
+
+    if step_dir is not None:
+        output_path = step_dir / "step-output.json"
+        harness_note = (
+            "\n\n## Harness Note\n"
+            "Do not run `gmkit pdf-convert --resume` yourself.\n\n"
+            "### Output File Checklist\n"
+            "Before exiting, verify ALL of the following:\n\n"
+            f"- [ ] Write `step-output.json` to this **exact absolute path**:\n"
+            f"  `{output_path}`\n"
+            f"- [ ] The file must be inside the step directory:\n"
+            f"  `{step_dir}/`\n"
+            "- [ ] Do NOT write it to the workspace root or any parent directory.\n"
+            "- [ ] Confirm the file exists at the path above before exiting.\n"
+            "- [ ] Do not write any other files outside this step directory.\n"
+        )
+    else:
+        harness_note = (
+            "\n\n## Harness Note\n"
+            "Do not run `gmkit pdf-convert --resume` yourself. "
+            "Write `step-output.json` only and exit.\n"
+        )
+
+    return instructions + harness_note
 
 
 def build_gmkit_cmd(args: argparse.Namespace, python_version: str, resume: bool) -> list[str]:
@@ -501,7 +526,7 @@ def main() -> int:
                 return 1
 
             instructions_raw = (step_dir / "step-instructions.md").read_text(encoding="utf-8")
-            instructions = sanitize_agent_instructions(instructions_raw)
+            instructions = sanitize_agent_instructions(instructions_raw, step_dir=step_dir)
             # Write sanitized instructions to a separate file so agents that support
             # --file (e.g. OpenCode) can receive them without shell-escaping issues.
             # Kept on disk after the step for post-run inspection/debugging.
