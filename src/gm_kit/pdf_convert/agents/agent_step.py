@@ -1,6 +1,8 @@
 """Workspace handoff I/O helpers for agent steps."""
 
+import importlib.util
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -33,14 +35,20 @@ def write_agent_inputs(
     step_dir.mkdir(parents=True, exist_ok=True)
 
     # Write step-input.json
+    # IMPORTANT: step_id and attempt must be last so they override any same-named
+    # keys inside `inputs`. For multi-page steps the inputs dict carries the
+    # canonical step-type id (e.g. "7.7") while the caller passes the page-
+    # specific id (e.g. "7.7_p1") as `step_id`. The file must record "7.7_p1"
+    # so that _has_pending_output can match it correctly on resume.
     input_file = step_dir / "step-input.json"
-    input_payload = {"step_id": step_id, "attempt": attempt, **inputs}
+    input_payload = {**inputs, "step_id": step_id, "attempt": attempt}
 
     with open(input_file, "w") as f:
         json.dump(input_payload, f, indent=2)
 
-    # Load and render instruction template
-    template = _load_instruction_template(step_id)
+    # Load and render instruction template (pass inputs so dynamic .py builders
+    # can select the right prompt variant, e.g. text_scan vs vision_confirmation).
+    template = _load_instruction_template(step_id, inputs)
     instructions = _render_template(template, inputs)
 
     # Write step-instructions.md
@@ -100,16 +108,59 @@ def read_agent_output(
     )
 
 
-def _load_instruction_template(step_id: str) -> str:
-    """Load instruction template for a step."""
-    # TODO: Load from instructions/ directory
-    template_path = Path(__file__).parent / "instructions" / f"step_{step_id.replace('.', '_')}.md"
+def _load_instruction_template(step_id: str, inputs: dict[str, Any] | None = None) -> str:
+    """Load instruction template for a step.
 
-    if template_path.exists():
-        with open(template_path) as f:
-            return f.read()
+    Handles three cases:
+    1. Static .md template (e.g. step_6_4.md) — loaded and returned directly.
+    2. Dynamic .py template (e.g. step_7_7.py) — module imported and appropriate
+       builder called based on ``inputs["phase"]``.
+    3. No template found — generic fallback placeholder returned.
 
-    # Return default template if specific one doesn't exist
+    For multi-page step IDs (e.g. "7.7_p1", "7.7_p2") the ``_p<N>`` suffix is
+    stripped before looking up the file, since all pages share one template.
+    """
+    instructions_dir = Path(__file__).parent / "instructions"
+
+    # Strip page/part suffix: "7.7_p1" -> "7.7", "7.7_p2" -> "7.7"
+    base_step_id = re.sub(r"_p\d+$", "", step_id)
+    file_stem = f"step_{base_step_id.replace('.', '_')}"
+
+    # 1. Try static .md template first.
+    md_path = instructions_dir / f"{file_stem}.md"
+    if md_path.exists():
+        return md_path.read_text(encoding="utf-8")
+
+    # 2. Try dynamic .py module.
+    py_path = instructions_dir / f"{file_stem}.py"
+    if py_path.exists():
+        spec = importlib.util.spec_from_file_location(file_stem, py_path)
+        if spec and spec.loader:
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)  # type: ignore[arg-type]
+
+            phase = (inputs or {}).get("phase", "")
+
+            # Dispatch to the right builder based on the declared phase.
+            if phase == "text_scan" and hasattr(module, "build_text_scan_prompt"):
+                extracted_text = (inputs or {}).get("extracted_text", "")
+                page_num = int((inputs or {}).get("page_number_1based", 1))
+                return module.build_text_scan_prompt(extracted_text, page_num)
+
+            if phase == "vision_confirmation" and hasattr(module, "build_vision_prompt"):
+                page_image = (inputs or {}).get("page_image", "")
+                text_context = (inputs or {}).get("text_context", "")
+                return module.build_vision_prompt(page_image, text_context)
+
+            # Generic fallback: call the first callable that looks like a builder.
+            for attr in dir(module):
+                if attr.startswith("build_") and callable(getattr(module, attr)):
+                    try:
+                        return getattr(module, attr)()
+                    except TypeError:
+                        pass
+
+    # 3. Generic fallback.
     return f"""# Step {step_id}
 
 Complete the task described in the input file and write output to step-output.json.

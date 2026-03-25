@@ -1,6 +1,7 @@
 """Contract loading and validation helpers."""
 
 import json
+import re
 from pathlib import Path
 from typing import Any, cast
 
@@ -45,7 +46,11 @@ class ContractValidator:
         if step_id in self._schema_cache:
             return self._schema_cache[step_id]
 
-        schema_file = self.schemas_dir / f"step_{step_id.replace('.', '_')}.schema.json"
+        # Multi-page steps use a page/part suffix (e.g. "7.7_p1", "7.7_p2").
+        # All pages of the same step share one schema, so strip the suffix before
+        # resolving the filename (e.g. "7.7_p1" -> "step_7_7.schema.json").
+        schema_step_id = re.sub(r"_p\d+$", "", step_id)
+        schema_file = self.schemas_dir / f"step_{schema_step_id.replace('.', '_')}.schema.json"
 
         if not schema_file.exists():
             raise FileNotFoundError(f"Schema file not found: {schema_file}")

@@ -68,7 +68,12 @@ class AgentStepRuntime:
             AgentStepError: If step execution fails
         """
         # Get step definition
-        step_def = self.registry.get(step_id)
+        # Handle dynamic step IDs for multi-page steps (e.g., 7.7_p1, 7.7_p2 map to 7.7)
+        registry_step_id = step_id
+        if step_id.startswith("7.7_p"):
+            registry_step_id = "7.7"
+
+        step_def = self.registry.get(registry_step_id)
         if not step_def:
             raise AgentStepError(
                 step_id=step_id, error=f"Unknown step: {step_id}", recovery="Check step_id is valid"
@@ -102,7 +107,7 @@ class AgentStepRuntime:
             step_dir=str(step_dir),
             recovery=(
                 "Write step-output.json in the step directory, then run "
-                f"gmkit pdf-convert --resume \"{self.workspace}\""
+                f'gmkit pdf-convert --resume "{self.workspace}"'
             ),
         )
 
@@ -185,9 +190,7 @@ class AgentStepRuntime:
             self._update_state(step_id, StepStatus.SKIPPED)
             return None, StepStatus.SKIPPED
 
-    def _update_state(
-        self, step_id: str, status: StepStatus, attempt: int | None = None
-    ) -> None:
+    def _update_state(self, step_id: str, status: StepStatus, attempt: int | None = None) -> None:
         """Update state file with current step status.
 
         Args:
@@ -252,9 +255,7 @@ class AgentStepRuntime:
         config = state.get("config", {})
         return bool(config.get("agent_debug", False))
 
-    def _normalize_rubric_scores(
-        self, step_id: str, envelope: AgentStepOutputEnvelope
-    ) -> None:
+    def _normalize_rubric_scores(self, step_id: str, envelope: AgentStepOutputEnvelope) -> None:
         """Normalize known rubric edge cases before evaluation."""
         if step_id != "7.7" or not envelope.rubric_scores:
             return
@@ -315,7 +316,14 @@ class AgentStepRuntime:
         if persisted_input.get("step_id") != step_id:
             return False
 
-        return all(persisted_input.get(key) == value for key, value in inputs.items())
+        # Compare all input keys except "step_id": the method argument `step_id` is
+        # already the authoritative identifier. For multi-page steps (e.g. 7.7_p1),
+        # the inputs dict carries the canonical step type id ("7.7") while the persisted
+        # file stores the page-specific id ("7.7_p1"), so comparing that key would
+        # always produce a false mismatch and cause an infinite re-pause loop.
+        return all(
+            persisted_input.get(key) == value for key, value in inputs.items() if key != "step_id"
+        )
 
     def _load_state(self) -> dict[str, Any]:
         """Load state from workspace when present."""

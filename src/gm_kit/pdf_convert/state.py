@@ -97,6 +97,8 @@ class ConversionState:
         error: Error details if status is FAILED
         diagnostics_enabled: Whether --diagnostics flag was set
         config: Additional CLI configuration options
+        agent_step_status: Optional agent-step lifecycle token (e.g., AWAITING_AGENT)
+        attempt: Optional agent-step attempt counter
     """
 
     pdf_path: str
@@ -112,6 +114,8 @@ class ConversionState:
     error: ErrorInfo | None = None
     diagnostics_enabled: bool = False
     config: dict[str, Any] = field(default_factory=dict)
+    agent_step_status: str | None = None
+    attempt: int | None = None
 
     def __post_init__(self) -> None:
         """Ensure paths are absolute."""
@@ -119,7 +123,12 @@ class ConversionState:
         self.output_dir = str(Path(self.output_dir).resolve())
         # Convert string status to enum if needed
         if isinstance(self.status, str):
-            self.status = ConversionStatus(self.status)
+            try:
+                self.status = ConversionStatus(self.status)
+            except ValueError:
+                # Backward compatibility: recover from historical agent-step
+                # statuses accidentally written into conversion status field.
+                self.status = ConversionStatus.IN_PROGRESS
 
     def update_timestamp(self) -> None:
         """Update the updated_at timestamp to now."""
@@ -183,6 +192,8 @@ class ConversionState:
             "error": self.error.to_dict() if self.error else None,
             "diagnostics_enabled": self.diagnostics_enabled,
             "config": self.config,
+            "agent_step_status": self.agent_step_status,
+            "attempt": self.attempt,
         }
 
     @classmethod
@@ -191,6 +202,13 @@ class ConversionState:
         error = None
         if data.get("error"):
             error = ErrorInfo.from_dict(data["error"])
+
+        status_raw = data.get("status", ConversionStatus.IN_PROGRESS.value)
+        try:
+            status = ConversionStatus(status_raw)
+        except ValueError:
+            # Recover corrupted state files that contain agent-step status tokens.
+            status = ConversionStatus.IN_PROGRESS
 
         return cls(
             version=data["version"],
@@ -202,10 +220,12 @@ class ConversionState:
             current_step=data["current_step"],
             completed_phases=data.get("completed_phases", []),
             phase_results=data.get("phase_results", []),
-            status=ConversionStatus(data["status"]),
+            status=status,
             error=error,
             diagnostics_enabled=data.get("diagnostics_enabled", False),
             config=data.get("config", {}),
+            agent_step_status=data.get("agent_step_status"),
+            attempt=data.get("attempt"),
         )
 
     @property
@@ -392,7 +412,7 @@ def validate_state_for_resume(state: ConversionState) -> list[str]:
     # Check step format
     import re
 
-    if not re.match(r"^\d+\.\d+$", state.current_step):
+    if not re.match(r"^\d+\.\d+(_p\d+)?$", state.current_step):
         errors.append(f"Invalid current_step format: {state.current_step}")
 
     # Check completed phases are valid and sorted
