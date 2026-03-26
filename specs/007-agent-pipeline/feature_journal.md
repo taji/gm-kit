@@ -2823,3 +2823,33 @@ Next Steps:
 5. Write README/contributor docs for private fixtures repo (E2-11 open item).
 
 Recorded by: opencode/claude-sonnet-4-6
+
+Session: 2026-03-26 - Session Close & PR Prep
+--------------------------------------------------------
+Branch: 007-agent-pipeline-implementation
+Date: 2026-03-26
+
+Work Completed:
+1. All changes from the main 2026-03-26 session committed and pushed to branch
+   in two commits (704cc0c, bebf4f6).
+2. Working tree is clean — no uncommitted changes.
+
+Current State:
+- Branch is ahead of prior commits; all quality gates green (593 unit + 39
+  integration + 1 parity).
+- Session ended before running the harness with the new Weapons table fixture —
+  table detection validation still pending.
+- A final review and tidy-up pass is planned before raising the PR.
+
+Next Steps:
+1. Final review session tomorrow:
+   - Run harness with new Weapons table fixture (opencode/gpt-5.1-codex) to
+     verify step 7.7 detects the Weapons table.
+   - Identify and tidy up anything that needs cleanup before PR.
+2. Submit PR from 007-agent-pipeline-implementation → master once review passes.
+3. After PR: implement slash command template pause/resume path guidance
+   (item 3 from parity checklist, deferred this session).
+4. After PR: finalize E2-10 (OpenCode auth for GitHub Actions harness CI).
+5. After PR: write README/contributor docs for private fixtures repo (E2-11).
+
+Recorded by: opencode/claude-sonnet-4-6
