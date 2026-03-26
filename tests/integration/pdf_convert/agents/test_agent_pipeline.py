@@ -65,6 +65,12 @@ class TestAgentPipelineIntegration:
                     "status": "success",
                     "data": {"toc_entries": ["Chapter One (page 4)"]},
                     "warnings": [],
+                    "rubric_scores": {
+                        "completeness": 5,
+                        "level_accuracy": 5,
+                        "page_accuracy": 5,
+                        "output_format": 5,
+                    },
                 }
             ),
             encoding="utf-8",
@@ -78,7 +84,7 @@ class TestAgentPipelineIntegration:
 
         state_json = json.loads((workspace / ".state.json").read_text(encoding="utf-8"))
         assert state_json["current_step"] == "3.2"
-        assert state_json["status"] == "COMPLETED"
+        assert state_json["agent_step_status"] == "COMPLETED"
 
     def test_handoff_7_7_to_8_7_to_9_5__should_produce_expected_artifacts(
         self, workspace: Path, monkeypatch: pytest.MonkeyPatch
@@ -110,7 +116,13 @@ class TestAgentPipelineIntegration:
                 {
                     "version": "1.0",
                     "signatures": [
-                        {"id": "sig001", "size": 14, "label": "H1", "family": "Times", "weight": 400}
+                        {
+                            "id": "sig001",
+                            "size": 14,
+                            "label": "H1",
+                            "family": "Times",
+                            "weight": 400,
+                        }
                     ],
                 }
             ),
@@ -125,8 +137,12 @@ class TestAgentPipelineIntegration:
             config={},
         )
 
-        def fake_execute_step(self: AgentStepRuntime, step_id: str, inputs: dict[str, Any], attempt: int = 1):
-            if step_id == "7.7":
+        def fake_execute_step(
+            self: AgentStepRuntime, step_id: str, inputs: dict[str, Any], attempt: int = 1
+        ):
+            # Normalise paged step IDs (e.g. 7.7_p1, 7.7_p2) to base ID for routing.
+            base_step_id = step_id.split("_p")[0] if "_p" in step_id else step_id
+            if base_step_id == "7.7":
                 if inputs.get("phase") == "text_scan":
                     if inputs.get("page_number_1based") == 2:
                         return (
@@ -136,7 +152,10 @@ class TestAgentPipelineIntegration:
                                 data={
                                     "tables_detected": True,
                                     "tables": [
-                                        {"table_id": "page_002_table_001", "text_context": "Head A Head B"}
+                                        {
+                                            "table_id": "page_002_table_001",
+                                            "text_context": "Head A Head B",
+                                        }
                                     ],
                                 },
                                 warnings=[],
@@ -162,7 +181,7 @@ class TestAgentPipelineIntegration:
                     StepStatus.COMPLETED,
                 )
 
-            if step_id == "8.7":
+            if base_step_id == "8.7":
                 return (
                     AgentStepOutputEnvelope(
                         step_id="8.7",
@@ -181,7 +200,7 @@ class TestAgentPipelineIntegration:
                     StepStatus.COMPLETED,
                 )
 
-            if step_id in {"9.2", "9.3", "9.4", "9.5", "9.7", "9.8"}:
+            if base_step_id in {"9.2", "9.3", "9.4", "9.5", "9.7", "9.8"}:
                 return (
                     AgentStepOutputEnvelope(
                         step_id=step_id,
@@ -192,7 +211,7 @@ class TestAgentPipelineIntegration:
                     StepStatus.COMPLETED,
                 )
 
-            raise AssertionError(f"Unexpected step call: {step_id}")
+            raise AssertionError(f"Unexpected step call: {step_id} (base: {base_step_id})")
 
         monkeypatch.setattr(AgentStepRuntime, "execute_step", fake_execute_step)
 

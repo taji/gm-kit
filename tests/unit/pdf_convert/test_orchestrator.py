@@ -939,6 +939,9 @@ class TestPhaseFailure:
         assert exit_code == ExitCode.SUCCESS
         captured = capsys.readouterr()
         assert "Paused for agent step 3.2" in captured.out
+        assert "Output File Checklist" in captured.out
+        assert "step-output.json" in captured.out
+        assert "exact absolute path" in captured.out
 
 
 class TestOutputDirectory:

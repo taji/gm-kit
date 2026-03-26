@@ -332,6 +332,11 @@ class Phase5(Phase):
     def _detect_footer_watermarks_from_config(self, output_dir: Path) -> set[str]:
         """Detect footer/watermark signatures from footer_config.json.
 
+        Only signatures with confidence "high" or "medium" are included.
+        Low-confidence footer signatures are skipped to avoid incorrectly
+        removing content that appears in multiple document contexts (e.g. a
+        font used for both instruction labels and table headers).
+
         Args:
             output_dir: Output directory for finding footer_config.json
 
@@ -346,13 +351,24 @@ class Phase5(Phase):
                 with open(footer_config_path, encoding="utf-8") as f:
                     footer_config = json.load(f)
 
+                # Watermarks and page numbers are always high-confidence — include all.
                 for sig in footer_config.get("watermark_signatures", []):
                     if sig_id := sig.get("sig_id"):
                         footer_watermark_signature_ids.add(sig_id)
                 for sig in footer_config.get("page_number_signatures", []):
                     if sig_id := sig.get("sig_id"):
                         footer_watermark_signature_ids.add(sig_id)
+
+                # Footer signatures: skip low-confidence entries.
+                # Low confidence means the signature appears in mixed positions
+                # and may also serve as legitimate content (e.g. table headers).
                 for sig in footer_config.get("footer_signatures", []):
+                    if sig.get("confidence", "high") == "low":
+                        logger.debug(
+                            f"Skipping low-confidence footer signature {sig.get('sig_id')!r} "
+                            f"(sample: {sig.get('sample')!r}) to avoid content loss"
+                        )
+                        continue
                     if sig_id := sig.get("sig_id"):
                         footer_watermark_signature_ids.add(sig_id)
             except Exception as e:

@@ -32,6 +32,12 @@ jobs:
         run: just download-test-fixtures
         working-directory: ${{ github.workspace }}
 
+      - name: Download private test fixtures
+        run: just download-private-fixtures
+        working-directory: ${{ github.workspace }}
+        env:
+          GH_TOKEN: ${{ secrets.FIXTURES_REPO_TOKEN }}
+
       - name: Install PowerShell (pwsh)
         run: |
           sudo apt-get update

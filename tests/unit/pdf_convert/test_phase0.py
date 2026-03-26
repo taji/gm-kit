@@ -71,7 +71,7 @@ def test_phase0__should_create_default_callout_config__when_not_provided(tmp_pat
     phase = Phase0()
     result = phase.execute(state)
 
-    expected_path = output_dir / "callout_config.json"
+    expected_path = output_dir / "callout-rules.input.json"
     assert result.status in (PhaseStatus.SUCCESS, PhaseStatus.WARNING)
     assert expected_path.exists()
     assert state.config["gm_callout_config_file"] == str(expected_path)

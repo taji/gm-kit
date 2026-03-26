@@ -299,8 +299,12 @@ class TestAgentStepRuntime:
         mock_write.return_value = step_dir
         runtime = AgentStepRuntime(str(tmp_path), agent_debug=True)
 
-        with pytest.raises(AgentStepPause):
+        with pytest.raises(AgentStepPause) as excinfo:
             runtime.execute_step(step_id="3.2", inputs={"test": "data"}, attempt=2)
+
+        assert "Output File Checklist" in excinfo.value.recovery
+        assert "step-output.json" in excinfo.value.recovery
+        assert str(step_dir.resolve()) in excinfo.value.recovery
 
         state = json.loads((tmp_path / ".state.json").read_text(encoding="utf-8"))
         assert state["current_step"] == "3.2"
@@ -349,7 +353,9 @@ class TestAgentStepRuntime:
 
         runtime = AgentStepRuntime(str(tmp_path))
         with patch.object(runtime.validator, "validate"):
-            envelope, status = runtime.execute_step(step_id="9.3", inputs={"test": "data"}, attempt=1)
+            envelope, status = runtime.execute_step(
+                step_id="9.3", inputs={"test": "data"}, attempt=1
+            )
 
         assert status.name == "COMPLETED"
         assert envelope is not None

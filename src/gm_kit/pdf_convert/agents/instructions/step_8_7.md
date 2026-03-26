@@ -53,7 +53,7 @@ Write to `step-output.json`:
     "markdown_validity": 5,
     "content_preservation": 5
   },
-  "warnings": []
+  "warnings": ["Merged-cell structure could not be represented exactly; markdown table uses flattened cells."]
 }
 ```
 

@@ -210,6 +210,68 @@ Success looks like: Optional CI job that validates slash command → agent → C
 
 Priority: LOW (nice-to-have after core features are stable)
 
+### E2-11. Private PDF Fixtures Repo & CI Integration **[TASK]**
+
+Task description:
+Set up a private GitHub repository (`gm-kit-fixtures`) to store copyrighted PDF test fixtures, wire it into CI via release asset download, and document the setup for developers.
+
+Scope:
+- Create private repo `<org>/gm-kit-fixtures` (owner action required)
+- Create a release tagged `v1` and upload these PDF assets (owner action required):
+  - `CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf`
+  - `Dungeon Module B2, The Keep on the Borderlands.pdf` (optional: already downloaded publicly)
+- Create a fine-grained PAT with `Contents: Read-only` access to `gm-kit-fixtures`
+- Add `FIXTURES_REPO_TOKEN` secret to the `gm-kit` repo Actions secrets
+- Update `tests/fixtures/pdf_convert/download_private_fixtures.sh`:
+  - Replace `your-org/gm-kit-fixtures` placeholder with actual repo name
+- Infrastructure already in place (pending owner action):
+  - `download_private_fixtures.sh` — download script using `gh release download`
+  - `just download-private-fixtures` — justfile task
+  - `ci.yml` — private fixture download step (gated on secret presence)
+
+Documentation required (update once repo is live):
+- `README.md`: add developer note explaining private fixtures repo, how to obtain access, and `just download-private-fixtures` command
+- `docs/user/user_guide.md` or `docs/team/`: add contributor setup instructions for local fixture download
+
+Open items:
+- None — secret is configured, `if` guard removed, infrastructure complete.
+
+Success looks like: CI runs `test_heading_signatures` and `test_cofc_fixture` against real PDFs on every PR, and developers can run `just download-private-fixtures` locally after obtaining access.
+
+### E2-10. Manual E2E Harness CI Workflow (OpenCode-only) **[TASK]**
+
+Task description:
+Add a manually-triggered GitHub Actions workflow (`end-to-end-harness.yml`) that runs the live handoff harness against a real PDF fixture using OpenCode as the agent. This enables reproducible regression runs across OpenCode models without changing code.
+
+Scope:
+- Add `.github/workflows/end-to-end-harness.yml`
+- Trigger: `workflow_dispatch` only (no PR or push trigger)
+- Hardcode `--agent opencode` — other agents are out of scope for this task
+- GitHub Actions `workflow_dispatch.inputs` GUI lets the user configure each run before launch:
+  - `model` (`choice`): selectable OpenCode model list, editable in YAML as new models become available
+  - `fixture_pdf` (`choice`): test PDF from `tests/fixtures/pdf_convert/`
+  - `max_pauses` (`string`): safety cap for pause cycles (default: 100)
+  - `gm_callout_config` (`string`, optional): path to callout rules JSON
+- Run `devtools/scripts/live_handoff_harness.sh` with selected inputs
+- Upload run artifacts as a GitHub Actions artifact bundle:
+  - `harness-console.log`
+  - `harness-trace.jsonl`
+  - `conversion.log`
+  - `.state.json`
+  - `.completion.json`
+  - `conversion-report.md`
+  - `*-final.md` (final converted document)
+
+Open questions (resolve during implementation):
+- **Auth secret TBD:** OpenCode authentication variable for GitHub Actions is not finalized. During implementation, define the exact secret name and provider (e.g., `OPENROUTER_API_KEY` vs `OPENCODE_API_KEY`), and add validation that the run fails fast with a clear message if the secret is missing rather than silently burning quota.
+
+Out of scope:
+- Other agents (Claude, Codex, Gemini, Qwen) — defer to a future task
+- Scheduled or PR-triggered runs
+- Cost guardrails beyond `max_pauses`
+
+Success looks like: User navigates to Actions → end-to-end-harness → Run workflow, selects a model and fixture, launches the run, and can download the artifact bundle to review logs and the final converted markdown after the run completes.
+
 ### ✅ E2-09. Agent & Model Capability Audit — Autonomous Pipeline Execution **[TASK, COMPLETED as specs/009-agent-audit/findings.md]**
 Status: COMPLETED (2026-02-24)
 
@@ -622,6 +684,8 @@ Design note — Phase 9 review interaction has two candidate flows to evaluate:
 2. **Checklist-based batch**: Agent generates `review-checklist.md` with all concerns, user annotates the file (approvals, corrections, notes), then agent processes all annotations in one pass. Better for users who want to review holistically before committing changes.
 
 These flows may coexist: the interactive flow for the default agent-driven path, and the checklist flow as an alternative for users who prefer batch review. The `review-checklist.md` output file could serve double duty — as both the batch-review input artifact and the post-conversion QA record.
+
+Additional UX note (Phase 10 report review): consider presenting total issue count first, then showing the top 3 prioritized issues with a "view more" option for full issue browsing.
 
 Success looks like: User can review agent findings, confirm or correct proposed changes, and have corrections applied to the final output.
 

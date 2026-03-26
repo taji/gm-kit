@@ -457,6 +457,10 @@ class Phase4(Phase):
             # Step 4.4: Merge chunks into single document
             marked_text = self._merge_pages(all_pages_text, result)
 
+            # Save phase output before agent step so the agent can edit this file in-place.
+            with open(output_md_path, "w", encoding="utf-8") as f:
+                f.write(marked_text)
+
             # Step 4.5: Resolve split sentences (AGENT STEP)
             try:
                 from gm_kit.pdf_convert.agents import AgentStepRuntime
@@ -506,10 +510,6 @@ class Phase4(Phase):
                         message=f"Agent step failed: {e}",
                     )
                 )
-
-            # Save output
-            with open(output_md_path, "w", encoding="utf-8") as f:
-                f.write(marked_text)
 
             result.output_file = str(output_md_path)
             doc.close()

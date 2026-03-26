@@ -40,7 +40,7 @@ Write metadata to `step-output.json`:
     "false_positive_rate": 5,
     "domain_term_preservation": 5
   },
-  "warnings": []
+  "warnings": ["Low confidence in 3 OCR text spans; left unchanged and recorded in data.flags."]
 }
 ```
 

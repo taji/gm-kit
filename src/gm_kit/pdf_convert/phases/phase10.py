@@ -135,7 +135,7 @@ PHASE_DETAILS: dict[int, dict[str, str]] = {
             " notes and read-aloud text as blockquotes;"
             " inserts image placeholders"
         ),
-        "outputs": ("*-phase8.md (final output, markers converted to headings)"),
+        "outputs": ("*-phase8.md → *-final.md (renamed in step 10.4a)"),
         "compare": (
             "Final *-phase8.md should have proper markdown"
             " headings replacing \u00absigXXX:text\u00bb markers;"
@@ -316,6 +316,30 @@ class Phase10(Phase):
                     )
                 )
 
+            # Step 10.4a: Rename *-phase8.md to *-final.md
+            phase8_path = output_dir / f"{pdf_name}-phase8.md"
+            final_path = output_dir / f"{pdf_name}-final.md"
+
+            if phase8_path.exists():
+                phase8_path.rename(final_path)
+                result.add_step(
+                    StepResult(
+                        step_id="10.4a",
+                        description="Rename phase8 output to final document",
+                        status=PhaseStatus.SUCCESS,
+                        message=f"Final document saved as {final_path.name}",
+                    )
+                )
+            else:
+                result.add_step(
+                    StepResult(
+                        step_id="10.4a",
+                        description="Rename phase8 output to final document",
+                        status=PhaseStatus.WARNING,
+                        message=f"{phase8_path.name} not found — final.md not created",
+                    )
+                )
+
             # Step 10.4: Generate conversion-report.md
             # Use the already-typed variables directly
             pdf_title_str = metadata.title if metadata else "Unknown"
@@ -424,7 +448,7 @@ class Phase10(Phase):
                 [
                     "## Output Files",
                     "",
-                    (f"- `{pdf_name}-phase8.md` - Final converted markdown"),
+                    (f"- `{pdf_name}-final.md` - Final converted markdown"),
                     ("- `font-family-mapping.json` - Font signature mapping"),
                     ("- `toc-extracted.txt` - Extracted table of contents"),
                     ("- `images/image-manifest.json` - Image positions"),

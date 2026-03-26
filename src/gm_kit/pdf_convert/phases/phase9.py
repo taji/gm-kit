@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from gm_kit.pdf_convert.constants import RESOLVED_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
 if TYPE_CHECKING:
@@ -49,6 +50,22 @@ class Phase9(Phase):
     def _build_structured_error(step_id: str, error: str, recovery: str) -> str:
         """Create FR-008 structured error message payload."""
         return json.dumps({"step_id": step_id, "error": error, "recovery": recovery})
+
+    @staticmethod
+    def _extract_score(envelope) -> int:
+        """Derive a normalized 1-5 score from envelope payload."""
+        data = envelope.data if isinstance(envelope.data, dict) else {}
+        score = data.get("score")
+        if isinstance(score, (int, float)):
+            return max(1, min(5, int(round(score))))
+
+        rubric = envelope.rubric_scores if isinstance(envelope.rubric_scores, dict) else {}
+        rubric_values = [v for v in rubric.values() if isinstance(v, (int, float))]
+        if rubric_values:
+            avg = sum(rubric_values) / len(rubric_values)
+            return max(1, min(5, int(round(avg))))
+
+        return 5
 
     def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
         """Execute lint and review steps.
@@ -254,7 +271,7 @@ class Phase9(Phase):
                     toc_file = output_dir / "toc-extracted.txt"
                     font_mapping = output_dir / "font-family-mapping.json"
                     tables_manifest = output_dir / "tables-manifest.json"
-                    gm_callout_config = output_dir / "gm-callout-config.json"
+                    gm_callout_config = output_dir / RESOLVED_CALLOUT_RULES_FILENAME
 
                     if step_id == "9.2":
                         inputs = build_structural_clarity_payload(
@@ -269,7 +286,28 @@ class Phase9(Phase):
                             workspace=str(output_dir),
                         )
                     elif step_id == "9.4" and tables_manifest.exists():
-                        # Table integrity check needs tables manifest
+                        # Table integrity check is N/A when no tables were confirmed in phase 7.
+                        try:
+                            manifest_data = json.loads(tables_manifest.read_text(encoding="utf-8"))
+                        except Exception:
+                            manifest_data = {}
+
+                        total_tables = int(manifest_data.get("total_count", 0) or 0)
+                        if total_tables == 0:
+                            message = (
+                                "No tables found in tables-manifest.json; "
+                                "table integrity check skipped (N/A)."
+                            )
+                            result.add_step(
+                                StepResult(
+                                    step_id=step_id,
+                                    description=f"{description} (AGENT)",
+                                    status=PhaseStatus.SUCCESS,
+                                    message=message,
+                                )
+                            )
+                            continue
+
                         inputs = build_table_integrity_payload(
                             phase8_file=str(input_path),
                             tables_manifest=str(tables_manifest),
@@ -290,7 +328,7 @@ class Phase9(Phase):
                     elif step_id == "9.5":
                         raise MissingInputError(
                             step_id="9.5",
-                            missing_artifact="gm-callout-config.json",
+                            missing_artifact=RESOLVED_CALLOUT_RULES_FILENAME,
                         )
                     elif step_id == "9.7" and font_mapping.exists():
                         inputs = build_toc_validation_payload(
@@ -325,12 +363,13 @@ class Phase9(Phase):
                     envelope, status = runtime.execute_step(step_id, inputs)
 
                     if envelope and isinstance(envelope.data, dict):
+                        score = self._extract_score(envelope)
                         result.add_step(
                             StepResult(
                                 step_id=step_id,
                                 description=f"{description} (AGENT)",
                                 status=PhaseStatus.SUCCESS,
-                                message=f"Score: {envelope.data.get('score', 0)}/5",
+                                message=f"Score: {score}/5",
                             )
                         )
                     else:

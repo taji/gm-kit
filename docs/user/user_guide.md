@@ -44,7 +44,7 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 - Resume: `gmkit pdf-convert --resume <output-dir>`
 - Status: `gmkit pdf-convert --status <output-dir>`
 - Diagnostics bundle: `gmkit pdf-convert <pdf-path> --output <output-dir> --diagnostics`
-- Callout config: `gmkit pdf-convert <pdf-path> --output <output-dir> --gm-callout-config-file callout_config.json`
+- Callout config: `gmkit pdf-convert <pdf-path> --output <output-dir> --gm-callout-config-file callout-rules.input.json`
 
 #### Key Outputs
 ```
@@ -53,7 +53,8 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ├── metadata.json
 ├── toc-extracted.txt
 ├── font-family-mapping.json
-├── callout_config.json
+├── callout-rules.input.json
+├── callout-rules.resolved.json
 ├── images/
 │   └── image-manifest.json
 ├── preprocessed/
@@ -67,7 +68,8 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ```
 
 Notes:
-- `callout_config.json` is created automatically if not provided; edit it before proceeding if you need custom callout boundaries.
+- `callout-rules.input.json` is created automatically if not provided; edit it before proceeding if you need custom callout boundaries.
+- `callout-rules.resolved.json` is the normalized rules artifact used by later phases.
 - `font-family-mapping.json` captures font signatures (family + size + weight + style) used for heading inference.
 - `diagnostic-bundle.zip` contains state, metadata, and phase outputs for troubleshooting.
 

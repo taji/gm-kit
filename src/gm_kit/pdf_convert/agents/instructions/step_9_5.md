@@ -33,15 +33,21 @@ Write to `step-output.json`:
   "status": "success",
   "data": {
     "callouts_checked": 12,
-    "issues": [],
-    "score": 5
+    "issues": [
+      {
+        "location": "page_8_callout_2",
+        "type": "boundary_mismatch",
+        "description": "Callout block starts correctly but extends one paragraph beyond the expected end marker."
+      }
+    ],
+    "score": 4
   },
   "rubric_scores": {
-    "detection_accuracy": 5,
-    "format_preservation": 5,
-    "boundary_correctness": 5
+    "detection_accuracy": 4,
+    "format_preservation": 4,
+    "boundary_correctness": 4
   },
-  "warnings": []
+  "warnings": ["One callout boundary appears ambiguous due to repeated end-marker text on the same page."]
 }
 ```
 

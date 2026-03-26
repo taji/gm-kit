@@ -47,7 +47,7 @@ Write to `step-output.json`:
     "dimension_coverage": 5,
     "score_consistency": 5
   },
-  "warnings": []
+  "warnings": ["One dimension score used a fallback estimate due to missing explicit score in an upstream step output."]
 }
 ```
 

@@ -2717,3 +2717,109 @@ Next Steps:
 4. Address pre-existing integration test failures (separate from this session's work).
 
 Recorded by: opencode/claude-sonnet-4-6
+
+Session: 2026-03-26 - Harness Hardening, Pipeline Fixes, Test Infrastructure
+--------------------------------------------------------
+Branch: 007-agent-pipeline
+Date: 2026-03-26
+
+Work Completed:
+1. Orchestrator/runtime pause message improvements
+   - `orchestrator.py`: pause console output now includes explicit absolute-path
+     checklist for step-output.json (matches harness behaviour).
+   - `runtime.py`: `AgentStepPause.recovery` string now includes absolute-path
+     checklist and resolved resume command.
+   - Unit tests extended to assert checklist content appears in both outputs.
+
+2. Harness console log improvements (`live_handoff_harness.py`)
+   - Added `_strip_ansi()` and `_prefix_lines()` helpers.
+   - `emit_output()` now accepts `source` tag (`GMKIT`, `AGENT`, `HARNESS`);
+     terminal output is emitted raw (colour preserved), log file gets ANSI-stripped
+     and source-prefixed output.
+   - 17 new unit tests in `tests/unit/test_live_handoff_harness.py`.
+
+3. Phase 10 final rename step (step 10.4a)
+   - `phase10.py`: added step 10.4a that renames `*-phase8.md` → `*-final.md`.
+   - `conversion-report.md` and `ARCHITECTURE.md` updated to reference `*-final.md`.
+   - Slash command template updated to reflect correct output directory structure.
+   - 4 new tests in `TestPhase10FinalRename`; 2 pre-existing tests updated to
+     create `*-phase8.md` fixture.
+
+4. Phase 5 low-confidence footer regression fix
+   - Root cause: `sig012` (Unnamed-T3, 9pt) was flagged as low-confidence footer
+     in `footer_config.json` by phase 3 heuristics. Phase 5 removed all its
+     markers, wiping table column headers `Head A / Head B / Head C`.
+   - Fix: `_detect_footer_watermarks_from_config()` now skips footer signatures
+     with `confidence: "low"`. Watermarks and page numbers always included.
+   - 6 regression tests in `TestFooterWatermarkConfidenceFiltering` including an
+     end-to-end test confirming headers survive phase 5.
+
+5. Test fixture updates
+   - Both Homebrewery fixtures updated with a real TTRPG Weapons table
+     (`Name / Damage / Range` with dice notation) to give step 7.7 strong
+     detection signals.
+   - `WithWeaponsTable.pdf` deleted (content merged into both fixtures).
+   - `NaturalCrit.pdf` TOC outline (23 entries) preserved via PyMuPDF injection.
+
+6. Integration test fixes (all 7 pre-existing failures resolved)
+   - `test_agent_pipeline.py`:
+     - Added correct `rubric_scores` fields to step 3.2 fixture.
+     - `fake_execute_step` normalises paged step IDs (`7.7_p1` → `7.7`).
+   - `runtime.py`: added `GMKIT_AGENT_STUB=1` env var — when set, `execute_step`
+     returns a stub success envelope without pausing (subprocess integration tests).
+   - `test_cli_full_pipeline.py`: added `stub_env` fixture; applied to 7 tests
+     that need full pipeline completion. Test suite: 593 unit + 39 integration
+     + 1 parity — all passing, 0 failures.
+
+7. E2E harness GitHub Actions workflow (`end-to-end-harness.yml`)
+   - New `workflow_dispatch` workflow for manual regression runs.
+   - Inputs: model (choice), fixture_pdf (choice), max_pauses, gm_callout_config.
+   - Hardcoded `--agent opencode`; model list editable in YAML.
+   - Uploads harness-console.log, harness-trace.jsonl, conversion.log,
+     .state.json, .completion.json, conversion-report.md, *-final.md as artifacts.
+   - Auth secret name TBD (E2-10).
+
+8. Private fixtures repo integration (E2-11)
+   - Private repo `taji/gm-kit-fixtures` created with release `v1.0.0`.
+   - `download_private_fixtures.sh`: downloads CoC and B2 PDFs from release
+     assets, renames from dot-separated → spaced local filenames.
+   - `just download-private-fixtures` task added to justfile.
+   - `ci.yml` updated to download private fixtures using `FIXTURES_REPO_TOKEN`
+     secret (confirmed working locally).
+   - `test_heading_signatures` and `test_cofc_fixture` now use `stub_env`.
+
+9. Feature journal renamed
+   - `feature-implementation-journal.txt` → `feature_journal.md` (AGENTS.md convention).
+
+10. BACKLOG.md additions
+    - E2-10: Manual E2E Harness CI Workflow (OpenCode-only)
+    - E2-11: Private PDF Fixtures Repo & CI Integration
+
+Key Decisions:
+- Low-confidence footer signatures must NOT be removed — they may serve dual roles
+  (instruction labels + table headers). Phase 3 confidence signal must be respected.
+- `GMKIT_AGENT_STUB=1` is the correct mechanism for subprocess-based integration tests;
+  monkeypatching is for in-process tests only.
+- Private PDF fixtures are stored as GitHub release assets (not committed) to avoid
+  copyright/binary-in-repo issues.
+- `*-final.md` rename belongs in phase 10 as a code step, not a harness concern.
+
+Current State:
+- All quality gates green: 593 unit + 39 integration + 1 parity passing.
+- Harness validated end-to-end with opencode/kimi-k2.5 and opencode/gpt-5.1-codex.
+- Codex run shows step 7.7 still not detecting the Weapons table (likelihood 20,
+  0 tables detected) — detection threshold / prompt tuning is the next gap.
+- Table headers (Head A/B/C) now survive phase 5 thanks to confidence fix, but
+  the Weapons table fixture should provide stronger signals on the next run.
+- E2-10 (harness CI) and E2-11 (private fixtures) backlog items are created;
+  E2-11 infrastructure is complete pending secret + docs.
+
+Next Steps:
+1. Run harness with new Weapons table fixture to verify step 7.7 detects the table.
+2. If detection still fails, tune step 7.7 prompt threshold (currently > 50).
+3. Implement slash command template pause/resume path guidance (item 3 from parity
+   checklist) — deferred this session.
+4. Finalize E2-10 once OpenCode auth flow for GitHub Actions is established.
+5. Write README/contributor docs for private fixtures repo (E2-11 open item).
+
+Recorded by: opencode/claude-sonnet-4-6

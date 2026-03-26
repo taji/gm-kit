@@ -46,7 +46,7 @@ Write to `step-output.json`:
     "confidence_flagging": 5,
     "threshold_adherence": 5
   },
-  "warnings": []
+  "warnings": ["Layout metadata was limited; reading-order confidence is based primarily on text-flow heuristics."]
 }
 ```
 

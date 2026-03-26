@@ -5,6 +5,7 @@ including pause/resume behavior and state management.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,12 @@ from .contracts import ContractValidator
 from .errors import AgentStepError, AgentStepPause, ContractViolation, RetryExhaustedError
 from .evaluator import evaluate_step_output
 from .registry import get_registry
+
+# When GMKIT_AGENT_STUB=1 is set in the environment, execute_step returns a
+# stub success envelope immediately instead of pausing.  This allows
+# subprocess-based integration tests to run the full CLI pipeline without a
+# real agent being present.
+_AGENT_STUB_ENV = "GMKIT_AGENT_STUB"
 
 
 class AgentStepRuntime:
@@ -79,6 +86,19 @@ class AgentStepRuntime:
                 step_id=step_id, error=f"Unknown step: {step_id}", recovery="Check step_id is valid"
             )
 
+        # Stub mode: return a canned success envelope without pausing.
+        # Activated by GMKIT_AGENT_STUB=1 env var for subprocess-based integration
+        # tests that need the full pipeline to complete without a real agent.
+        if os.environ.get(_AGENT_STUB_ENV) == "1":
+            stub_envelope = AgentStepOutputEnvelope(
+                step_id=step_id,
+                status="success",
+                data={"stub": True},
+                warnings=["Agent stub mode — output not real"],
+            )
+            self._update_state(step_id, StepStatus.COMPLETED, attempt)
+            return stub_envelope, StepStatus.COMPLETED
+
         # Resume path: if this step is already awaiting output and output exists,
         # consume it instead of re-writing handoff artifacts.
         if self._has_pending_output(step_id, inputs):
@@ -98,6 +118,9 @@ class AgentStepRuntime:
         step_dir = write_agent_inputs(
             step_id=step_id, workspace=self.workspace, inputs=inputs, attempt=attempt
         )
+        output_file = (step_dir / "step-output.json").resolve()
+        resolved_step_dir = step_dir.resolve()
+        resolved_workspace = Path(self.workspace).resolve()
 
         # Update state to AWAITING_AGENT and hand control back to caller.
         self._update_state(step_id, StepStatus.AWAITING_AGENT, attempt)
@@ -106,8 +129,11 @@ class AgentStepRuntime:
             step_id=step_id,
             step_dir=str(step_dir),
             recovery=(
-                "Write step-output.json in the step directory, then run "
-                f'gmkit pdf-convert --resume "{self.workspace}"'
+                "Output File Checklist:\n"
+                f"- Write `step-output.json` to this exact absolute path:\n  `{output_file}`\n"
+                f"- Keep it inside this step directory:\n  `{resolved_step_dir}/`\n"
+                "- Do not write to the workspace root or parent directories.\n"
+                f'- Then run: gmkit pdf-convert --resume "{resolved_workspace}"'
             ),
         )
 

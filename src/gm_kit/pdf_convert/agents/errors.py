@@ -54,3 +54,17 @@ class MissingInputError(AgentStepError):
             error=f"Required input artifact missing: {missing_artifact}",
             recovery=f"Re-run previous phase to generate {missing_artifact}",
         )
+
+
+class AgentStepPause(BaseException):
+    """Signal that execution is paused awaiting external agent output.
+
+    This intentionally inherits from BaseException so broad ``except Exception``
+    blocks in phase code do not swallow pause/resume handoff control flow.
+    """
+
+    def __init__(self, step_id: str, step_dir: str, recovery: str):
+        self.step_id = step_id
+        self.step_dir = step_dir
+        self.recovery = recovery
+        super().__init__(f"Step {step_id} awaiting external agent output")

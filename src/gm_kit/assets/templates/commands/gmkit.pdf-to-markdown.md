@@ -50,9 +50,8 @@ When this command is invoked:
 ## Expected Output
 
 **Files produced:**
-- Final markdown document with copyright notice
+- Final markdown document (renamed from phase8 output in step 10.4a)
 - Conversion report with quality ratings per section
-- Review checklist for manual verification
 
 **Directory structure:**
 ```
@@ -60,9 +59,9 @@ When this command is invoked:
 ├── .state.json           # Conversion state (for resume)
 ├── metadata.json         # Extracted PDF metadata
 ├── images/               # Extracted images
-├── <name>-final.md       # Final output
+├── <name>-final.md       # Final converted markdown (step 10.4a)
 ├── conversion-report.md  # Quality report
-└── review-checklist.md   # QA checklist
+└── .completion.json      # Completion metadata
 ```
 
 ## Error Handling

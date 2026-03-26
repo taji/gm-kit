@@ -2,7 +2,10 @@
 
 This module provides instruction builders for the two-pass table detection:
 1. Text scan: Identify likely table pages from extracted text
-2. Vision confirmation: Render page images and extract table bounding boxes
+2. Vision confirmation: Render images and extract table bounding boxes from PDF pages.
+
+Unlike other instruction files, this step is implemented in Python (not static
+Markdown) because prompt content is selected dynamically per pass.
 """
 
 

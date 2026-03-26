@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 
 import fitz  # PyMuPDF
 
+from gm_kit.pdf_convert.constants import RESOLVED_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
 if TYPE_CHECKING:
@@ -61,6 +62,12 @@ class Phase7(Phase):
             sig_id = match.group(1)
             content = match.group(2)
             yield sig_id, content
+
+    def _normalize_heading_text(self, text: str) -> str:
+        """Normalize heading text for TOC/content matching."""
+        normalized = re.sub(r"\s+", " ", text).strip().lower()
+        normalized = normalized.strip(" .:-\t\r\n")
+        return normalized
 
     def _detect_callout_by_boundary(
         self, state: ConversionState, start_text: str, end_text: str
@@ -150,15 +157,22 @@ class Phase7(Phase):
         toc_entries = []
         if toc_path.exists():
             with open(toc_path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
+                for raw_line in f:
+                    if not raw_line.strip():
+                        continue
+                    indent = len(raw_line) - len(raw_line.lstrip(" "))
+                    level = max(1, (indent // 2) + 1)
+                    line = raw_line.strip()
                     if line:
                         match = re.match(r"^(.*)\s*\(page\s*(\d+)\)$", line)
                         if match:
+                            title = match.group(1).strip()
                             toc_entries.append(
                                 {
-                                    "title": match.group(1).strip(),
+                                    "title": title,
                                     "page": int(match.group(2)),
+                                    "level": level,
+                                    "normalized_title": self._normalize_heading_text(title),
                                 }
                             )
 
@@ -171,6 +185,34 @@ class Phase7(Phase):
             )
         )
         return toc_entries
+
+    def _build_toc_signature_levels(
+        self, phase6_content: str, toc_entries: list[dict]
+    ) -> dict[str, int]:
+        """Map signature IDs to heading levels using exact TOC/content text matches."""
+        if not toc_entries:
+            return {}
+
+        toc_level_by_title: dict[str, int] = {}
+        for entry in toc_entries:
+            normalized = entry.get("normalized_title")
+            level = entry.get("level")
+            if not normalized or not isinstance(level, int):
+                continue
+            if normalized not in toc_level_by_title or level < toc_level_by_title[normalized]:
+                toc_level_by_title[normalized] = level
+
+        sig_levels: dict[str, int] = {}
+        for sig_id, content in self._extract_markers_from_text(phase6_content):
+            normalized_content = self._normalize_heading_text(content)
+            if not normalized_content:
+                continue
+            if normalized_content in toc_level_by_title:
+                level = toc_level_by_title[normalized_content]
+                if sig_id not in sig_levels or level < sig_levels[sig_id]:
+                    sig_levels[sig_id] = level
+
+        return sig_levels
 
     def _calculate_body_font_size(self, mapping: dict) -> float:
         """Calculate body font size from mapping signatures.
@@ -306,7 +348,7 @@ class Phase7(Phase):
         all_callout_texts_found_by_label: dict[str, list[str]],
         state: ConversionState,
         result: PhaseResult,
-    ) -> tuple[dict, dict, set]:
+    ) -> tuple[dict, dict, dict, set]:
         """Steps 7.3-7.6: Detect ALL CAPS, Title Case, GM notes, and read-aloud.
 
         Args:
@@ -318,7 +360,12 @@ class Phase7(Phase):
             result: Phase result for adding step info
 
         Returns:
-            Tuple of (all_caps_candidates, gm_note_signatures, read_aloud_signatures)
+            Tuple of (
+                all_caps_candidates,
+                title_case_candidates,
+                gm_note_signatures,
+                read_aloud_signatures,
+            )
         """
         all_caps_candidates: dict[str, list[str]] = {}
         title_case_candidates: dict[str, list[str]] = {}
@@ -396,7 +443,7 @@ class Phase7(Phase):
             )
         )
 
-        return all_caps_candidates, gm_note_signatures, read_aloud_signatures
+        return all_caps_candidates, title_case_candidates, gm_note_signatures, read_aloud_signatures
 
     def _detect_gm_note_label(
         self,
@@ -475,10 +522,53 @@ class Phase7(Phase):
 
         return False
 
-    def _assign_labels_to_signatures(
+    def _heading_label_from_level(self, level: int) -> str:
+        """Map numeric heading levels to label strings."""
+        return {1: "H1", 2: "H2", 3: "H3"}.get(level, "H4")
+
+    def _extract_confirmed_bbox(
+        self, vision_data: dict, requested_table_id: str
+    ) -> tuple[str, dict[str, int]] | None:
+        """Extract one confirmed table bbox from step 7.7 vision output.
+
+        Supports two response shapes:
+        1) {"bbox_pixels": {...}, "table_id": "..."}
+        2) {"tables": [{"table_id": "...", "bbox_pixels": {...}}, ...]}
+        """
+        if not vision_data:
+            return None
+
+        bbox = vision_data.get("bbox_pixels")
+        if isinstance(bbox, dict):
+            return str(vision_data.get("table_id") or requested_table_id), bbox
+
+        tables = vision_data.get("tables")
+        if isinstance(tables, list):
+            for table in tables:
+                if not isinstance(table, dict):
+                    continue
+                table_bbox = table.get("bbox_pixels")
+                if not isinstance(table_bbox, dict):
+                    continue
+                table_id = str(table.get("table_id") or requested_table_id)
+                if table_id == requested_table_id:
+                    return table_id, table_bbox
+            for table in tables:
+                if not isinstance(table, dict):
+                    continue
+                table_bbox = table.get("bbox_pixels")
+                if isinstance(table_bbox, dict):
+                    table_id = str(table.get("table_id") or requested_table_id)
+                    return table_id, table_bbox
+
+        return None
+
+    def _assign_labels_to_signatures(  # noqa: PLR0912, PLR0913
         self,
         mapping: dict,
+        toc_signature_levels: dict[str, int],
         all_caps_candidates: dict[str, list[str]],
+        title_case_candidates: dict[str, list[str]],
         gm_note_signatures: dict[str, str],
         read_aloud_signatures: set[str],
         body_font_size: float,
@@ -487,7 +577,9 @@ class Phase7(Phase):
 
         Args:
             mapping: Font family mapping to update
+            toc_signature_levels: Signature IDs mapped from TOC titles to heading levels
             all_caps_candidates: Detected ALL CAPS candidates
+            title_case_candidates: Detected Title Case candidates
             gm_note_signatures: Detected GM note signatures
             read_aloud_signatures: Detected read-aloud signatures
             body_font_size: Estimated body font size
@@ -506,9 +598,20 @@ class Phase7(Phase):
             font_size = sig.get("size", 0)
 
             # Assign heading labels
-            if not current_label and sig_id in all_caps_candidates:
+            if not current_label and sig_id in toc_signature_levels:
+                sig["label"] = self._heading_label_from_level(toc_signature_levels[sig_id])
+                updated_count += 1
+            elif not current_label and (
+                sig_id in all_caps_candidates or sig_id in title_case_candidates
+            ):
+                # With TOC guidance, only use heuristics for explicit heading candidates.
+                if toc_signature_levels and sig.get("candidate_heading") is False:
+                    continue
                 suggested_label = None
-                if font_size > body_font_size * 1.5:
+                suggested_level = sig.get("suggested_level")
+                if isinstance(suggested_level, int):
+                    suggested_label = self._heading_label_from_level(suggested_level)
+                elif font_size > body_font_size * 1.5:
                     suggested_label = "H2"
                 elif font_size > body_font_size:
                     suggested_label = "H3"
@@ -535,7 +638,9 @@ class Phase7(Phase):
     def _update_mapping_labels(  # noqa: PLR0913
         self,
         mapping: dict,
+        toc_signature_levels: dict[str, int],
         all_caps_candidates: dict[str, list[str]],
+        title_case_candidates: dict[str, list[str]],
         gm_note_signatures: dict[str, str],
         read_aloud_signatures: set[str],
         body_font_size: float,
@@ -545,7 +650,9 @@ class Phase7(Phase):
 
         Args:
             mapping: Font family mapping to update
+            toc_signature_levels: Signature IDs mapped from TOC titles to heading levels
             all_caps_candidates: Detected ALL CAPS candidates
+            title_case_candidates: Detected Title Case candidates
             gm_note_signatures: Detected GM note signatures
             read_aloud_signatures: Detected read-aloud signatures
             body_font_size: Estimated body font size
@@ -555,7 +662,13 @@ class Phase7(Phase):
             Number of updated signatures
         """
         updated_count = self._assign_labels_to_signatures(
-            mapping, all_caps_candidates, gm_note_signatures, read_aloud_signatures, body_font_size
+            mapping,
+            toc_signature_levels,
+            all_caps_candidates,
+            title_case_candidates,
+            gm_note_signatures,
+            read_aloud_signatures,
+            body_font_size,
         )
 
         if self._ensure_single_h1(mapping):
@@ -580,6 +693,9 @@ class Phase7(Phase):
             output_dir: Output directory for workspace
             pdf_path: Path to source PDF for page rendering
         """
+        total_tables_detected = 0
+        all_detected_tables: list[dict] = []
+
         # Step 7.7: Detect table structures (AGENT STEP)
         try:
             from gm_kit.pdf_convert.agents import AgentStepRuntime
@@ -593,8 +709,6 @@ class Phase7(Phase):
 
             # Extract text from each page and run table detection
             doc = fitz.open(pdf_path)
-            total_tables_detected = 0
-            all_detected_tables = []
 
             try:
                 last_envelope = None
@@ -602,7 +716,8 @@ class Phase7(Phase):
                     page = doc.load_page(page_num)
                     extracted_text = str(page.get_text())
 
-                    # Build text scan payload
+                    # Build text scan payload with unique step_id per page
+                    page_step_id = f"7.7_p{page_num + 1}"
                     inputs = build_step_7_7_input_payload(
                         pdf_path=pdf_path,
                         page_num=page_num,
@@ -610,8 +725,8 @@ class Phase7(Phase):
                         workspace=str(output_dir),
                     )
 
-                    # Execute text scan phase
-                    envelope, _status = runtime.execute_step("7.7", inputs)
+                    # Execute text scan phase with unique step_id
+                    envelope, _status = runtime.execute_step(page_step_id, inputs)
                     last_envelope = envelope
 
                     if envelope and envelope.data.get("tables_detected"):
@@ -634,31 +749,28 @@ class Phase7(Phase):
                             workspace=str(output_dir),
                         )
 
-                        # Execute vision confirmation for each table
-                        for vision_inputs in vision_payloads:
-                            vision_envelope, _ = runtime.execute_step("7.7", vision_inputs)
-                            if vision_envelope and vision_envelope.data.get("bbox_pixels"):
+                        # Execute vision confirmation for each table with unique step_id
+                        for table_idx, vision_inputs in enumerate(vision_payloads):
+                            vision_step_id = f"7.7_p{page_num + 1}_t{table_idx + 1}"
+                            vision_envelope, _ = runtime.execute_step(vision_step_id, vision_inputs)
+                            if not vision_envelope:
+                                continue
+                            extracted = self._extract_confirmed_bbox(
+                                vision_envelope.data, vision_inputs["table_id"]
+                            )
+                            if extracted:
+                                table_id, bbox_pixels = extracted
                                 all_detected_tables.append(
                                     {
-                                        "table_id": vision_inputs["table_id"],
+                                        "table_id": table_id,
                                         "page_number_1based": page_num + 1,
-                                        "bbox_pixels": vision_envelope.data["bbox_pixels"],
+                                        "bbox_pixels": bbox_pixels,
                                         "page_image": str(page_image_path),
                                     }
                                 )
                                 total_tables_detected += 1
 
-                # Persist manifest for downstream steps even when no tables are found.
-                tables_manifest_path = output_dir / "tables-manifest.json"
-                with open(tables_manifest_path, "w", encoding="utf-8") as f:
-                    json.dump(
-                        {
-                            "tables": all_detected_tables,
-                            "total_count": total_tables_detected,
-                        },
-                        f,
-                        indent=2,
-                    )
+                self._write_tables_manifest(output_dir, all_detected_tables, total_tables_detected)
 
                 if last_envelope:
                     result.add_step(
@@ -667,8 +779,7 @@ class Phase7(Phase):
                             description="Detect table structures (AGENT)",
                             status=PhaseStatus.SUCCESS,
                             message=(
-                                f"Detected {total_tables_detected} table(s) "
-                                f"across {len(doc)} pages"
+                                f"Detected {total_tables_detected} table(s) across {len(doc)} pages"
                             ),
                         )
                     )
@@ -687,6 +798,8 @@ class Phase7(Phase):
 
         except Exception as e:
             logger.warning(f"Step 7.7 failed: {e}")
+            # Keep downstream phases deterministic even when 7.7 fails.
+            self._write_tables_manifest(output_dir, all_detected_tables, total_tables_detected)
             result.add_step(
                 StepResult(
                     step_id="7.7",
@@ -715,6 +828,8 @@ class Phase7(Phase):
                 message="Stub: User step will be implemented in E4-07c",
             )
         )
+
+        # Step 7.11: Capture user corrections (USER STEP)
         result.add_step(
             StepResult(
                 step_id="7.11",
@@ -723,6 +838,14 @@ class Phase7(Phase):
                 message="Stub: User step will be implemented in E4-07c",
             )
         )
+
+    def _write_tables_manifest(
+        self, output_dir: Path, detected_tables: list[dict], total_count: int
+    ) -> None:
+        """Persist tables-manifest.json for downstream phases."""
+        tables_manifest_path = output_dir / "tables-manifest.json"
+        with open(tables_manifest_path, "w", encoding="utf-8") as f:
+            json.dump({"tables": detected_tables, "total_count": total_count}, f, indent=2)
 
     def execute(self, state: ConversionState) -> PhaseResult:
         """Execute structural detection steps.
@@ -757,20 +880,26 @@ class Phase7(Phase):
                 phase6_content = f.read()
 
             # Step 7.1: Load TOC entries
-            self._load_toc_entries(output_dir, result)
+            toc_entries = self._load_toc_entries(output_dir, result)
+            toc_signature_levels = self._build_toc_signature_levels(phase6_content, toc_entries)
 
             # Calculate body font size
             body_font_size = self._calculate_body_font_size(mapping)
 
             # Load callout config and detect callouts
             callout_definitions = self._load_callout_config(state, result)
-            gm_callout_config_path = output_dir / "gm-callout-config.json"
+            gm_callout_config_path = output_dir / RESOLVED_CALLOUT_RULES_FILENAME
             with open(gm_callout_config_path, "w", encoding="utf-8") as f:
                 json.dump(callout_definitions, f, indent=2)
             all_callout_texts = self._detect_callouts_from_config(state, callout_definitions)
 
             # Steps 7.3-7.6: Detect content types
-            all_caps_candidates, gm_note_sigs, read_aloud_sigs = self._detect_content_types(
+            (
+                all_caps_candidates,
+                title_case_candidates,
+                gm_note_sigs,
+                read_aloud_sigs,
+            ) = self._detect_content_types(
                 phase6_content,
                 mapping,
                 body_font_size,
@@ -786,7 +915,9 @@ class Phase7(Phase):
             # Step 7.9: Update mapping with labels
             self._update_mapping_labels(
                 mapping,
+                toc_signature_levels,
                 all_caps_candidates,
+                title_case_candidates,
                 gm_note_sigs,
                 read_aloud_sigs,
                 body_font_size,

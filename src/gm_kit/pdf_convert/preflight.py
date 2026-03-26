@@ -13,6 +13,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.table import Table
 
+from gm_kit.pdf_convert.constants import DEFAULT_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata
 
 logger = logging.getLogger(__name__)
@@ -213,7 +214,10 @@ def analyze_pdf(pdf_path: Path) -> PreflightReport:
     if overall_complexity == Complexity.HIGH:
         warnings.append("Complex document - expect more user involvement")
     if toc_approach == TOCApproach.NONE:
-        warnings.append("No TOC found - hierarchy may be incomplete")
+        warnings.append(
+            "No TOC detected - markdown heading structure may not align with the PDF; "
+            "manual heading corrections may be required"
+        )
 
     return PreflightReport(
         pdf_name=pdf_path.name,
@@ -366,7 +370,7 @@ def prompt_user_confirmation(
     if gm_callout_config_file_path:
         console.print(
             "  [bold yellow]R[/bold yellow]) Resume after editing"
-            " callout_config.json (or any other prep work)"
+            f" {DEFAULT_CALLOUT_RULES_FILENAME} (or any other prep work)"
         )
     console.print()
 

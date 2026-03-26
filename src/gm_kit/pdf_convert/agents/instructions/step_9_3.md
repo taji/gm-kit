@@ -38,15 +38,21 @@ Write to `step-output.json`:
   "step_id": "9.3",
   "status": "success",
   "data": {
-    "flow_issues": [],
-    "readability_score": 5
+    "flow_issues": [
+      {
+        "location": "page_12_paragraph_3",
+        "type": "column_order_mix",
+        "description": "Sentence order appears to jump from right column back to left column."
+      }
+    ],
+    "readability_score": 4
   },
   "rubric_scores": {
-    "reading_order": 5,
-    "paragraph_integrity": 5,
-    "flow_continuity": 5
+    "reading_order": 4,
+    "paragraph_integrity": 4,
+    "flow_continuity": 4
   },
-  "warnings": []
+  "warnings": ["Detected probable page-break noise near page_12_paragraph_3; issue may be layout-induced."]
 }
 ```
 

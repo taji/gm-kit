@@ -43,7 +43,13 @@ Write to `step-output.json`:
         "note": "possible false positive - font-inferred heading"
       }
     ],
-    "duplicates": [],
+    "duplicates": [
+      {
+        "title": "Appendix A",
+        "locations": ["toc_line_42", "toc_line_57"],
+        "note": "Duplicate TOC entry appears twice at the same heading level."
+      }
+    ],
     "suggestions": [
       "Verify 'Appendix A' is correctly labeled as H2"
     ],

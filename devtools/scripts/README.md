@@ -94,3 +94,42 @@ bash devtools/scripts/pdf_convert_agent_handoff_loop.sh \
 Notes:
 - Defaults: `--agent codex`, `--codex-sandbox workspace-write`, `--max-pauses 100`.
 - For broad filesystem access during debugging, set `--codex-sandbox danger-full-access`.
+
+## `live_handoff_harness.py` + `live_handoff_harness.sh`
+
+Structured end-to-end live handoff harness for `gmkit pdf-convert`. This wraps the same pause/resume loop but also writes JSONL trace events and enforces handoff invariants (state/artifact/contract checks at each pause).
+The harness sanitizes step instructions so the agent writes `step-output.json` only; resume is always executed by the harness (prevents double-resume loops).
+
+Supported agents: codex (default), opencode, claude, gemini, qwen.
+
+Run via shell wrapper:
+
+```bash
+bash devtools/scripts/live_handoff_harness.sh \
+  --pdf "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" \
+  --output-dir "./tmp/sc004-harness" \
+  --gm-callout-config-file "./tmp/sc004-callout-rules.input.json"
+```
+
+Resume:
+
+```bash
+bash devtools/scripts/live_handoff_harness.sh \
+  --resume \
+  --output-dir "./tmp/sc004-harness"
+```
+
+Trace output:
+- Default: `<output-dir>/harness-trace.jsonl`
+- Override: `--trace-file <path>`
+- Console log (gmkit + agent stdout/stderr): default `<output-dir>/harness-console.log`, override with `--console-log-file <path>`
+
+Useful options:
+- `--agent codex|opencode|claude|gemini|qwen` (default: codex)
+- `--model <model-name>` (agent-specific model selection, e.g., `gemini-2.5-flash`, `claude-sonnet-4`, `gpt-5.3-codex`)
+- `--codex-sandbox workspace-write|danger-full-access|read-only` (codex only)
+- `--max-pauses <n>`
+
+Timing:
+- Trace events include command durations (`duration_sec`) for gmkit and per-agent step invocations.
+- Final `run_complete` event includes `phase_timings` derived from `.state.json` phase `started_at` / `completed_at`.

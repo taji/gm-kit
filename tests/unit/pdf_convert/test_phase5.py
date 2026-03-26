@@ -1,9 +1,11 @@
 """Unit tests for Phase 5 backtick-wrapping of markdown-sensitive characters."""
 
+import json
+
 import pytest
 
 from gm_kit.pdf_convert.phases.base import PhaseStatus
-from gm_kit.pdf_convert.phases.phase5 import _wrap_inner_content, _wrap_md_sensitive_chars
+from gm_kit.pdf_convert.phases.phase5 import Phase5, _wrap_inner_content, _wrap_md_sensitive_chars
 from gm_kit.pdf_convert.state import ConversionState
 
 
@@ -147,3 +149,147 @@ class TestNormalizeLineBreaks:
         assert "\n\n" in output
         non_empty = [line for line in output.split("\n") if line.strip()]
         assert len(non_empty) == 2
+
+
+class TestFooterWatermarkConfidenceFiltering:
+    """Regression tests for low-confidence footer signature filtering (phase5 step 5.1.4).
+
+    Root cause: sig012 (Unnamed-T3, 9pt) was used as both print-instruction labels
+    AND as table column headers in the Homebrewery fixture. Phase 3 correctly flagged
+    it as a footer with confidence='low' (mixed position). Phase 5 was removing it
+    anyway, wiping table headers Head A/B/C from the output.
+    Fix: _detect_footer_watermarks_from_config now skips low-confidence footer sigs.
+    """
+
+    def _make_footer_config(self, tmp_path, footer_signatures):
+        cfg = {
+            "watermark_signatures": [],
+            "page_number_signatures": [],
+            "footer_signatures": footer_signatures,
+        }
+        path = tmp_path / "footer_config.json"
+        path.write_text(json.dumps(cfg), encoding="utf-8")
+        return path
+
+    def test__should_skip_low_confidence_footer_sig__when_confidence_is_low(self, tmp_path):
+        """Low-confidence footer signatures must NOT be added to the removal set."""
+        self._make_footer_config(
+            tmp_path,
+            [
+                {
+                    "sig_id": "sig012",
+                    "sample": "Destination",
+                    "position": "mixed",
+                    "confidence": "low",
+                }
+            ],
+        )
+        phase = Phase5()
+        result = phase._detect_footer_watermarks_from_config(tmp_path)
+        assert "sig012" not in result
+
+    def test__should_include_medium_confidence_footer_sig__when_confidence_is_medium(
+        self, tmp_path
+    ):
+        """Medium-confidence footer signatures should be included."""
+        self._make_footer_config(
+            tmp_path,
+            [{"sig_id": "sig015", "sample": "PART", "position": "bottom", "confidence": "medium"}],
+        )
+        phase = Phase5()
+        result = phase._detect_footer_watermarks_from_config(tmp_path)
+        assert "sig015" in result
+
+    def test__should_include_high_confidence_footer_sig__when_confidence_is_high(self, tmp_path):
+        """High-confidence footer signatures should be included."""
+        self._make_footer_config(
+            tmp_path,
+            [
+                {
+                    "sig_id": "sig009",
+                    "sample": "footer text",
+                    "position": "bottom",
+                    "confidence": "high",
+                }
+            ],
+        )
+        phase = Phase5()
+        result = phase._detect_footer_watermarks_from_config(tmp_path)
+        assert "sig009" in result
+
+    def test__should_default_to_include__when_confidence_field_missing(self, tmp_path):
+        """A footer sig with no confidence field should be included (safe default)."""
+        self._make_footer_config(
+            tmp_path,
+            [{"sig_id": "sig020", "sample": "no confidence"}],
+        )
+        phase = Phase5()
+        result = phase._detect_footer_watermarks_from_config(tmp_path)
+        assert "sig020" in result
+
+    def test__should_always_include_watermark_sigs__regardless_of_category(self, tmp_path):
+        """Watermark signatures (always high) must never be filtered out."""
+        cfg = {
+            "watermark_signatures": [{"sig_id": "sig013", "sample": "→", "confidence": "high"}],
+            "page_number_signatures": [],
+            "footer_signatures": [],
+        }
+        (tmp_path / "footer_config.json").write_text(json.dumps(cfg), encoding="utf-8")
+        phase = Phase5()
+        result = phase._detect_footer_watermarks_from_config(tmp_path)
+        assert "sig013" in result
+
+    def test__should_preserve_table_headers__when_sig_is_low_confidence_footer(self, tmp_path):
+        """End-to-end: table header markers survive phase 5 when sig is low-confidence.
+
+        Reproduces the Homebrewery regression: sig012 was removed by step 5.1.4 because
+        it was flagged as a low-confidence footer, wiping 'Head A', 'Head B', 'Head C'.
+        """
+        self._make_footer_config(
+            tmp_path,
+            [
+                {
+                    "sig_id": "sig012",
+                    "sample": "Destination",
+                    "position": "mixed",
+                    "confidence": "low",
+                }
+            ],
+        )
+        # Also write a minimal font-family-mapping.json so phase5 doesn't fail on load
+        fmapping = {
+            "version": "1.0",
+            "signatures": [
+                {
+                    "id": "sig012",
+                    "family": "Unnamed-T3",
+                    "size": 9.0,
+                    "weight": "normal",
+                    "style": "normal",
+                    "label": None,
+                    "candidate_heading": False,
+                    "samples": ["Destination"],
+                },
+            ],
+        }
+        (tmp_path / "font-family-mapping.json").write_text(json.dumps(fmapping), encoding="utf-8")
+
+        content = "«sig012:Head A»\n«sig012:Head B»\n«sig012:Head C»\n«sig012:1A»\n«sig012:2A»\n"
+        # Phase5 derives filenames from the PDF stem: dummy-phase4.md → dummy-phase5.md
+        (tmp_path / "dummy-phase4.md").write_text(content, encoding="utf-8")
+
+        state = ConversionState(
+            pdf_path=str(tmp_path / "dummy.pdf"),
+            output_dir=str(tmp_path),
+        )
+
+        phase = Phase5()
+        phase.execute(state)
+
+        phase5_output = tmp_path / "dummy-phase5.md"
+        assert phase5_output.exists(), "phase5 output file not created"
+        output_text = phase5_output.read_text(encoding="utf-8")
+
+        assert "Head A" in output_text, "Table header 'Head A' was incorrectly removed"
+        assert "Head B" in output_text, "Table header 'Head B' was incorrectly removed"
+        assert "Head C" in output_text, "Table header 'Head C' was incorrectly removed"

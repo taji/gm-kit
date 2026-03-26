@@ -17,6 +17,7 @@ class AgentConfigDict(TypedDict, total=False):
     cli: str
     args: list[str]
     supports_stdin: bool
+    uses_stdin_input: bool
     suppress_output: bool
 
 
@@ -30,7 +31,8 @@ AGENT_DISPATCH_TABLE: dict[str, AgentConfigDict] = {
     "codex": {
         "cli": "codex",
         "args": ["exec", "--full-auto", "-s", "workspace-write"],
-        "supports_stdin": False,
+        "supports_stdin": True,
+        "uses_stdin_input": True,
         "suppress_output": True,
     },
     "opencode": {
@@ -55,6 +57,7 @@ AGENT_DISPATCH_TABLE: dict[str, AgentConfigDict] = {
 CI_TESTED_AGENTS = ["claude", "codex", "opencode"]
 
 DEFAULT_AGENT = "codex"
+DEFAULT_AGENT_TIMEOUT_SEC = 300
 
 
 class AgentDispatchError(Exception):
@@ -119,12 +122,11 @@ def build_agent_command(prompt: str, workspace: str, agent_name: str | None = No
     args = cast(list[str], config["args"])
     cmd: list[str] = [str(config["cli"]), *args]
 
-    # Add prompt
-    if config.get("supports_stdin", False):
-        # Agent supports stdin prompt
-        cmd.append(prompt)
+    # Add prompt transport mode
+    if config.get("uses_stdin_input", False):
+        # Codex supports "-" to read prompt from stdin.
+        cmd.append("-")
     else:
-        # Agent needs prompt as argument
         cmd.append(prompt)
 
     return cmd
@@ -155,6 +157,12 @@ def invoke_agent(
     cmd = build_agent_command(prompt, workspace, agent_name)
 
     suppress_output = config.get("suppress_output", False)
+    use_stdin_input = config.get("uses_stdin_input", False)
+    timeout_raw = os.environ.get("GM_AGENT_TIMEOUT_SEC", str(DEFAULT_AGENT_TIMEOUT_SEC))
+    try:
+        timeout_seconds = max(1, int(timeout_raw))
+    except ValueError:
+        timeout_seconds = DEFAULT_AGENT_TIMEOUT_SEC
 
     try:
         # Always execute with argv list (never shell command strings) to keep
@@ -164,7 +172,8 @@ def invoke_agent(
                 cmd,
                 cwd=workspace,
                 text=True,
-                timeout=300,
+                timeout=timeout_seconds,
+                input=prompt if use_stdin_input else None,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -174,7 +183,8 @@ def invoke_agent(
                 cwd=workspace,
                 capture_output=capture_output,
                 text=True,
-                timeout=300,
+                timeout=timeout_seconds,
+                input=prompt if use_stdin_input else None,
             )
 
         return result
@@ -184,7 +194,9 @@ def invoke_agent(
             f"Agent CLI '{config['cli']}' not found. Please install {agent_name} CLI."
         ) from e
     except subprocess.TimeoutExpired as e:
-        raise AgentDispatchError("Agent invocation timed out after 5 minutes") from e
+        raise AgentDispatchError(
+            f"Agent invocation timed out after {timeout_seconds} seconds"
+        ) from e
     except Exception as e:
         raise AgentDispatchError(f"Failed to invoke agent: {e}") from e
 

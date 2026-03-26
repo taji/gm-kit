@@ -95,6 +95,15 @@ class TestConversionState:
         )
         assert state.status == ConversionStatus.COMPLETED
 
+    def test_conversion_state__should_recover_status__when_agent_step_token_in_status(self, tmp_path):
+        """Unknown status tokens fall back to in-progress for backward compatibility."""
+        state = ConversionState(
+            pdf_path=str(tmp_path / "test.pdf"),
+            output_dir=str(tmp_path),
+            status="AWAITING_AGENT",
+        )
+        assert state.status == ConversionStatus.IN_PROGRESS
+
     def test_conversion_state__should_update_phase__when_set_current_phase_called(self, tmp_path):
         """set_current_phase updates phase and step."""
         state = ConversionState(
@@ -202,6 +211,30 @@ class TestConversionState:
         assert restored.completed_phases == original.completed_phases
         assert restored.diagnostics_enabled == original.diagnostics_enabled
         assert restored.config == original.config
+
+    def test_conversion_state__should_recover_from_dict__when_agent_step_token_in_status(
+        self, tmp_path
+    ):
+        """from_dict recovers corrupted status values from old runtime behavior."""
+        data = {
+            "version": SCHEMA_VERSION,
+            "pdf_path": str(tmp_path / "test.pdf"),
+            "output_dir": str(tmp_path),
+            "started_at": "2026-03-13T00:00:00",
+            "updated_at": "2026-03-13T00:00:01",
+            "current_phase": 4,
+            "current_step": "4.5",
+            "completed_phases": [0, 1, 2, 3],
+            "phase_results": [],
+            "status": "AWAITING_AGENT",
+            "error": None,
+            "diagnostics_enabled": False,
+            "config": {},
+        }
+
+        restored = ConversionState.from_dict(data)
+
+        assert restored.status == ConversionStatus.IN_PROGRESS
 
     def test_conversion_state__should_include_error_in_dict__when_error_present(self, tmp_path):
         """to_dict includes error when present."""

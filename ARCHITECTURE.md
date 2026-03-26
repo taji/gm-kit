@@ -106,7 +106,7 @@ User prompts use fixed-width, plain-text layouts with lettered choices for broad
 | 7 | Font Label Assignment | Updated font-family-mapping.json | Detect headings, callouts, structure |
 | 8 | Heading Insertion | *-phase8.md | Apply markdown formatting based on labels |
 | 9 | Lint & Final Review | (quality report) | Markdown linting via pymarkdownlnt |
-| 10 | Report Generation | conversion-report.md | Generate conversion summary |
+| 10 | Report Generation | *-final.md, conversion-report.md | Rename phase8 output to final, generate summary |
 
 ### Core Components
 

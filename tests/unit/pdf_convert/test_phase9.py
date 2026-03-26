@@ -17,7 +17,7 @@ from gm_kit.pdf_convert.state import ConversionState
 def _write_required_quality_artifacts(output_dir):
     """Create required artifacts so high-critical quality steps can execute."""
     (output_dir / "tables-manifest.json").write_text(json.dumps({"tables": [], "total_count": 0}))
-    (output_dir / "gm-callout-config.json").write_text(json.dumps([]))
+    (output_dir / "callout-rules.resolved.json").write_text(json.dumps([]))
     (output_dir / "font-family-mapping.json").write_text(
         json.dumps({"version": "1.0", "signatures": []})
     )
@@ -155,7 +155,8 @@ class TestPhase9AgentSteps:
 
         step = [s for s in result.steps if s.step_id == "9.4"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "AGENT" in step.description
+        assert "No tables found" in (step.message or "")
+        assert "skipped (N/A)" in (step.message or "")
 
     def test__should_report_agent_step_9_5_status(self, setup_phase9):
         """Test step 9.5 callout formatting check status."""
@@ -183,6 +184,34 @@ class TestPhase9AgentSteps:
         step = [s for s in result.steps if s.step_id == "9.8"][0]
         assert step.status == PhaseStatus.SUCCESS
         assert "AGENT" in step.description
+
+    def test__should_fallback_score_from_rubric__when_data_score_missing(
+        self, setup_phase9, mock_agent_step_runtime
+    ):
+        """When data.score is absent, score message should use rubric average."""
+        phase, state = setup_phase9
+        runtime = mock_agent_step_runtime.return_value
+
+        def _execute(step_id, _inputs):
+            envelope = MagicMock()
+            if step_id == "9.3":
+                envelope.data = {"flow_issues": [], "readability_score": 3}
+                envelope.rubric_scores = {
+                    "reading_order": 4,
+                    "paragraph_integrity": 3,
+                    "flow_continuity": 4,
+                }
+            else:
+                envelope.data = {"score": 5}
+                envelope.rubric_scores = {"overall": 5}
+            return envelope, MagicMock()
+
+        runtime.execute_step.side_effect = _execute
+
+        result = phase.execute(state)
+        step = [s for s in result.steps if s.step_id == "9.3"][0]
+        assert step.status == PhaseStatus.SUCCESS
+        assert step.message == "Score: 4/5"
 
 
 class TestPhase9UserSteps:
@@ -320,7 +349,7 @@ class TestPhase9EdgeCases:
         state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("Content")
-        (tmp_path / "gm-callout-config.json").write_text(json.dumps([]))
+        (tmp_path / "callout-rules.resolved.json").write_text(json.dumps([]))
         (tmp_path / "font-family-mapping.json").write_text(
             json.dumps({"version": "1.0", "signatures": []})
         )

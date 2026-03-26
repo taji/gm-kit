@@ -715,10 +715,25 @@ class Orchestrator:
                 except AgentStepPause as pause:
                     if show_progress and progress is not None and task is not None:
                         progress.remove_task(task)
+                    step_dir = Path(pause.step_dir).resolve()
+                    output_file = (step_dir / "step-output.json").resolve()
                     self.console.print()
                     self.console.print(
-                        "[yellow]Paused for agent step "
-                        f"{pause.step_id}[/yellow] in `{pause.step_dir}`."
+                        f"[yellow]Paused for agent step {pause.step_id}[/yellow] in `{step_dir}`."
+                    )
+                    self.console.print("[bold]Output File Checklist[/bold]")
+                    self.console.print(
+                        "- Write `step-output.json` to this exact absolute path:\n"
+                        f"  `{output_file}`"
+                    )
+                    self.console.print(
+                        f"- Ensure the file is inside this step directory:\n  `{step_dir}/`"
+                    )
+                    self.console.print(
+                        "- Do not write it to the workspace root or any parent directory."
+                    )
+                    self.console.print(
+                        "- Confirm the file exists at that path, then resume conversion."
                     )
                     self.console.print(pause.recovery)
                     return ExitCode.SUCCESS

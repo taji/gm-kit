@@ -17,8 +17,11 @@ import sys
 import time
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import uuid4
+
+# Matches ANSI escape sequences (colour codes, cursor movement, etc.)
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[@-Z\\-_]")
 
 PAUSE_STEP_RE = re.compile(r"`([^`]*agent_steps/step_[^`]*)`")
 PHASE_RE = re.compile(r"Phase\s+(\d+)/10")
@@ -85,14 +88,52 @@ def write_trace(trace_file: Path, payload: dict[str, Any]) -> None:
         f.write(json.dumps(payload, ensure_ascii=True) + "\n")
 
 
-def emit_output(text: str, console_log_file: Path | None) -> None:
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    return _ANSI_RE.sub("", text)
+
+
+def _prefix_lines(text: str, prefix: str) -> str:
+    """Prefix every non-empty line with a source tag.
+
+    Empty lines (blank separators) are passed through unprefixed so the log
+    retains its natural paragraph spacing.
+    """
+    lines = text.splitlines(keepends=True)
+    out = []
+    for line in lines:
+        stripped = line.rstrip("\r\n")
+        if stripped:
+            out.append(f"[{prefix}] {line}")
+        else:
+            out.append(line)
+    return "".join(out)
+
+
+def emit_output(
+    text: str,
+    console_log_file: Path | None,
+    source: Literal["GMKIT", "AGENT", "HARNESS"] = "GMKIT",
+) -> None:
+    """Print text to stdout and append a tagged, ANSI-clean copy to the log file.
+
+    Args:
+        text: Raw output to emit.
+        console_log_file: Path to the combined console log, or None to skip.
+        source: Provenance tag written to the log file (terminal output is
+            emitted raw so colours are preserved).
+    """
     if not text:
         return
+    # Terminal: emit raw (preserves colour/formatting for interactive use).
     print(text, end="")
     if console_log_file is not None:
         console_log_file.parent.mkdir(parents=True, exist_ok=True)
+        # Log file: strip ANSI then prefix every content line with source tag.
+        clean = _strip_ansi(text)
+        tagged = _prefix_lines(clean, source)
         with console_log_file.open("a", encoding="utf-8") as f:
-            f.write(text)
+            f.write(tagged)
 
 
 def sanitize_agent_instructions(instructions: str, step_dir: Path | None = None) -> str:
@@ -441,7 +482,7 @@ def main() -> int:
         gmkit_res = run_cmd(gmkit_cmd, cwd=root, env=env)
         gmkit_duration_sec = round(time.perf_counter() - gmkit_start, 3)
         combined = (gmkit_res.stdout or "") + (gmkit_res.stderr or "")
-        emit_output(combined, console_log_file)
+        emit_output(combined, console_log_file, source="GMKIT")
 
         phase = parse_phase(combined)
         step_dir = parse_pause_step_dir(combined)
@@ -543,7 +584,7 @@ def main() -> int:
             agent_res = run_cmd(agent_cmd, cwd=step_dir, env=env, stdin_text=stdin_text)
             agent_duration_sec = round(time.perf_counter() - agent_start, 3)
             agent_out = (agent_res.stdout or "") + (agent_res.stderr or "")
-            emit_output(agent_out, console_log_file)
+            emit_output(agent_out, console_log_file, source="AGENT")
 
             valid, msg = validate_step_output(step_dir, step_id, validator, ContractViolation)
             write_trace(
@@ -568,7 +609,7 @@ def main() -> int:
 
         status_res = run_status(output_dir, cwd=root, env=env, python_version=python_version)
         status_out = (status_res.stdout or "") + (status_res.stderr or "")
-        emit_output(status_out, console_log_file)
+        emit_output(status_out, console_log_file, source="GMKIT")
         completed = "Status: completed" in status_out
 
         state_after = read_state(output_dir)

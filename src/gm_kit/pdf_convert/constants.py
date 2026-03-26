@@ -17,3 +17,7 @@ PHASE_NAMES = {
 PHASE_MIN = min(PHASE_NAMES)
 PHASE_MAX = max(PHASE_NAMES)
 PHASE_COUNT = PHASE_MAX - PHASE_MIN + 1
+
+# Callout configuration artifact names
+DEFAULT_CALLOUT_RULES_FILENAME = "callout-rules.input.json"
+RESOLVED_CALLOUT_RULES_FILENAME = "callout-rules.resolved.json"

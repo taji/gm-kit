@@ -78,13 +78,16 @@ class Phase3(Phase):
             else:
                 message = "No embedded TOC found"
                 status = PhaseStatus.WARNING
-                result.add_warning("No embedded TOC found - will use font-based detection only")
+                result.add_warning("No embedded TOC found - will attempt visual TOC detection")
 
             doc.close()
 
-            # Save TOC to file
+            # Save TOC to file with source indication
             toc_path = output_dir / "toc-extracted.txt"
             with open(toc_path, "w", encoding="utf-8") as f:
+                f.write(f"# TOC Source: {'embedded' if toc_entries else 'none'}\n")
+                f.write(f"# Extraction method: PDF metadata (step 3.1)\n")
+                f.write(f"# Total entries: {len(toc_entries)}\n\n")
                 for entry in toc_entries:
                     indent = "  " * (entry["level"] - 1)
                     f.write(f"{indent}{entry['title']} (page {entry['page']})\n")
@@ -107,7 +110,6 @@ class Phase3(Phase):
                     message=f"TOC extraction error: {e}",
                 )
             )
-            result.add_warning(f"TOC extraction error: {e}")
 
         return toc_entries
 
@@ -473,67 +475,88 @@ class Phase3(Phase):
         output_dir = Path(state.output_dir)
 
         # Step 3.1: Extract embedded TOC
-        self._extract_toc(pdf_path, output_dir, result)
+        embedded_toc_entries = self._extract_toc(pdf_path, output_dir, result)
 
-        # Step 3.2: Parse visual TOC page (AGENT STEP)
-        try:
-            # Check if visual TOC page exists (pages 1-3 typically)
-            visual_toc_text = self._extract_visual_toc_text(pdf_path)
+        # Step 3.2: Parse visual TOC page (AGENT STEP) - ONLY if no embedded TOC found
+        if not embedded_toc_entries:
+            try:
+                # Check if visual TOC page exists (pages 1-3 typically)
+                visual_toc_text = self._extract_visual_toc_text(pdf_path)
 
-            if visual_toc_text:
-                runtime = AgentStepRuntime(str(output_dir))
-                inputs = build_toc_parsing_payload(
-                    toc_text=visual_toc_text,
-                    total_pages=self._get_total_pages(pdf_path),
-                    workspace=str(output_dir),
-                )
-
-                envelope, status = runtime.execute_step("3.2", inputs)
-
-                if envelope:
-                    # Write visual TOC to file
-                    visual_toc_path = output_dir / "toc-visual-extracted.txt"
-                    self._write_visual_toc(envelope.data.get("entries", []), visual_toc_path)
-
-                    result.add_step(
-                        StepResult(
-                            step_id="3.2",
-                            description="Parse visual TOC page (AGENT)",
-                            status=PhaseStatus.SUCCESS,
-                            message=(
-                                f"Extracted {len(envelope.data.get('entries', []))} "
-                                "visual TOC entries"
-                            ),
-                            output_file=str(visual_toc_path),
-                        )
+                if visual_toc_text:
+                    runtime = AgentStepRuntime(str(output_dir))
+                    inputs = build_toc_parsing_payload(
+                        toc_text=visual_toc_text,
+                        total_pages=self._get_total_pages(pdf_path),
+                        workspace=str(output_dir),
                     )
+
+                    envelope, status = runtime.execute_step("3.2", inputs)
+
+                    if envelope:
+                        # Write visual TOC to toc-extracted.txt (not separate file)
+                        visual_entries = envelope.data.get("entries", [])
+                        toc_path = output_dir / "toc-extracted.txt"
+                        with open(toc_path, "w", encoding="utf-8") as f:
+                            f.write("# TOC Source: visual\n")
+                            f.write("# Extraction method: agent parsing (step 3.2)\n")
+                            f.write(f"# Total entries: {len(visual_entries)}\n\n")
+                            for entry in visual_entries:
+                                level = entry.get("level", 1)
+                                title = entry.get("title", "")
+                                page = entry.get("page", 0)
+                                indent = "  " * (level - 1)
+                                f.write(f"{indent}{title} (page {page})\n")
+
+                        result.add_step(
+                            StepResult(
+                                step_id="3.2",
+                                description="Parse visual TOC page (AGENT)",
+                                status=PhaseStatus.SUCCESS,
+                                message=(
+                                    f"Extracted {len(visual_entries)} "
+                                    "visual TOC entries to toc-extracted.txt"
+                                ),
+                                output_file=str(toc_path),
+                            )
+                        )
+                    else:
+                        result.add_step(
+                            StepResult(
+                                step_id="3.2",
+                                description="Parse visual TOC page (AGENT)",
+                                status=PhaseStatus.WARNING,
+                                message="Agent step returned no envelope",
+                            )
+                        )
                 else:
                     result.add_step(
                         StepResult(
                             step_id="3.2",
                             description="Parse visual TOC page (AGENT)",
-                            status=PhaseStatus.WARNING,
-                            message="Agent step returned no envelope",
+                            status=PhaseStatus.SKIPPED,
+                            message="No visual TOC page found (no TOC available)",
                         )
                     )
-            else:
+
+            except Exception as e:
+                logger.warning(f"Step 3.2 failed: {e}")
                 result.add_step(
                     StepResult(
                         step_id="3.2",
                         description="Parse visual TOC page (AGENT)",
-                        status=PhaseStatus.SKIPPED,
-                        message="No visual TOC page found (using embedded TOC only)",
+                        status=PhaseStatus.WARNING,
+                        message=f"Agent step failed: {e}",
                     )
                 )
-
-        except Exception as e:
-            logger.warning(f"Step 3.2 failed: {e}")
+        else:
+            # Embedded TOC found - skip step 3.2
             result.add_step(
                 StepResult(
                     step_id="3.2",
                     description="Parse visual TOC page (AGENT)",
-                    status=PhaseStatus.WARNING,
-                    message=f"Agent step failed: {e}",
+                    status=PhaseStatus.SKIPPED,
+                    message=f"Skipped - using embedded TOC with {len(embedded_toc_entries)} entries",
                 )
             )
 

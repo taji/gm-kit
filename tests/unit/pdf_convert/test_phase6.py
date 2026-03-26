@@ -259,6 +259,25 @@ class TestPhase6EdgeCases:
         assert "6.3" in step_ids  # Preserve indentation
         assert "6.4" in step_ids  # OCR stub
 
+    def test__should_not_overwrite_existing_phase6_file__when_resuming(self, tmp_path):
+        """Existing phase6 output should be preserved for agent-edited resume flow."""
+        phase = Phase6()
+
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+        state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
+
+        input_path = tmp_path / "test-phase5.md"
+        input_path.write_text("verision should be corrected later")
+
+        output_path = tmp_path / "test-phase6.md"
+        output_path.write_text("agent-edited content")
+
+        result = phase.execute(state)
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert output_path.read_text() == "agent-edited content"
+
     def test__should_set_output_file_path(self, tmp_path):
         """Test that output file path is set correctly."""
         phase = Phase6()

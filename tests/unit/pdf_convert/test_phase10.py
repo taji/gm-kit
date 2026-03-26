@@ -37,6 +37,8 @@ class TestPhase10ReportGeneration:
         phase = Phase10()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
+        # Simulate phase8 output being present (as it would be in a real pipeline run)
+        (tmp_path / "test-phase8.md").write_text("# Converted\n", encoding="utf-8")
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(tmp_path),
@@ -52,6 +54,8 @@ class TestPhase10ReportGeneration:
         phase = Phase10()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
+        # Simulate phase8 output being present
+        (tmp_path / "test-phase8.md").write_text("# Converted\n", encoding="utf-8")
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(tmp_path),
@@ -154,6 +158,75 @@ class TestPhase10ReportGeneration:
 
         # Should still generate report with unknown values
         assert "Unknown" in report_content or "conversion-report" in report_content.lower()
+
+
+class TestPhase10FinalRename:
+    """Test step 10.4a: rename *-phase8.md to *-final.md."""
+
+    @pytest.fixture
+    def state_with_phase8(self, tmp_path):
+        pdf_path = tmp_path / "test-doc.pdf"
+        pdf_path.touch()
+        phase8 = tmp_path / "test-doc-phase8.md"
+        phase8.write_text("# Final content\n", encoding="utf-8")
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            completed_phases=[0, 1, 2, 3, 4, 5, 6, 7, 8],
+            started_at="2026-02-10T10:00:00",
+        )
+        return state, tmp_path
+
+    def test_rename__should_produce_final_md__when_phase8_exists(self, state_with_phase8):
+        """Step 10.4a renames *-phase8.md to *-final.md."""
+        state, tmp_path = state_with_phase8
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            Phase10().execute(state)
+
+        assert (tmp_path / "test-doc-final.md").exists()
+        assert not (tmp_path / "test-doc-phase8.md").exists()
+
+    def test_rename__should_preserve_content__when_phase8_exists(self, state_with_phase8):
+        """Final document retains the phase8 content verbatim."""
+        state, tmp_path = state_with_phase8
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            Phase10().execute(state)
+
+        content = (tmp_path / "test-doc-final.md").read_text(encoding="utf-8")
+        assert "# Final content" in content
+
+    def test_rename__should_record_warning_step__when_phase8_missing(self, tmp_path):
+        """Step 10.4a records WARNING status when *-phase8.md is absent."""
+        pdf_path = tmp_path / "test-doc.pdf"
+        pdf_path.touch()
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            completed_phases=[0],
+            started_at="2026-02-10T10:00:00",
+        )
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            result = Phase10().execute(state)
+
+        step = next((s for s in result.steps if s.step_id == "10.4a"), None)
+        assert step is not None
+        assert step.status == PhaseStatus.WARNING
+
+    def test_rename__should_reference_final_md_in_report__when_rename_succeeds(
+        self, state_with_phase8
+    ):
+        """conversion-report.md lists *-final.md, not *-phase8.md."""
+        state, tmp_path = state_with_phase8
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            Phase10().execute(state)
+
+        report = (tmp_path / "conversion-report.md").read_text(encoding="utf-8")
+        assert "test-doc-final.md" in report
+        assert "test-doc-phase8.md" not in report
 
 
 class TestPhase10CompletionMetadata:
@@ -341,6 +414,8 @@ class TestPhase10EdgeCases:
         phase = Phase10()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
+        # Simulate phase8 output being present
+        (tmp_path / "test-phase8.md").write_text("# Converted\n", encoding="utf-8")
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(tmp_path),
