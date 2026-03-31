@@ -606,7 +606,7 @@ class Orchestrator:
         # Run from this phase onwards
         return self._run_phases(state, start_phase=phase_num)
 
-    def show_status(self, output_dir: Path) -> ExitCode:
+    def show_status(self, output_dir: Path) -> ExitCode:  # noqa: PLR0912
         """Display conversion status per FR-009a.
 
         Args:

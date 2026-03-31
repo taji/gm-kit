@@ -5,7 +5,8 @@ Supported: claude, codex, opencode, gemini, qwen
 """
 
 import os
-import subprocess
+import shutil
+import subprocess  # nosec B404
 from typing import TypedDict, cast
 
 from gm_kit.agent_registry import CANONICAL_AGENTS, canonicalize_agent
@@ -168,7 +169,8 @@ def invoke_agent(
         # Always execute with argv list (never shell command strings) to keep
         # multi-line prompts intact and avoid shell parsing issues.
         if suppress_output and not capture_output:
-            result = subprocess.run(
+            # Safe subprocess call: fixed argv list, no shell invocation.
+            result = subprocess.run(  # nosec B603
                 cmd,
                 cwd=workspace,
                 text=True,
@@ -178,7 +180,8 @@ def invoke_agent(
                 stderr=subprocess.DEVNULL,
             )
         else:
-            result = subprocess.run(
+            # Safe subprocess call: fixed argv list, no shell invocation.
+            result = subprocess.run(  # nosec B603
                 cmd,
                 cwd=workspace,
                 capture_output=capture_output,
@@ -232,13 +235,8 @@ def is_agent_available(agent_name: str) -> bool:
         config = get_agent_config(agent_name)
         cli = config["cli"]
 
-        # Check if in PATH
-        result = subprocess.run(
-            ["which", cli],
-            capture_output=True,
-            timeout=5,
-        )
-        return result.returncode == 0
+        # Use stdlib PATH lookup to avoid subprocess overhead/path injection surface.
+        return shutil.which(str(cli)) is not None
 
     except (UnsupportedAgentError, Exception):
         return False

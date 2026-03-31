@@ -86,7 +86,7 @@ class Phase3(Phase):
             toc_path = output_dir / "toc-extracted.txt"
             with open(toc_path, "w", encoding="utf-8") as f:
                 f.write(f"# TOC Source: {'embedded' if toc_entries else 'none'}\n")
-                f.write(f"# Extraction method: PDF metadata (step 3.1)\n")
+                f.write("# Extraction method: PDF metadata (step 3.1)\n")
                 f.write(f"# Total entries: {len(toc_entries)}\n\n")
                 for entry in toc_entries:
                     indent = "  " * (entry["level"] - 1)
@@ -551,12 +551,16 @@ class Phase3(Phase):
                 )
         else:
             # Embedded TOC found - skip step 3.2
+            skip_message = (
+                "Skipped - using embedded TOC with "
+                f"{len(embedded_toc_entries)} entries"
+            )
             result.add_step(
                 StepResult(
                     step_id="3.2",
                     description="Parse visual TOC page (AGENT)",
                     status=PhaseStatus.SKIPPED,
-                    message=f"Skipped - using embedded TOC with {len(embedded_toc_entries)} entries",
+                    message=skip_message,
                 )
             )
 

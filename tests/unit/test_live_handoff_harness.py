@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
-import sys
 from pathlib import Path
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # Load the harness module without installing it as a package.

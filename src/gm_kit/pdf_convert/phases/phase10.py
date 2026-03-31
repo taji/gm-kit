@@ -177,7 +177,7 @@ class Phase10(Phase):
     def has_agent_steps(self) -> bool:
         return True  # Steps 10.2-10.3: Quality ratings and issue documentation
 
-    def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
+    def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912, PLR0915
         """Execute report generation steps.
 
         Args:

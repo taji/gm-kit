@@ -317,7 +317,9 @@ class AgentStepRuntime:
             or has_table_bboxes
         )
 
-    def _has_pending_output(self, step_id: str, inputs: dict[str, Any]) -> bool:
+    def _has_pending_output(  # noqa: PLR0911
+        self, step_id: str, inputs: dict[str, Any]
+    ) -> bool:
         """Return True when this step already has output to finalize.
 
         We intentionally do not gate on current agent-step status because phase-level

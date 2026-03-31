@@ -126,20 +126,20 @@ class TestGetSupportedAgents:
 class TestIsAgentAvailable:
     """Test is_agent_available function."""
 
-    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
-    def test_agent_available(self, mock_run):
+    @patch("gm_kit.pdf_convert.agents.dispatch.shutil.which")
+    def test_agent_available(self, mock_which):
         """Should return True if agent in PATH."""
-        mock_run.return_value = MagicMock(returncode=0)
+        mock_which.return_value = "/usr/bin/codex"
 
         result = is_agent_available("codex")
 
         assert result is True
-        mock_run.assert_called_once()
+        mock_which.assert_called_once_with("codex")
 
-    @patch("gm_kit.pdf_convert.agents.dispatch.subprocess.run")
-    def test_agent_not_available(self, mock_run):
+    @patch("gm_kit.pdf_convert.agents.dispatch.shutil.which")
+    def test_agent_not_available(self, mock_which):
         """Should return False if agent not in PATH."""
-        mock_run.return_value = MagicMock(returncode=1)
+        mock_which.return_value = None
 
         result = is_agent_available("codex")
 

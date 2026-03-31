@@ -61,6 +61,19 @@ def build_text_scan_prompt(extracted_text: str, page_num: int) -> str:
     Returns:
         Instruction prompt for the agent
     """
+    guidance = (
+        "The extracted text uses font-signature markers like `«sig012:Name»` and "
+        "`«sig011:1d6»` to denote heading fonts versus repeating body fonts. Treat "
+        "repeated signatures (e.g., multiple `sig011` entries clustered together) as "
+        "rows and `sig012`/similar as column headers so you can reconstruct the table "
+        "structure despite the markers."
+    )
+
+    reasoning_example = (
+        '["Headers from sig012:Name/Damage/Range", '
+        '"Repeated sig011 rows like Shortsword/1d6/Melee"]'
+    )
+
     return f"""# Step 7.7 (Pass 1): Table Detection - Text Scan
 
 ## Task
@@ -75,7 +88,7 @@ Analyze the extracted text and determine if this page likely contains tables.
 ```
 
 ## Instructions
-The extracted text uses font-signature markers like `«sig012:Name»` and `«sig011:1d6»` to denote heading fonts versus repeating body fonts. Treat repeated signatures (e.g., multiple `sig011` entries clustered together) as rows and `sig012`/similar as column headers so you can reconstruct the table structure despite the markers.
+{guidance}
 
 1. Look for table indicators in the text:
    - Multi-column layouts with aligned text
@@ -94,7 +107,7 @@ The extracted text uses font-signature markers like `«sig012:Name»` and `«sig
 
 ## Reasoning
 Describe the cues that influenced your detection and include them in `data.reasoning`.
-Example: `["Headers from sig012:Name/Damage/Range", "Repeated sig011 rows like Shortsword/1d6/Melee"]`.
+Example: `{reasoning_example}`.
 
 ## Output Format
 Write to `step-output.json`:
@@ -140,7 +153,8 @@ with integer values from 1 to 5.
 If this pass does not produce table boundaries, set `boundary_accuracy` to 5 (N/A in text scan).
 
 ## Pre-Submit Checklist (Required)
-Before you finish, validate your `step-output.json` against this checklist and rewrite the file if any item fails:
+Before you finish, validate your `step-output.json` against this checklist.
+Rewrite the file if any item fails:
 1. Top-level keys exist: `step_id`, `status`, `data`, `rubric_scores`, `warnings`
 2. `step_id` is exactly `"7.7"` for this pass
 3. `status` is one of: `success`, `warning`, `failed`
@@ -215,7 +229,8 @@ with integer values from 1 to 5.
 `warnings` MUST always be present (use `[]` when no warnings apply).
 
 ## Pre-Submit Checklist (Required)
-Before you finish, validate your `step-output.json` against this checklist and rewrite the file if any item fails:
+Before you finish, validate your `step-output.json` against this checklist.
+Rewrite the file if any item fails:
 1. Top-level keys exist: `step_id`, `status`, `data`, `rubric_scores`, `warnings`
 2. `step_id` is exactly `"7.7"` for this pass
 3. `status` is one of: `success`, `warning`, `failed`

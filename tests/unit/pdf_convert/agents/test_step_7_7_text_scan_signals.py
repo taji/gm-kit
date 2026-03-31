@@ -6,13 +6,12 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from gm_kit.pdf_convert.agents.instructions.step_7_7 import build_text_scan_prompt
 
 FIXTURE_ROOT = Path(__file__).resolve().parents[3] / "fixtures" / "pdf_convert"
-HOME_BREWERY_MD = FIXTURE_ROOT / "The Homebrewery - NaturalCrit.md"
+HOME_BREWERY_MD = FIXTURE_ROOT / "The Homebrewery - NaturalCrit - To Render To Pdf.md"
 HOME_BREWERY_PHASE4 = FIXTURE_ROOT / "agents" / "inputs" / "step_7_7" / "Homebrewery_WeaponsTable_Phase4.md"
 
 

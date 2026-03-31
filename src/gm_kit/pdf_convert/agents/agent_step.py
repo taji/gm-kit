@@ -46,7 +46,11 @@ def write_agent_inputs(
     # so that _has_pending_output can match it correctly on resume.
     input_file = step_dir / "step-input.json"
     input_payload = {**inputs, "step_id": step_id, "attempt": attempt}
-    _ensure_workspace_schema_for_step(step_id=step_id, workspace_path=workspace_path, payload=input_payload)
+    _ensure_workspace_schema_for_step(
+        step_id=step_id,
+        workspace_path=workspace_path,
+        payload=input_payload,
+    )
 
     with open(input_file, "w") as f:
         json.dump(input_payload, f, indent=2)
@@ -69,7 +73,9 @@ def write_agent_inputs(
     return step_dir
 
 
-def _ensure_workspace_schema_for_step(step_id: str, workspace_path: Path, payload: dict[str, Any]) -> None:
+def _ensure_workspace_schema_for_step(
+    step_id: str, workspace_path: Path, payload: dict[str, Any]
+) -> None:
     """Copy step schema into workspace/schemas and ensure output_contract path.
 
     Agents receive `output_contract: schemas/<file>` in step-input.json. Keeping
@@ -177,18 +183,18 @@ def _load_instruction_template(step_id: str, inputs: dict[str, Any] | None = Non
             if phase == "text_scan" and hasattr(module, "build_text_scan_prompt"):
                 extracted_text = (inputs or {}).get("extracted_text", "")
                 page_num = int((inputs or {}).get("page_number_1based", 1))
-                return module.build_text_scan_prompt(extracted_text, page_num)
+                return str(module.build_text_scan_prompt(extracted_text, page_num))
 
             if phase == "vision_confirmation" and hasattr(module, "build_vision_prompt"):
                 page_image = (inputs or {}).get("page_image", "")
                 text_context = (inputs or {}).get("text_context", "")
-                return module.build_vision_prompt(page_image, text_context)
+                return str(module.build_vision_prompt(page_image, text_context))
 
             # Generic fallback: call the first callable that looks like a builder.
             for attr in dir(module):
                 if attr.startswith("build_") and callable(getattr(module, attr)):
                     try:
-                        return getattr(module, attr)()
+                        return str(getattr(module, attr)())
                     except TypeError:
                         pass
 
