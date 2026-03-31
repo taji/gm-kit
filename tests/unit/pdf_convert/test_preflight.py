@@ -387,7 +387,10 @@ class TestAnalyzePdfWarnings:
         )
         report = analyze_pdf(fake_pdf_path)
         assert report.toc_approach == TOCApproach.NONE
-        assert report.warnings == ["No TOC found - hierarchy may be incomplete"]
+        assert report.warnings == [
+            "No TOC detected - markdown heading structure may not align with the PDF; "
+            "manual heading corrections may be required"
+        ]
 
     def test_analyze_pdf__should_warn__when_high_complexity(
         self,
@@ -446,7 +449,10 @@ class TestDisplayPreflightReport:
             toc_approach=TOCApproach.NONE,
             font_complexity=Complexity.LOW,
             overall_complexity=Complexity.LOW,
-            warnings=["No TOC found - hierarchy may be incomplete"],
+            warnings=[
+                "No TOC detected - markdown heading structure may not align with the PDF; "
+                "manual heading corrections may be required"
+            ],
         )
         from rich.console import Console
 

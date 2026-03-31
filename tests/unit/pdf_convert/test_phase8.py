@@ -56,7 +56,7 @@ class TestMultiParagraphCalloutHandling:
         callout_config = [
             {"start_text": "GM Note:", "end_text": "Third paragraph.", "label": "callout_gm"}
         ]
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text(json.dumps(callout_config))
 
         state = ConversionState(
@@ -109,7 +109,7 @@ class TestMultiParagraphCalloutHandling:
         callout_config = [
             {"start_text": "GM Note:", "end_text": "End of Note", "label": "callout_gm"}
         ]
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text(json.dumps(callout_config))
 
         state = ConversionState(
@@ -156,7 +156,7 @@ class TestMultiParagraphCalloutHandling:
         phase6_path = output_dir / "test-phase6.md"
         phase6_path.write_text(phase6_content)
 
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text("[]")
 
         state = ConversionState(
@@ -203,7 +203,7 @@ class TestMultiParagraphCalloutHandling:
         phase6_path = output_dir / "test-phase6.md"
         phase6_path.write_text(phase6_content)
 
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text("[]")
 
         state = ConversionState(
@@ -251,7 +251,7 @@ class TestMultiParagraphCalloutHandling:
         callout_config = [
             {"start_text": "GM Note:", "end_text": "End of Note", "label": "callout_gm"}
         ]
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text(json.dumps(callout_config))
 
         state = ConversionState(
@@ -300,7 +300,7 @@ class TestMultiParagraphCalloutHandling:
         phase6_path = output_dir / "test-phase6.md"
         phase6_path.write_text(phase6_content)
 
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text("[]")
 
         state = ConversionState(
@@ -386,7 +386,7 @@ class TestPhase8EdgeCases:
         phase6_path.write_text(phase6_content)
 
         # Invalid JSON in callout config
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text("invalid json")
 
         state = ConversionState(
@@ -418,7 +418,7 @@ class TestPhase8EdgeCases:
         phase6_path = output_dir / "test-phase6.md"
         phase6_path.write_text(phase6_content)
 
-        callout_config_path = output_dir / "callout_config.json"
+        callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text("[]")
 
         state = ConversionState(
@@ -430,3 +430,33 @@ class TestPhase8EdgeCases:
         result = phase.execute(state)
 
         assert result.status == PhaseStatus.SUCCESS
+
+
+class TestPhase8TableExtraction:
+    """Test table markdown extraction from step 8.7 outputs."""
+
+    def test_phase8__should_extract_legacy_markdown_table__when_field_present(self):
+        """Phase8 should read legacy `markdown_table` output shape."""
+        data = {"markdown_table": "| A | B |\n| --- | --- |\n| 1 | 2 |"}
+
+        markdown = Phase8._extract_markdown_table(data)
+
+        assert markdown == "| A | B |\n| --- | --- |\n| 1 | 2 |"
+
+    def test_phase8__should_extract_tables_array_markdown__when_current_shape_used(self):
+        """Phase8 should read current `tables[].markdown` output shape."""
+        data = {
+            "tables": [
+                {
+                    "table_id": "t1",
+                    "markdown": "| Col A | Col B |\n| --- | --- |\n| 1A | 2A |",
+                    "rows": 2,
+                    "columns": 2,
+                }
+            ],
+            "changes_made": 1,
+        }
+
+        markdown = Phase8._extract_markdown_table(data)
+
+        assert markdown == "| Col A | Col B |\n| --- | --- |\n| 1A | 2A |"

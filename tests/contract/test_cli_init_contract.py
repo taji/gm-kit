@@ -54,3 +54,21 @@ def test_cli_init_prompts_for_missing_agent_and_os(tmp_path: Path):
     )
     assert result.exit_code == 0, result.output
     assert (temp / ".gmkit" / "templates" / "hello-gmkit-template.md").exists()
+
+
+def test_cli_init_creates_opencode_prompt_location(tmp_path: Path):
+    temp = tmp_path / "workspace-opencode"
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            str(temp),
+            "--agent",
+            "opencode",
+            "--os",
+            "macos/linux",
+            "--text-input",
+        ],
+    )
+    assert result.exit_code == 0, result.output
+    assert (temp / ".opencode" / "command" / "gmkit.hello-gmkit.md").exists()

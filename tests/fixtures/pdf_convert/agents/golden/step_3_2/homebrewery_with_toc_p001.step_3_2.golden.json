@@ -1,0 +1,15 @@
+{
+  "fixture_id": "homebrewery_with_toc_p001",
+  "step_id": "3.2",
+  "status": "success",
+  "data": {
+    "entries": []
+  },
+  "rubric_scores": {
+    "completeness": 5,
+    "level_accuracy": 5,
+    "page_accuracy": 5,
+    "output_format": 5
+  },
+  "warnings": ["No visual TOC page found - document has embedded TOC only (use step 3.1 output)"]
+}

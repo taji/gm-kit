@@ -1,0 +1,6 @@
+{
+  "step_id": "9.3",
+  "source_pdf": "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf",
+  "phase8_excerpt": "The Homebrewery is a tool that allows you to create and share homebrew content for Dungeons & Dragons 5th Edition. It uses Markdown syntax mixed with some custom CSS to render your content in the style of the Dungeons & Dragons 5th Edition Player's Handbook.\n\nThe Homebrewery is built on the work of the Reddit user /u/stolksdorf. The tool is open source and available on GitHub. You can contribute to the project or fork it to create your own version.",
+  "fixture_notes": "Simple paragraph flow from Homebrewery. Tests text continuity and paragraph integrity."
+}

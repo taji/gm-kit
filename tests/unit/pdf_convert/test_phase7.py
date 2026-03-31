@@ -9,6 +9,7 @@ Tests structural detection including:
 """
 
 import json
+from unittest.mock import MagicMock, patch
 
 from gm_kit.pdf_convert.phases.base import PhaseStatus
 from gm_kit.pdf_convert.phases.phase7 import Phase7
@@ -42,6 +43,68 @@ class TestExtractMarkersFromText:
         text = "Plain text without markers"
         results = list(phase._extract_markers_from_text(text))
         assert results == []
+
+
+class TestVisionBBoxExtraction:
+    """Test step 7.7 vision output normalization."""
+
+    def test__should_extract_top_level_bbox__when_present(self):
+        phase = Phase7()
+        result = phase._extract_confirmed_bbox(
+            {"table_id": "t1", "bbox_pixels": {"x0": 1, "y0": 2, "x1": 3, "y1": 4}},
+            "t1",
+        )
+        assert result == ("t1", {"x0": 1, "y0": 2, "x1": 3, "y1": 4})
+
+    def test__should_extract_matching_table_bbox__when_nested_tables_present(self):
+        phase = Phase7()
+        result = phase._extract_confirmed_bbox(
+            {
+                "tables": [
+                    {"table_id": "t1", "bbox_pixels": {"x0": 10, "y0": 20, "x1": 30, "y1": 40}},
+                    {"table_id": "t2", "bbox_pixels": {"x0": 11, "y0": 21, "x1": 31, "y1": 41}},
+                ]
+            },
+            "t2",
+        )
+        assert result == ("t2", {"x0": 11, "y0": 21, "x1": 31, "y1": 41})
+
+    def test__should_return_none__when_no_bbox_is_available(self):
+        phase = Phase7()
+        result = phase._extract_confirmed_bbox({"tables": [{"table_id": "t1"}]}, "t1")
+        assert result is None
+
+
+class TestTablesManifestPersistence:
+    """Ensure tables-manifest exists even when 7.7 fails."""
+
+    @patch("gm_kit.pdf_convert.agents.AgentStepRuntime")
+    @patch("gm_kit.pdf_convert.phases.phase7.fitz.open")
+    def test__should_write_empty_manifest__when_agent_step_7_7_fails(
+        self, mock_open_pdf, mock_runtime, tmp_path
+    ):
+        phase = Phase7()
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        fake_page = MagicMock()
+        fake_page.get_text.return_value = "table-ish text"
+        fake_doc = MagicMock()
+        fake_doc.__len__.return_value = 1
+        fake_doc.load_page.return_value = fake_page
+        mock_open_pdf.return_value = fake_doc
+
+        runtime_instance = mock_runtime.return_value
+        runtime_instance.execute_step.side_effect = RuntimeError("timeout")
+
+        result = phase.create_result()
+        phase._execute_agent_steps(result, output_dir, str(tmp_path / "test.pdf"))
+
+        manifest_path = output_dir / "tables-manifest.json"
+        assert manifest_path.exists()
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        assert manifest["total_count"] == 0
+        assert manifest["tables"] == []
 
 
 class TestAllCapsDetection:
@@ -674,6 +737,57 @@ class TestMappingUpdates:
         sig001 = next((s for s in updated_mapping["signatures"] if s["id"] == "sig001"), None)
         assert sig001 is not None
         assert sig001["label"] == "callout_read_aloud"
+
+    def test__should_prioritize_toc_labels_over_title_case_heuristics(self, tmp_path):
+        """When TOC exists, only TOC-matched signatures should be promoted broadly."""
+        phase = Phase7()
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+
+        mapping = {
+            "signatures": [
+                {
+                    "id": "sig001",
+                    "family": "Body",
+                    "size": 10.0,
+                    "label": None,
+                    "candidate_heading": False,
+                },
+                {
+                    "id": "sig002",
+                    "family": "Heading",
+                    "size": 16.0,
+                    "label": None,
+                    "candidate_heading": True,
+                },
+            ]
+        }
+
+        (output_dir / "font-family-mapping.json").write_text(json.dumps(mapping))
+        (output_dir / "toc-extracted.txt").write_text("Chapter One (page 1)\n")
+        (output_dir / "test-phase6.md").write_text(
+            "«sig002:Chapter One»\n«sig001:This is body text that is Title Case»"
+        )
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(output_dir),
+            config={},
+        )
+
+        phase.execute(state)
+
+        updated_mapping = json.loads((output_dir / "font-family-mapping.json").read_text())
+        sig001 = next((s for s in updated_mapping["signatures"] if s["id"] == "sig001"), None)
+        sig002 = next((s for s in updated_mapping["signatures"] if s["id"] == "sig002"), None)
+
+        assert sig001 is not None
+        assert sig002 is not None
+        assert sig001["label"] is None
+        assert sig002["label"] == "H1"
 
 
 class TestErrorHandling:

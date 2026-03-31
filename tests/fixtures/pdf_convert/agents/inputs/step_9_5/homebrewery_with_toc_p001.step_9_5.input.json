@@ -1,0 +1,9 @@
+{
+  "step_id": "9.5",
+  "source_pdf": "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf",
+  "phase8_excerpt": "## PDF Creation\n\n> **PDF Printing** works best when using Google Chrome. To save as PDF, in Chrome go to Print then Save as PDF. For the highest quality images use the following snippet to your brew:\n> \n> ```html\n> <style>\n>   .phb{ background-image: url('https://i.imgur.com/whatever.png') }\n> </style>\n> ```\n> \n> Snippet to your brew!",
+  "callout_config": [
+    {"start_text": "PDF Creation", "end_text": "Snippet to your brew!", "label": "callout_gm_note"}
+  ],
+  "fixture_notes": "Homebrewery page 1 'PDF Creation' callout. Tests GM note blockquote detection and formatting. Note the callout title is preserved in heading."
+}

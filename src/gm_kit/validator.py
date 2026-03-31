@@ -38,7 +38,7 @@ def validate_os(os_type: str | None) -> OSType:
 
 def validate_agent(agent: str | None) -> AgentConfig:
     if agent is None:
-        raise ValidationError("agent is required (claude, codex-cli, gemini, qwen).")
+        raise ValidationError("agent is required (claude, codex-cli, opencode, gemini, qwen).")
     if not is_supported(agent):
         raise ValidationError(f"Unsupported agent: {agent}")
     return get_agent_config(agent)

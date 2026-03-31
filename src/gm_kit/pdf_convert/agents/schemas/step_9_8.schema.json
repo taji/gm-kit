@@ -1,0 +1,76 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "step_id",
+    "status",
+    "data",
+    "rubric_scores",
+    "warnings"
+  ],
+  "properties": {
+    "step_id": {
+      "type": "string",
+      "description": "Step identifier"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "success",
+        "warning",
+        "failed"
+      ],
+      "description": "Execution status"
+    },
+    "data": {
+      "type": "object",
+      "description": "Step-specific output data"
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Non-fatal warning messages",
+      "default": []
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional agent notes"
+    },
+    "rubric_scores": {
+      "type": "object",
+      "description": "Self-evaluation scores per dimension",
+      "required": [
+        "order_correctness",
+        "confidence_flagging",
+        "threshold_adherence"
+      ],
+      "properties": {
+        "order_correctness": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "confidence_flagging": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "threshold_adherence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        }
+      },
+      "additionalProperties": false
+    },
+    "critical_failures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of critical failures"
+    }
+  }
+}

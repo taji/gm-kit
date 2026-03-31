@@ -9,7 +9,7 @@ Use this outline as the canonical user-facing documentation. Keep it current by 
 ## Getting Started
 ### Prerequisites
 - `uv` installed (https://astral.sh/uv)
-- A supported agent: claude, codex-cli, gemini, or qwen
+- A supported agent: claude, codex-cli, opencode, gemini, or qwen
 
 ### Installation
 1. Install GM-Kit: `uv tool install gmkit-cli`
@@ -27,6 +27,7 @@ GM-Kit will create the folder if it does not exist.
 ```bash
 gmkit init /tmp/gmkit-test --agent claude --os macos/linux
 gmkit init /tmp/gmkit-test --agent codex-cli --os macos/linux
+gmkit init /tmp/gmkit-test --agent opencode --os macos/linux
 gmkit init /tmp/gmkit-test --agent gemini --os windows
 gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ```
@@ -43,7 +44,7 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 - Resume: `gmkit pdf-convert --resume <output-dir>`
 - Status: `gmkit pdf-convert --status <output-dir>`
 - Diagnostics bundle: `gmkit pdf-convert <pdf-path> --output <output-dir> --diagnostics`
-- Callout config: `gmkit pdf-convert <pdf-path> --output <output-dir> --gm-callout-config-file callout_config.json`
+- Callout config: `gmkit pdf-convert <pdf-path> --output <output-dir> --gm-callout-config-file callout-rules.input.json`
 
 #### Key Outputs
 ```
@@ -52,7 +53,8 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ├── metadata.json
 ├── toc-extracted.txt
 ├── font-family-mapping.json
-├── callout_config.json
+├── callout-rules.input.json
+├── callout-rules.resolved.json
 ├── images/
 │   └── image-manifest.json
 ├── preprocessed/
@@ -66,7 +68,8 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ```
 
 Notes:
-- `callout_config.json` is created automatically if not provided; edit it before proceeding if you need custom callout boundaries.
+- `callout-rules.input.json` is created automatically if not provided; edit it before proceeding if you need custom callout boundaries.
+- `callout-rules.resolved.json` is the normalized rules artifact used by later phases.
 - `font-family-mapping.json` captures font signatures (family + size + weight + style) used for heading inference.
 - `diagnostic-bundle.zip` contains state, metadata, and phase outputs for troubleshooting.
 
@@ -101,13 +104,14 @@ This is a walking-skeleton placeholder command retained for onboarding and basic
 Agent prompt locations:
 - **claude**: `.claude/commands/gmkit.hello-gmkit.md`
 - **codex-cli**: `.codex/prompts/gmkit.hello-gmkit.md`
+- **opencode**: `.opencode/command/gmkit.hello-gmkit.md`
 - **gemini**: `.gemini/commands/gmkit.hello-gmkit.toml`
 - **qwen**: `.qwen/commands/gmkit.hello-gmkit.toml`
 
 ## Commands and Controls
 ### CLI
 - `gmkit init <path> --agent <agent> --os <macos/linux|windows>`
-  - `--agent`: the AI assistant you use to generate GM content (claude, codex-cli, gemini, qwen).
+  - `--agent`: the AI assistant you use to generate GM content (claude, codex-cli, opencode, gemini, qwen).
   - `--os`: the operating system where you run that assistant (macos/linux or windows).
 - `gmkit init <path>` (interactive prompt for agent/OS)
 
@@ -127,7 +131,7 @@ Agent prompt locations:
 
 ## Troubleshooting and FAQ
 ### Common Issues
-- `Unsupported agent`: use one of `claude`, `codex-cli`, `gemini`, or `qwen`.
+- `Unsupported agent`: use one of `claude`, `codex-cli`, `opencode`, `gemini`, or `qwen`.
 - `os must be 'macos/linux' or 'windows'`: pass one of those values or use interactive mode.
 
 ## Contributor CI

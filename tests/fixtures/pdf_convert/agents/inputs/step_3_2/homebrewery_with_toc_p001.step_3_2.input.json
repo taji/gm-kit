@@ -1,0 +1,7 @@
+{
+  "step_id": "3.2",
+  "source_pdf": "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf",
+  "toc_text": "The Homebrewery V3\nA Web-based tool for making homebrew content for Dungeons & Dragons 5th Edition\n\nThe Homebrewery is a tool that allows you to create and share homebrew content for Dungeons & Dragons 5th Edition. It uses Markdown syntax mixed with some custom CSS to render your content in the style of the Dungeons & Dragons 5th Edition Player's Handbook.\n\nThe Homebrewery is built on the work of the Reddit user /u/stolksdorf.\n\nPDF Creation\nPDF Printing works best when using Google Chrome. To save as PDF, in Chrome go to Print then Save as PDF. For the highest quality images use the following snippet to your brew:\n\n<style>\n    .phb{ background-image: url('https://i.imgur.com/whatever.png') }\n</style>\n",
+  "total_pages": 7,
+  "fixture_notes": "Homebrewery with TOC - NO visual TOC page. Tests edge case where no visual TOC exists (embedded TOC only). Should return empty entries with warning."
+}

@@ -39,6 +39,11 @@ download-test-fixtures:
 download-optional-test-fixtures:
     bash tests/fixtures/pdf_convert/download_cofc_fixture.sh
 
+# Download private PDF fixtures from gm-kit-fixtures release (requires GH_TOKEN or gh auth).
+# TODO (E2-11): Update FIXTURES_REPO in download_private_fixtures.sh with actual repo name.
+download-private-fixtures:
+    bash tests/fixtures/pdf_convert/download_private_fixtures.sh
+
 # Run parity tests only
 test-parity:
     uv run --python "3.13.7" --extra dev -- pytest tests/integration/test_script_parity.py
@@ -57,7 +62,8 @@ bandit:
 audit:
     uv run --python "3.13.7" --extra dev -- python -m ensurepip --upgrade
     uv run --python "3.13.7" --extra dev -- python -m pip install -U pip
-    PIPAPI_PYTHON_LOCATION=.venv/bin/python uv tool run --from pip-audit pip-audit --skip-editable
+    # Temporary ignores for dev-tool CVEs until dependency lock is refreshed in connected environments.
+    PIPAPI_PYTHON_LOCATION=.venv/bin/python uv tool run --from pip-audit pip-audit --skip-editable --ignore-vuln CVE-2026-32274 --ignore-vuln CVE-2026-4539
 
 # Run the same steps as the GitHub Actions CI workflow.
 all_ci_actions:

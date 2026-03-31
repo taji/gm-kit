@@ -210,6 +210,68 @@ Success looks like: Optional CI job that validates slash command → agent → C
 
 Priority: LOW (nice-to-have after core features are stable)
 
+### E2-11. Private PDF Fixtures Repo & CI Integration **[TASK]**
+
+Task description:
+Set up a private GitHub repository (`gm-kit-fixtures`) to store copyrighted PDF test fixtures, wire it into CI via release asset download, and document the setup for developers.
+
+Scope:
+- Create private repo `<org>/gm-kit-fixtures` (owner action required)
+- Create a release tagged `v1` and upload these PDF assets (owner action required):
+  - `CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf`
+  - `Dungeon Module B2, The Keep on the Borderlands.pdf` (optional: already downloaded publicly)
+- Create a fine-grained PAT with `Contents: Read-only` access to `gm-kit-fixtures`
+- Add `FIXTURES_REPO_TOKEN` secret to the `gm-kit` repo Actions secrets
+- Update `tests/fixtures/pdf_convert/download_private_fixtures.sh`:
+  - Replace `your-org/gm-kit-fixtures` placeholder with actual repo name
+- Infrastructure already in place (pending owner action):
+  - `download_private_fixtures.sh` — download script using `gh release download`
+  - `just download-private-fixtures` — justfile task
+  - `ci.yml` — private fixture download step (gated on secret presence)
+
+Documentation required (update once repo is live):
+- `README.md`: add developer note explaining private fixtures repo, how to obtain access, and `just download-private-fixtures` command
+- `docs/user/user_guide.md` or `docs/team/`: add contributor setup instructions for local fixture download
+
+Open items:
+- None — secret is configured, `if` guard removed, infrastructure complete.
+
+Success looks like: CI runs `test_heading_signatures` and `test_cofc_fixture` against real PDFs on every PR, and developers can run `just download-private-fixtures` locally after obtaining access.
+
+### E2-10. Manual E2E Harness CI Workflow (OpenCode-only) **[TASK]**
+
+Task description:
+Add a manually-triggered GitHub Actions workflow (`end-to-end-harness.yml`) that runs the live handoff harness against a real PDF fixture using OpenCode as the agent. This enables reproducible regression runs across OpenCode models without changing code.
+
+Scope:
+- Add `.github/workflows/end-to-end-harness.yml`
+- Trigger: `workflow_dispatch` only (no PR or push trigger)
+- Hardcode `--agent opencode` — other agents are out of scope for this task
+- GitHub Actions `workflow_dispatch.inputs` GUI lets the user configure each run before launch:
+  - `model` (`choice`): selectable OpenCode model list, editable in YAML as new models become available
+  - `fixture_pdf` (`choice`): test PDF from `tests/fixtures/pdf_convert/`
+  - `max_pauses` (`string`): safety cap for pause cycles (default: 100)
+  - `gm_callout_config` (`string`, optional): path to callout rules JSON
+- Run `devtools/scripts/live_handoff_harness.sh` with selected inputs
+- Upload run artifacts as a GitHub Actions artifact bundle:
+  - `harness-console.log`
+  - `harness-trace.jsonl`
+  - `conversion.log`
+  - `.state.json`
+  - `.completion.json`
+  - `conversion-report.md`
+  - `*-final.md` (final converted document)
+
+Open questions (resolve during implementation):
+- **Auth secret TBD:** OpenCode authentication variable for GitHub Actions is not finalized. During implementation, define the exact secret name and provider (e.g., `OPENROUTER_API_KEY` vs `OPENCODE_API_KEY`), and add validation that the run fails fast with a clear message if the secret is missing rather than silently burning quota.
+
+Out of scope:
+- Other agents (Claude, Codex, Gemini, Qwen) — defer to a future task
+- Scheduled or PR-triggered runs
+- Cost guardrails beyond `max_pauses`
+
+Success looks like: User navigates to Actions → end-to-end-harness → Run workflow, selects a model and fixture, launches the run, and can download the artifact bundle to review logs and the final converted markdown after the run completes.
+
 ### ✅ E2-09. Agent & Model Capability Audit — Autonomous Pipeline Execution **[TASK, COMPLETED as specs/009-agent-audit/findings.md]**
 Status: COMPLETED (2026-02-24)
 
@@ -462,7 +524,7 @@ Requirements:
 - Replace E4-07e stubs with real implementations (currently `src/gm_kit/pdf_convert/phases/stubs.py` + `get_mock_phases()` in `src/gm_kit/pdf_convert/orchestrator.py`)
 - Preserve existing orchestration surface: `gmkit pdf-convert` CLI + orchestrator/state/preflight wiring already exist; E4-07a fills in real phase logic
 - Update font signature schema wherever it is persisted or exchanged (metadata extraction + font mapping inputs)
-- Support user-defined callout boundaries via `callout_config.json` (start/end text fragments with optional label). Auto-create empty default in output directory during Phase 0 pre-flight if not provided via `--gm-callout-config-file`. Phase 7 loads config and maps matching font signatures to callout labels; Phase 8 applies blockquote formatting to callout-labeled signatures.
+- Support user-defined callout boundaries via `callout-rules.input.json` (start/end text fragments with optional label). Auto-create empty default in output directory during Phase 0 pre-flight if not provided via `--gm-callout-config-file`. Phase 7 loads/normalizes this into `callout-rules.resolved.json`, maps matching font signatures to callout labels, and Phase 8 applies blockquote formatting to callout-labeled signatures.
 - Support custom GM callout keywords via repeatable `--gm-keyword` CLI option for keyword-based callout detection in Phase 7.
 
 Phases covered: 1, 2, most of 3-8, scaffolding for 9-10
@@ -576,14 +638,14 @@ Success looks like: A log file is produced for conversions and included in the d
 
 **Status: COMPLETED** (2026-02-13) - UTF-8 logging with horizontal line format, TeeOutput for stdout/stderr capture, 17 unit tests, integrated with diagnostic bundle.
 
-### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE, DRAFT as specs/007-agent-pipeline/spec.md]**
+### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE, IN IMPLEMENTATION as specs/007-agent-pipeline/spec.md]**
 
 Feature description:
 
 Implement the Agent-category steps (13 of 77 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, quality assessments, and two-column reading order validation. Step 9.1 (completeness check) dropped — Phase 4 guarantees all page markers; a code-level check is sufficient.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
-Doc sync state: `quickstart.md` not yet merged into `docs/user/user-guide.md`; `plan.md` / `research.md` / `data-model.md` not yet synced to `ARCHITECTURE.md` (deferred until implementation completes).
+Doc sync state: implementation artifacts are actively being reconciled while E4-07b stabilization is in progress; finalize canonical sync to `docs/user/user-guide.md` and `ARCHITECTURE.md` at feature completion/merge.
 
 Requirements:
 - Prompt templates for each agent step (13 total): These are AI-directed prompts invoked by the orchestrator at specific steps—not user-facing prompts, not phase-level, and not for the entire command. Each template defines the task, input format, expected output format, and edge cases for a single step.
@@ -622,6 +684,8 @@ Design note — Phase 9 review interaction has two candidate flows to evaluate:
 2. **Checklist-based batch**: Agent generates `review-checklist.md` with all concerns, user annotates the file (approvals, corrections, notes), then agent processes all annotations in one pass. Better for users who want to review holistically before committing changes.
 
 These flows may coexist: the interactive flow for the default agent-driven path, and the checklist flow as an alternative for users who prefer batch review. The `review-checklist.md` output file could serve double duty — as both the batch-review input artifact and the post-conversion QA record.
+
+Additional UX note (Phase 10 report review): consider presenting total issue count first, then showing the top 3 prioritized issues with a "view more" option for full issue browsing.
 
 Success looks like: User can review agent findings, confirm or correct proposed changes, and have corrections applied to the final output.
 
@@ -719,6 +783,59 @@ Testing approach:
 - Mocks replaced by real implementations when E4-07a/b/c/d are complete
 
 Success looks like: User can invoke `/gmkit.pdf-to-markdown` with a PDF path, see a pre-flight complexity report, confirm to proceed, and have the pipeline execute with proper state tracking and resumability.
+
+### E4-08. PDF Analyze-and-Prep Workflow **[FEATURE, PLANNED]**
+
+Feature description:
+
+Add a pre-conversion command that performs PDF analysis and preparation before
+`pdf-convert` runs. The goal is to move structural detection and user-guided
+annotation review earlier so conversion phases operate on explicit intent
+instead of late-stage heuristics.
+
+Proposed command:
+- `gmkit analyze-and-prep-pdf <pdf-path> --output <dir>`
+
+Requirements:
+- Move current pre-conversion analysis responsibilities (currently Phases 0-3) into the prep workflow.
+- Extract and preserve prep metadata/artifacts for downstream conversion.
+- Support user review/edit of detected regions (headings, callouts, tables, skip areas) before conversion.
+- Support optional user-provided pre-analysis guidance (for example: table titles usually contain
+  "Table", callouts usually begin with "Guidance", etc.) so detection can be biased toward known
+  document conventions.
+- Generate and persist a prep guidance config artifact that `analyze-and-prep-pdf` consumes during
+  detection/annotation passes.
+- Make `gmkit pdf-convert` fail fast with actionable guidance when prep artifacts are missing.
+- Add large-PDF readiness (chunk/chapter prep metadata for long campaigns/adventures).
+
+TODOs:
+1. Define prep artifact contract consumed by `pdf-convert` (schema + versioning + compatibility rules).
+2. Define annotation model for table/callout/heading/skip overlays and user edits.
+3. Define pre-analysis guidance config format (user hints + agent-normalized rules) and how the
+   prep command applies those hints to table/callout boundary proposals.
+
+Success looks like: users can review and tune structural intent before conversion, and conversions complete with clearer issue triage instead of brittle hard-fail behavior for minor quality defects.
+
+### E4-08b. Post-Conversion Rubric Failure Policy Review **[FEATURE, PLANNED]**
+
+Feature description:
+
+Review and recalibrate post-conversion rubric/failure thresholds so minor, easily-fixable quality defects
+do not hard-fail full conversions.
+
+Temporary status (2026-03-31):
+- Global rubric minimum score was temporarily relaxed from 3 -> 2 in code to keep
+  end-to-end validation unblocked during E4-08a/E4-08b design work.
+- This is explicitly temporary and must be re-evaluated as part of this feature.
+
+TODOs:
+1. Revisit rubric thresholds/criticality for post-conversion review steps so non-catastrophic issues
+   (easy human/agent fixes) are surfaced as warnings/checklist items instead of hard conversion failures.
+2. Define failure-policy rules that reserve hard-fail behavior for contract violations and genuinely
+   blocking corruption.
+
+Success looks like: hard-fail behavior is reserved for true blockers, while recoverable quality defects
+are triaged with actionable warnings/checklists.
 
 ### E4-08. Workspace-Level Active Conversion Tracking **[FEATURE]**
 

@@ -1,0 +1,28 @@
+{
+  "fixture_id": "cofc_quickstart_p003",
+  "step_id": "3.2",
+  "status": "success",
+  "data": {
+    "entries": [
+      {"level": 1, "title": "CONTENTS", "page": null},
+      {"level": 1, "title": "Introduction", "page": 2},
+      {"level": 1, "title": "The Setting", "page": 3},
+      {"level": 1, "title": "What Is Roleplaying?", "page": 4},
+      {"level": 1, "title": "Winners and Losers", "page": 6},
+      {"level": 1, "title": "Dice Roll Variations", "page": 7},
+      {"level": 1, "title": "The Characters", "page": 8},
+      {"level": 1, "title": "Skills", "page": 10},
+      {"level": 1, "title": "Playing the Game", "page": 12},
+      {"level": 1, "title": "Combat", "page": 14},
+      {"level": 1, "title": "Sanity", "page": 16},
+      {"level": 1, "title": "Magic", "page": 18}
+    ]
+  },
+  "rubric_scores": {
+    "completeness": 5,
+    "level_accuracy": 5,
+    "page_accuracy": 5,
+    "output_format": 5
+  },
+  "warnings": []
+}

@@ -4,6 +4,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
+from gm_kit.agent_registry import INIT_DISPLAY_AGENTS, canonicalize_agent
+
 
 @dataclass(frozen=True)
 class AgentConfig:
@@ -22,22 +24,28 @@ def _config(name: str, path: str, ext: str) -> AgentConfig:
 
 SUPPORTED_AGENTS: dict[str, AgentConfig] = {
     "claude": _config("claude", ".claude/commands", ".md"),
-    "codex-cli": _config("codex-cli", ".codex/prompts", ".md"),
+    "codex": _config("codex", ".codex/prompts", ".md"),
+    "opencode": _config("opencode", ".opencode/command", ".md"),
     "gemini": _config("gemini", ".gemini/commands", ".toml"),
     "qwen": _config("qwen", ".qwen/commands", ".toml"),
 }
 
 
 def list_supported_agents() -> Iterable[str]:
-    return SUPPORTED_AGENTS.keys()
+    return INIT_DISPLAY_AGENTS
 
 
 def get_agent_config(agent: str) -> AgentConfig:
+    canonical = canonicalize_agent(agent, context="init")
     try:
-        return SUPPORTED_AGENTS[agent]
+        return SUPPORTED_AGENTS[canonical]
     except KeyError as exc:
         raise ValueError(f"Unsupported agent: {agent}") from exc
 
 
 def is_supported(agent: str) -> bool:
-    return agent in SUPPORTED_AGENTS
+    try:
+        canonicalize_agent(agent, context="init")
+        return True
+    except ValueError:
+        return False

@@ -120,6 +120,7 @@ test_output/
 .codex/
 .opencode/
 .gmkit/
+tmp/
 tests/fixtures/pdf_convert/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf
 tests/fixtures/pdf_convert/Dungeon Module B2, The Keep on the Borderlands.pdf
 tests/fixtures/pdf_convert/The Wild Sheep Chase.pdf
@@ -132,4 +133,3 @@ startcode.sh
 Gm-Kit Development Journal.md
 JOURNAL.md
 JOURNAL.txt
-mcp_knowledge_graph_guidelines.md

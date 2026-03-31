@@ -1,0 +1,22 @@
+{
+  "fixture_id": "b2_keep_borderlands_p010",
+  "step_id": "4.5",
+  "status": "success",
+  "data": {
+    "changes_made": 1,
+    "joins_made": [
+      {
+        "location": "pages_10_11_boundary",
+        "type": "hyphenation",
+        "original": "apart-ment",
+        "corrected": "apartment"
+      }
+    ]
+  },
+  "rubric_scores": {
+    "correct_joins": 5,
+    "no_false_joins": 5,
+    "readability": 5
+  },
+  "warnings": []
+}

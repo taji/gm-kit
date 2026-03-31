@@ -1,0 +1,15 @@
+{
+  "step_id": "9.2",
+  "source_pdf": "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf",
+  "phase8_excerpt": "# The Homebrewery V3\n\n## Introduction\nA Web-based tool for making homebrew content\n\n## Getting Started\n### Installation\nDownload from GitHub\n\n### Usage\nWrite in Markdown\n\n## Advanced Features\n### Custom CSS\nStyle your documents\n\n### Templates\nPre-built layouts",
+  "toc_entries": [
+    {"level": 1, "title": "Introduction"},
+    {"level": 2, "title": "Getting Started"},
+    {"level": 3, "title": "Installation"},
+    {"level": 3, "title": "Usage"},
+    {"level": 2, "title": "Advanced Features"},
+    {"level": 3, "title": "Custom CSS"},
+    {"level": 3, "title": "Templates"}
+  ],
+  "fixture_notes": "Homebrewery-style heading hierarchy. Tests validation of proper H1→H2→H3 nesting with no level skips. Clean structure for testing."
+}

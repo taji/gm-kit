@@ -75,7 +75,7 @@ def init(
     temp_path: str = typer.Argument(..., help="Path to temp workspace"),
     agent: str | None = typer.Option(
         None,
-        help="Agent name (claude, codex-cli, gemini, qwen)",
+        help="Agent name (claude, codex-cli, opencode, gemini, qwen)",
     ),
     os: str | None = typer.Option(
         None,
@@ -162,6 +162,11 @@ def pdf_convert(  # noqa: PLR0913
         "-y",
         help="Non-interactive mode (accept defaults)",
     ),
+    agent_debug: bool = typer.Option(
+        False,
+        "--agent-debug",
+        help="Capture agent stdout/stderr logs for each agent step",
+    ),
     gm_keyword: list[str] = typer.Option(  # noqa: B008
         None,
         "--gm-keyword",
@@ -197,6 +202,7 @@ def pdf_convert(  # noqa: PLR0913
         status=status,
         diagnostics=diagnostics,
         yes=yes,
+        agent_debug=agent_debug,
         gm_keyword=gm_keyword,
         gm_callout_config_file=gm_callout_config_file,
     )

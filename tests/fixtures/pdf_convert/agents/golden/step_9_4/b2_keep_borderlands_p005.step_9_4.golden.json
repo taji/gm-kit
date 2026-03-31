@@ -1,0 +1,16 @@
+{
+  "fixture_id": "b2_keep_borderlands_p005",
+  "step_id": "9.4",
+  "status": "success",
+  "data": {
+    "tables_checked": 1,
+    "issues": [],
+    "score": 5
+  },
+  "rubric_scores": {
+    "cell_accuracy": 5,
+    "structure_preservation": 5,
+    "alignment_check": 5
+  },
+  "warnings": []
+}

@@ -1,0 +1,151 @@
+name: End-to-End Harness (OpenCode)
+
+# Manually triggered only — select model/fixture in the GitHub Actions UI before launching.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "OpenCode model to use"
+        required: true
+        default: "opencode/kimi-k2.5"
+        type: choice
+        options:
+          - opencode/kimi-k2.5
+          - opencode/gpt-5.1-codex
+          # Add new OpenCode models here as they become available.
+
+      fixture_pdf:
+        description: "Fixture PDF to convert"
+        required: true
+        default: "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf"
+        type: choice
+        options:
+          - "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf"
+          - "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit - Without TOC.pdf"
+
+      max_pauses:
+        description: "Safety cap for pause/resume cycles (default: 100)"
+        required: true
+        default: "100"
+        type: string
+
+      gm_callout_config:
+        description: "Optional path to callout rules JSON (leave blank to skip)"
+        required: false
+        default: ""
+        type: string
+
+jobs:
+  harness:
+    name: "OpenCode E2E — ${{ inputs.model }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Auth secret validation
+      # -----------------------------------------------------------------------
+      # TODO (E2-10): The correct secret name and OpenCode provider flow have
+      # not been finalized. Update the env var name below once established.
+      # The step intentionally fails fast with a clear message if the secret is
+      # absent so the run does not silently burn quota.
+      # -----------------------------------------------------------------------
+      - name: Validate OpenCode auth secret
+        run: |
+          if [ -z "$OPENCODE_AUTH" ]; then
+            echo "ERROR: Required secret is not configured." >&2
+            echo "Set the appropriate secret (e.g. OPENROUTER_API_KEY or OPENCODE_API_KEY)" >&2
+            echo "in the repository Settings → Secrets → Actions before running this workflow." >&2
+            exit 1
+          fi
+        env:
+          # TODO (E2-10): Replace OPENCODE_API_KEY with the correct secret name.
+          OPENCODE_AUTH: ${{ secrets.OPENCODE_API_KEY }}
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13.7"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Install just
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y just
+
+      - name: Install OpenCode CLI
+        run: |
+          # TODO (E2-10): Replace with the correct install command for OpenCode
+          # once the auth/install flow is finalized. Example placeholder below.
+          echo "OpenCode CLI install step — update with correct install command."
+          # npm install -g opencode-ai   # example; verify correct package name
+        env:
+          # TODO (E2-10): Expose the correct secret as the env var OpenCode expects.
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+
+      - name: Download required test fixtures
+        run: just download-test-fixtures
+
+      - name: Prepare workspace
+        run: |
+          mkdir -p "${{ runner.temp }}/harness-workspace"
+
+      - name: Build optional callout config flag
+        id: callout
+        run: |
+          if [ -n "${{ inputs.gm_callout_config }}" ]; then
+            echo "flag=--gm-callout-config-file ${{ inputs.gm_callout_config }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "flag=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run E2E harness
+        run: |
+          bash devtools/scripts/live_handoff_harness.sh \
+            --pdf "${{ github.workspace }}/${{ inputs.fixture_pdf }}" \
+            --output-dir "${{ runner.temp }}/harness-workspace" \
+            --agent opencode \
+            --model "${{ inputs.model }}" \
+            --max-pauses "${{ inputs.max_pauses }}" \
+            --trace-file "${{ runner.temp }}/harness-workspace/harness-trace.jsonl" \
+            --console-log-file "${{ runner.temp }}/harness-workspace/harness-console.log" \
+            ${{ steps.callout.outputs.flag }}
+        env:
+          # TODO (E2-10): Expose the correct secret as the env var OpenCode expects.
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+
+      # Collect all relevant artifacts whether the run succeeded or failed so
+      # failures can be diagnosed from the downloaded bundle.
+      - name: Collect artifacts
+        if: always()
+        run: |
+          mkdir -p "${{ runner.temp }}/artifacts"
+          cp "${{ runner.temp }}/harness-workspace/harness-console.log" \
+             "${{ runner.temp }}/artifacts/" 2>/dev/null || true
+          cp "${{ runner.temp }}/harness-workspace/harness-trace.jsonl" \
+             "${{ runner.temp }}/artifacts/" 2>/dev/null || true
+          cp "${{ runner.temp }}/harness-workspace/conversion.log" \
+             "${{ runner.temp }}/artifacts/" 2>/dev/null || true
+          cp "${{ runner.temp }}/harness-workspace/.state.json" \
+             "${{ runner.temp }}/artifacts/" 2>/dev/null || true
+          cp "${{ runner.temp }}/harness-workspace/.completion.json" \
+             "${{ runner.temp }}/artifacts/" 2>/dev/null || true
+          cp "${{ runner.temp }}/harness-workspace/conversion-report.md" \
+             "${{ runner.temp }}/artifacts/" 2>/dev/null || true
+          # Copy final markdown (pattern: *-final.md)
+          find "${{ runner.temp }}/harness-workspace" \
+               -maxdepth 1 -name "*-final.md" \
+               -exec cp {} "${{ runner.temp }}/artifacts/" \; 2>/dev/null || true
+
+      - name: Upload run artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: "harness-run-${{ inputs.model }}-${{ github.run_id }}"
+          path: "${{ runner.temp }}/artifacts/"
+          retention-days: 30

@@ -7,19 +7,27 @@
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing.
 
+**Confirmed Clarifications**:
+- Token threshold: 100,000 tokens default (via `GM_TOKEN_THRESHOLD` env var)
+- Medium criticality: Flag + continue (not skip) for debugging visibility
+- Step 7.7/8.7 images: Keep after pipeline; offer cleanup helper
+- Corpus test commands: `test-corpus-homebrewery`, `test-corpus-b2`, `test-corpus-coc`
+- Step 8.7 image paths: Relative to project root (e.g., `tests/fixtures/pdf_convert/agents/inputs/table_pages/...`)
+- Step 9.1: Remove stub completely (not just no-op)
+
 ## Format: `[ID] [P?] [Story] Description`
 
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Create the agent-step package/test skeleton and feature-specific fixture directories.
 
-- [ ] T001 Create agent package skeleton in `src/gm_kit/pdf_convert/agents/__init__.py`
-- [ ] T002 [P] Create agent package modules `src/gm_kit/pdf_convert/agents/base.py`, `src/gm_kit/pdf_convert/agents/errors.py`, and `src/gm_kit/pdf_convert/agents/contracts.py`
-- [ ] T003 [P] Create agent I/O and preflight module stubs in `src/gm_kit/pdf_convert/agents/agent_step.py` and `src/gm_kit/pdf_convert/agents/token_preflight.py`
-- [ ] T004 [P] Create instruction template directory and placeholder files in `src/gm_kit/pdf_convert/agents/instructions/` for steps `3.2`, `4.5`, `6.4`, `7.7`, `8.7`, `9.2-9.5`, `9.7-9.8`, `10.2-10.3`
-- [ ] T005 [P] Create schema and rubric directories in `src/gm_kit/pdf_convert/agents/schemas/` and `src/gm_kit/pdf_convert/agents/rubrics/`
-- [ ] T006 [P] Create test package skeletons in `tests/unit/pdf_convert/agents/`, `tests/contract/pdf_convert/agents/`, and `tests/integration/pdf_convert/agents/`
-- [ ] T007 [P] Create per-step fixture directories in `tests/fixtures/pdf_convert/agents/inputs/` and `tests/fixtures/pdf_convert/agents/golden/`
+- [X] T001 Create agent package skeleton in `src/gm_kit/pdf_convert/agents/__init__.py`
+- [X] T002 [P] Create agent package modules `src/gm_kit/pdf_convert/agents/base.py`, `src/gm_kit/pdf_convert/agents/errors.py`, and `src/gm_kit/pdf_convert/agents/contracts.py`
+- [X] T003 [P] Create agent I/O and preflight module stubs in `src/gm_kit/pdf_convert/agents/agent_step.py` and `src/gm_kit/pdf_convert/agents/token_preflight.py`
+- [X] T004 [P] Create instruction template directory and placeholder files in `src/gm_kit/pdf_convert/agents/instructions/` for steps `3.2`, `4.5`, `6.4`, `7.7`, `8.7`, `9.2-9.5`, `9.7-9.8`, `10.2-10.3`
+- [X] T005 [P] Create schema and rubric directories in `src/gm_kit/pdf_convert/agents/schemas/` and `src/gm_kit/pdf_convert/agents/rubrics/`
+- [X] T006 [P] Create test package skeletons in `tests/unit/pdf_convert/agents/`, `tests/contract/pdf_convert/agents/`, and `tests/integration/pdf_convert/agents/`
+- [X] T007 [P] Create per-step fixture directories in `tests/fixtures/pdf_convert/agents/inputs/` and `tests/fixtures/pdf_convert/agents/golden/`
 
 ---
 
@@ -29,20 +37,20 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T008 Implement shared step metadata/types in `src/gm_kit/pdf_convert/agents/base.py`
-- [ ] T009 Implement agent error classes (`AgentStepError`, `ContractViolation`) in `src/gm_kit/pdf_convert/agents/errors.py`
-- [ ] T010 Implement JSON Schema loading/validation helpers in `src/gm_kit/pdf_convert/agents/contracts.py`
-- [ ] T011 Implement workspace handoff write/read helpers (`step-input.json`, `step-instructions.md`, `step-output.json`) in `src/gm_kit/pdf_convert/agents/agent_step.py`
-- [ ] T012 Implement retry instruction append + retry budget handling in `src/gm_kit/pdf_convert/agents/agent_step.py`
-- [ ] T013 Implement FR-008 structured error envelope helpers in `src/gm_kit/pdf_convert/agents/agent_step.py`
-- [ ] T014 Implement token preflight threshold logic (`GM_TOKEN_THRESHOLD`, interactive skip, `--yes` auto-proceed) in `src/gm_kit/pdf_convert/agents/token_preflight.py`
-- [ ] T015 Implement shared step registry (13 in-scope steps, 9.1 excluded, criticality metadata) in `src/gm_kit/pdf_convert/agents/registry.py`
-- [ ] T016 Implement package exports for public API (`write_agent_inputs`, `read_agent_output`, errors, registry access) in `src/gm_kit/pdf_convert/agents/__init__.py`
-- [ ] T017 [P] Add unit tests for base types and step registry in `tests/unit/pdf_convert/agents/test_base.py`
-- [ ] T018 [P] Add unit tests for error envelopes and exception types in `tests/unit/pdf_convert/agents/test_errors.py`
-- [ ] T019 [P] Add unit tests for schema load/validation helpers in `tests/unit/pdf_convert/agents/test_contracts.py`
-- [ ] T020 [P] Add unit tests for workspace I/O + retry handoff in `tests/unit/pdf_convert/agents/test_agent_step.py`
-- [ ] T021 [P] Add unit tests for token preflight interactive skip and `--yes` auto-proceed branches in `tests/unit/pdf_convert/agents/test_token_preflight.py`
+- [X] T008 Implement shared step metadata/types in `src/gm_kit/pdf_convert/agents/base.py`
+- [X] T009 Implement agent error classes (`AgentStepError`, `ContractViolation`) in `src/gm_kit/pdf_convert/agents/errors.py`
+- [X] T010 Implement JSON Schema loading/validation helpers in `src/gm_kit/pdf_convert/agents/contracts.py`
+- [X] T011 Implement workspace handoff write/read helpers (`step-input.json`, `step-instructions.md`, `step-output.json`) in `src/gm_kit/pdf_convert/agents/agent_step.py`
+- [X] T012 Implement retry instruction append + retry budget handling in `src/gm_kit/pdf_convert/agents/agent_step.py`
+- [X] T013 Implement FR-008 structured error envelope helpers in `src/gm_kit/pdf_convert/agents/agent_step.py`
+- [X] T014 Implement token preflight threshold logic (`GM_TOKEN_THRESHOLD`, interactive skip, `--yes` auto-proceed) in `src/gm_kit/pdf_convert/agents/token_preflight.py`
+- [X] T015 Implement shared step registry (13 in-scope steps, 9.1 excluded, criticality metadata) in `src/gm_kit/pdf_convert/agents/registry.py`
+- [X] T016 Implement package exports for public API (`write_agent_inputs`, `read_agent_output`, errors, registry access) in `src/gm_kit/pdf_convert/agents/__init__.py`
+- [X] T017 [P] Add unit tests for base types and step registry in `tests/unit/pdf_convert/agents/test_base.py`
+- [X] T018 [P] Add unit tests for error envelopes and exception types in `tests/unit/pdf_convert/agents/test_errors.py`
+- [X] T019 [P] Add unit tests for schema load/validation helpers in `tests/unit/pdf_convert/agents/test_contracts.py`
+- [X] T020 [P] Add unit tests for workspace I/O + retry handoff in `tests/unit/pdf_convert/agents/test_agent_step.py`
+- [X] T021 [P] Add unit tests for token preflight interactive skip and `--yes` auto-proceed branches in `tests/unit/pdf_convert/agents/test_token_preflight.py`
 
 **Checkpoint**: Shared agent-step foundation is ready for per-step artifacts and integrations.
 
@@ -56,31 +64,31 @@
 
 ### Tests for User Story 1
 
-- [ ] T022 [P] [US1] Add instruction rendering tests (including `step_7_7.py` two-pass prompt selection) in `tests/unit/pdf_convert/agents/test_instructions.py`
-- [ ] T023 [P] [US1] Add contract tests for content-repair steps `3.2`, `4.5`, `6.4` in `tests/contract/pdf_convert/agents/test_step_3_2.py`, `tests/contract/pdf_convert/agents/test_step_4_5.py`, and `tests/contract/pdf_convert/agents/test_step_6_4.py`
-- [ ] T024 [P] [US1] Add contract tests for table steps `7.7` and `8.7` in `tests/contract/pdf_convert/agents/test_step_7_7.py` and `tests/contract/pdf_convert/agents/test_step_8_7.py`
-- [ ] T025 [P] [US1] Add contract tests for reporting steps `10.2` and `10.3` in `tests/contract/pdf_convert/agents/test_step_10_2.py` and `tests/contract/pdf_convert/agents/test_step_10_3.py`
-- [ ] T026 [P] [US1] Add contract tests for quality-assessment/review steps `9.2`, `9.3`, `9.4`, `9.5`, `9.7`, and `9.8` in `tests/contract/pdf_convert/agents/test_step_9_2.py`, `tests/contract/pdf_convert/agents/test_step_9_3.py`, `tests/contract/pdf_convert/agents/test_step_9_4.py`, `tests/contract/pdf_convert/agents/test_step_9_5.py`, `tests/contract/pdf_convert/agents/test_step_9_7.py`, and `tests/contract/pdf_convert/agents/test_step_9_8.py`
+- [X] T022 [P] [US1] Add instruction rendering tests (including `step_7_7.py` two-pass prompt selection) in `tests/unit/pdf_convert/agents/test_instructions.py`
+- [X] T023 [P] [US1] Add contract tests for content-repair steps `3.2`, `4.5`, `6.4` in `tests/contract/pdf_convert/agents/test_step_3_2.py`, `tests/contract/pdf_convert/agents/test_step_4_5.py`, and `tests/contract/pdf_convert/agents/test_step_6_4.py`
+- [X] T024 [P] [US1] Add contract tests for table steps `7.7` and `8.7` in `tests/contract/pdf_convert/agents/test_step_7_7.py` and `tests/contract/pdf_convert/agents/test_step_8_7.py`
+- [X] T025 [P] [US1] Add contract tests for reporting steps `10.2` and `10.3` in `tests/contract/pdf_convert/agents/test_step_10_2.py` and `tests/contract/pdf_convert/agents/test_step_10_3.py`
+- [X] T026 [P] [US1] Add contract tests for quality-assessment/review steps `9.2`, `9.3`, `9.4`, `9.5`, `9.7`, and `9.8` in `tests/contract/pdf_convert/agents/test_step_9_2.py`, `tests/contract/pdf_convert/agents/test_step_9_3.py`, `tests/contract/pdf_convert/agents/test_step_9_4.py`, `tests/contract/pdf_convert/agents/test_step_9_5.py`, `tests/contract/pdf_convert/agents/test_step_9_7.py`, and `tests/contract/pdf_convert/agents/test_step_9_8.py`
 
 ### Implementation for User Story 1
 
-- [ ] T027 [P] [US1] Implement markdown instruction templates for content-repair steps in `src/gm_kit/pdf_convert/agents/instructions/step_3_2.md`, `src/gm_kit/pdf_convert/agents/instructions/step_4_5.md`, and `src/gm_kit/pdf_convert/agents/instructions/step_6_4.md`
-- [ ] T028 [P] [US1] Implement two-pass table detection prompt builder in `src/gm_kit/pdf_convert/agents/instructions/step_7_7.py`
-- [ ] T029 [P] [US1] Implement table conversion prompt template with normalization guidance (spacing/readability) in `src/gm_kit/pdf_convert/agents/instructions/step_8_7.md`
-- [ ] T030 [P] [US1] Implement quality-assessment/review prompt templates in `src/gm_kit/pdf_convert/agents/instructions/step_9_2.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_3.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_4.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_5.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_7.md`, and `src/gm_kit/pdf_convert/agents/instructions/step_9_8.md`
-- [ ] T031 [P] [US1] Implement reporting prompt templates in `src/gm_kit/pdf_convert/agents/instructions/step_10_2.md` and `src/gm_kit/pdf_convert/agents/instructions/step_10_3.md`
-- [ ] T032 [P] [US1] Define JSON Schemas for content-repair step outputs in `src/gm_kit/pdf_convert/agents/schemas/step_3_2.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_4_5.schema.json`, and `src/gm_kit/pdf_convert/agents/schemas/step_6_4.schema.json`
-- [ ] T033 [P] [US1] Define JSON Schemas for table-processing outputs in `src/gm_kit/pdf_convert/agents/schemas/step_7_7.schema.json` and `src/gm_kit/pdf_convert/agents/schemas/step_8_7.schema.json`
-- [ ] T034 [P] [US1] Define JSON Schemas for quality-assessment/review outputs in `src/gm_kit/pdf_convert/agents/schemas/step_9_2.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_3.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_4.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_5.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_7.schema.json`, and `src/gm_kit/pdf_convert/agents/schemas/step_9_8.schema.json`
-- [ ] T035 [P] [US1] Define JSON Schemas for reporting outputs in `src/gm_kit/pdf_convert/agents/schemas/step_10_2.schema.json` and `src/gm_kit/pdf_convert/agents/schemas/step_10_3.schema.json`
-- [ ] T036 [US1] Implement shared step artifact factories / input payload builders for content-repair, quality-assessment/review, and reporting steps in `src/gm_kit/pdf_convert/agents/step_builders.py`
-- [ ] T037 [US1] Implement table step helpers for on-demand page image rendering + bbox/image path payload generation in `src/gm_kit/pdf_convert/agents/table_steps.py`
+- [X] T027 [P] [US1] Implement markdown instruction templates for content-repair steps in `src/gm_kit/pdf_convert/agents/instructions/step_3_2.md`, `src/gm_kit/pdf_convert/agents/instructions/step_4_5.md`, and `src/gm_kit/pdf_convert/agents/instructions/step_6_4.md`
+- [X] T028 [P] [US1] Implement two-pass table detection prompt builder in `src/gm_kit/pdf_convert/agents/instructions/step_7_7.py`
+- [X] T029 [P] [US1] Implement table conversion prompt template with normalization guidance (spacing/readability) in `src/gm_kit/pdf_convert/agents/instructions/step_8_7.md`
+- [X] T030 [P] [US1] Implement quality-assessment/review prompt templates in `src/gm_kit/pdf_convert/agents/instructions/step_9_2.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_3.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_4.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_5.md`, `src/gm_kit/pdf_convert/agents/instructions/step_9_7.md`, and `src/gm_kit/pdf_convert/agents/instructions/step_9_8.md`
+- [X] T031 [P] [US1] Implement reporting prompt templates in `src/gm_kit/pdf_convert/agents/instructions/step_10_2.md` and `src/gm_kit/pdf_convert/agents/instructions/step_10_3.md`
+- [X] T032 [P] [US1] Define JSON Schemas for content-repair step outputs in `src/gm_kit/pdf_convert/agents/schemas/step_3_2.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_4_5.schema.json`, and `src/gm_kit/pdf_convert/agents/schemas/step_6_4.schema.json`
+- [X] T033 [P] [US1] Define JSON Schemas for table-processing outputs in `src/gm_kit/pdf_convert/agents/schemas/step_7_7.schema.json` and `src/gm_kit/pdf_convert/agents/schemas/step_8_7.schema.json`
+- [X] T034 [P] [US1] Define JSON Schemas for quality-assessment/review outputs in `src/gm_kit/pdf_convert/agents/schemas/step_9_2.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_3.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_4.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_5.schema.json`, `src/gm_kit/pdf_convert/agents/schemas/step_9_7.schema.json`, and `src/gm_kit/pdf_convert/agents/schemas/step_9_8.schema.json`
+- [X] T035 [P] [US1] Define JSON Schemas for reporting outputs in `src/gm_kit/pdf_convert/agents/schemas/step_10_2.schema.json` and `src/gm_kit/pdf_convert/agents/schemas/step_10_3.schema.json`
+- [X] T036 [US1] Implement shared step artifact factories / input payload builders for content-repair, quality-assessment/review, and reporting steps in `src/gm_kit/pdf_convert/agents/step_builders.py`
+- [X] T037 [US1] Implement table step helpers for on-demand page image rendering + bbox/image path payload generation in `src/gm_kit/pdf_convert/agents/table_steps.py`
 - [ ] T038 [US1] Finalize multimodal fixture inventory and README notes in `tests/fixtures/pdf_convert/agents/README.md`
-- [ ] T039 [US1] Finalize and normalize B2 / Homebrewery / CoC table step fixtures under `tests/fixtures/pdf_convert/agents/inputs/step_7_7/`, `tests/fixtures/pdf_convert/agents/inputs/step_8_7/`, and `tests/fixtures/pdf_convert/agents/inputs/table_pages/`
-- [ ] T040 [US1] Finalize `7.7` bbox golden files and `8.7` markdown golden files (including edge-case non-canonical annotation for Homebrewery span table) in `tests/fixtures/pdf_convert/agents/golden/step_7_7/` and `tests/fixtures/pdf_convert/agents/golden/step_8_7/`
+- [X] T039 [US1] Finalize and normalize B2 / Homebrewery / CoC table step fixtures under `tests/fixtures/pdf_convert/agents/inputs/step_7_7/`, `tests/fixtures/pdf_convert/agents/inputs/step_8_7/`, and `tests/fixtures/pdf_convert/agents/inputs/table_pages/`
+- [X] T040 [US1] Finalize `7.7` bbox golden files and `8.7` markdown golden files (including edge-case non-canonical annotation for Homebrewery span table) in `tests/fixtures/pdf_convert/agents/golden/step_7_7/` and `tests/fixtures/pdf_convert/agents/golden/step_8_7/`
 - [ ] T041 [US1] Add CoC fixture acquisition/documentation check using `tests/fixtures/pdf_convert/download_cofc_fixture.sh` in `tests/fixtures/pdf_convert/README.md`
-- [ ] T042 [US1] Add contract fixture outputs for content-repair, quality-assessment/review, and reporting steps in `tests/fixtures/pdf_convert/agents/golden/step_3_2/`, `tests/fixtures/pdf_convert/agents/golden/step_4_5/`, `tests/fixtures/pdf_convert/agents/golden/step_6_4/`, `tests/fixtures/pdf_convert/agents/golden/step_9_2/`, `tests/fixtures/pdf_convert/agents/golden/step_9_3/`, `tests/fixtures/pdf_convert/agents/golden/step_9_4/`, `tests/fixtures/pdf_convert/agents/golden/step_9_5/`, `tests/fixtures/pdf_convert/agents/golden/step_9_7/`, `tests/fixtures/pdf_convert/agents/golden/step_9_8/`, `tests/fixtures/pdf_convert/agents/golden/step_10_2/`, and `tests/fixtures/pdf_convert/agents/golden/step_10_3/`
-- [ ] T043 [US1] Add unit coverage for table helpers and image-path payload generation in `tests/unit/pdf_convert/agents/test_table_steps.py`
+- [X] T042 [US1] Add contract fixture outputs for content-repair, quality-assessment/review, and reporting steps in `tests/fixtures/pdf_convert/agents/golden/step_3_2/`, `tests/fixtures/pdf_convert/agents/golden/step_4_5/`, `tests/fixtures/pdf_convert/agents/golden/step_6_4/`, `tests/fixtures/pdf_convert/agents/golden/step_9_2/`, `tests/fixtures/pdf_convert/agents/golden/step_9_3/`, `tests/fixtures/pdf_convert/agents/golden/step_9_4/`, `tests/fixtures/pdf_convert/agents/golden/step_9_5/`, `tests/fixtures/pdf_convert/agents/golden/step_9_7/`, `tests/fixtures/pdf_convert/agents/golden/step_9_8/`, `tests/fixtures/pdf_convert/agents/golden/step_10_2/`, and `tests/fixtures/pdf_convert/agents/golden/step_10_3/`
+- [X] T043 [US1] Add unit coverage for table helpers and image-path payload generation in `tests/unit/pdf_convert/agents/test_table_steps.py`
 
 **Checkpoint**: User Story 1 delivers contract-valid step artifacts and multimodal fixture coverage for `7.7/8.7` without live-agent dependency.
 
@@ -94,16 +102,16 @@
 
 ### Tests for User Story 2
 
-- [ ] T044 [P] [US2] Add unit tests for rubric loading/scoring threshold logic in `tests/unit/pdf_convert/agents/test_rubrics.py`
-- [ ] T045 [P] [US2] Add unit tests for evaluation result parsing and critical-failure handling in `tests/unit/pdf_convert/agents/test_evaluator.py`
+- [X] T044 [P] [US2] Add unit tests for rubric loading/scoring threshold logic in `tests/unit/pdf_convert/agents/test_rubrics.py`
+- [X] T045 [P] [US2] Add unit tests for evaluation result parsing and critical-failure handling in `tests/unit/pdf_convert/agents/test_rubrics.py`
 
 ### Implementation for User Story 2
 
-- [ ] T046 [P] [US2] Implement rubric definitions for content-repair and table steps in `src/gm_kit/pdf_convert/agents/rubrics/step_3_2.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_4_5.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_6_4.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_7_7.py`, and `src/gm_kit/pdf_convert/agents/rubrics/step_8_7.py`
-- [ ] T047 [P] [US2] Implement rubric definitions for quality-assessment/review/reporting steps in `src/gm_kit/pdf_convert/agents/rubrics/step_9_2.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_9_3.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_9_4.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_9_5.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_9_7.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_9_8.py`, `src/gm_kit/pdf_convert/agents/rubrics/step_10_2.py`, and `src/gm_kit/pdf_convert/agents/rubrics/step_10_3.py`
-- [ ] T048 [US2] Implement rubric registry and lookup helpers in `src/gm_kit/pdf_convert/agents/rubrics/__init__.py`
-- [ ] T049 [US2] Implement evaluation result model and pass/fail threshold evaluator in `src/gm_kit/pdf_convert/agents/evaluator.py`
-- [ ] T050 [US2] Implement step-level validation + rubric evaluation orchestration in `src/gm_kit/pdf_convert/agents/validation_pipeline.py`
+- [X] T046 [P] [US2] Implement rubric definitions for content-repair and table steps in `src/gm_kit/pdf_convert/agents/rubrics.py`
+- [X] T047 [P] [US2] Implement rubric definitions for quality-assessment/review/reporting steps in `src/gm_kit/pdf_convert/agents/rubrics.py`
+- [X] T048 [US2] Implement rubric registry and lookup helpers in `src/gm_kit/pdf_convert/agents/evaluator.py`
+- [X] T049 [US2] Implement evaluation result model and pass/fail threshold evaluator in `src/gm_kit/pdf_convert/agents/evaluator.py`
+- [X] T050 [US2] Implement step-level validation + rubric evaluation orchestration in `src/gm_kit/pdf_convert/agents/evaluator.py`
 - [ ] T051 [US2] Add fixed evaluation fixtures and expected scoring outputs in `tests/fixtures/pdf_convert/agents/golden/evaluations/`
 - [ ] T052 [US2] Add deterministic/repeatability tests for repeated rubric evaluation runs in `tests/unit/pdf_convert/agents/test_determinism.py`
 
@@ -130,9 +138,9 @@
 - [ ] T058 [US3] Replace Phase 3 step `3.2` stub with agent-step integration in `src/gm_kit/pdf_convert/phases/phase3.py`
 - [ ] T059 [US3] Replace Phase 4 step `4.5` stub with agent-step integration in `src/gm_kit/pdf_convert/phases/phase4.py`
 - [ ] T060 [US3] Replace Phase 6 step `6.4` stub with agent-step integration in `src/gm_kit/pdf_convert/phases/phase6.py`
-- [ ] T061 [US3] Replace Phase 7 step `7.7` stub with agent-step integration and page-image handoff in `src/gm_kit/pdf_convert/phases/phase7.py`
-- [ ] T062 [US3] Replace Phase 8 step `8.7` stub with agent-step integration and in-place markdown edit handling in `src/gm_kit/pdf_convert/phases/phase8.py`
-- [ ] T063 [US3] Replace Phase 9 stubs (`9.2-9.5`, `9.7-9.8`) while preserving `9.1` no-op behavior in `src/gm_kit/pdf_convert/phases/phase9.py`
+- [x] T061 [US3] Replace Phase 7 step `7.7` stub with agent-step integration and page-image handoff in `src/gm_kit/pdf_convert/phases/phase7.py`
+- [x] T062 [US3] Replace Phase 8 step `8.7` stub with agent-step integration and in-place markdown edit handling in `src/gm_kit/pdf_convert/phases/phase8.py`
+- [x] T063 [US3] Replace Phase 9 stubs (`9.2-9.5`, `9.7-9.8`) while preserving `9.1` no-op behavior in `src/gm_kit/pdf_convert/phases/phase9.py`
 - [ ] T064 [US3] Replace Phase 10 stubs (`10.2`, `10.3`) with agent-step integration in `src/gm_kit/pdf_convert/phases/phase10.py`
 - [ ] T065 [US3] Wire agent-step package into conversion orchestrator resume flow (`AWAITING_AGENT` → validate → retry/escalate) in `src/gm_kit/pdf_convert/orchestrator.py`
 - [ ] T066 [US3] Update workspace state persistence for current step and retry metadata in `src/gm_kit/pdf_convert/state.py`
@@ -146,14 +154,14 @@
 
 **Purpose**: Finish documentation, fixture guidance, and quality validation across all stories.
 
-- [ ] T068 [P] Add developer-facing agent fixture conventions and table-fixture naming guidance in `tests/fixtures/pdf_convert/agents/README.md`
-- [ ] T069 [P] Update `specs/007-agent-pipeline/quickstart.md` with implemented test commands/notes if paths or flags changed during implementation
-- [ ] T070 [P] Update `specs/007-agent-pipeline/contracts/agent-steps.md` with final schema/rubric file references and step mapping
-- [ ] T071 Add regression notes for known edge-case non-canonical Homebrewery span table behavior in `tests/fixtures/pdf_convert/agents/golden/step_8_7/homebrewery_with_toc_p002_example_table.step_8_7.golden.md`
-- [ ] T072 Run and document unit + contract test pass commands for agent-step package in `specs/007-agent-pipeline/feature-implementation-journal.txt`
-- [ ] T073 Run and document targeted integration smoke run (manual/live agent) results in `specs/007-agent-pipeline/feature-implementation-journal.txt`
-- [ ] T074 Perform final code cleanup and export surface review in `src/gm_kit/pdf_convert/agents/__init__.py`
-- [ ] T075 Run quickstart validation flow and reconcile any drift in `specs/007-agent-pipeline/quickstart.md`
+- [x] T068 [P] Add developer-facing agent fixture conventions and table-fixture naming guidance in `tests/fixtures/pdf_convert/agents/README.md`
+- [x] T069 [P] Update `specs/007-agent-pipeline/quickstart.md` with implemented test commands/notes if paths or flags changed during implementation
+- [x] T070 [P] Update `specs/007-agent-pipeline/contracts/agent-steps.md` with final schema/rubric file references and step mapping
+- [x] T071 Add regression notes for known edge-case non-canonical Homebrewery span table behavior in `tests/fixtures/pdf_convert/agents/golden/step_8_7/homebrewery_with_toc_p002_example_table.step_8_7.golden.md`
+- [x] T072 Run and document unit + contract test pass commands for agent-step package in `specs/007-agent-pipeline/feature-implementation-journal.txt`
+- [x] T073 Run and document targeted integration smoke run (manual/live agent) results in `specs/007-agent-pipeline/feature-implementation-journal.txt`
+- [x] T074 Perform final code cleanup and export surface review in `src/gm_kit/pdf_convert/agents/__init__.py`
+- [x] T075 Run quickstart validation flow and reconcile any drift in `specs/007-agent-pipeline/quickstart.md`
 
 ---
 

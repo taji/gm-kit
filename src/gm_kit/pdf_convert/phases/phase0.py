@@ -12,6 +12,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from gm_kit.pdf_convert.constants import DEFAULT_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.metadata import extract_metadata, save_metadata
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 from gm_kit.pdf_convert.preflight import analyze_pdf
@@ -223,7 +224,7 @@ class Phase0(Phase):
                 )
             else:
                 output_path = Path(state.output_dir)
-                callout_config_path = output_path / "callout_config.json"
+                callout_config_path = output_path / DEFAULT_CALLOUT_RULES_FILENAME
                 if not callout_config_path.exists():
                     with open(callout_config_path, "w", encoding="utf-8") as f:
                         json.dump([], f, indent=2)

@@ -1,0 +1,26 @@
+{
+  "step_id": "9.7",
+  "source_pdf": "temp-resources/CHA23131 Call of Cthulhu 7th Edition Quick-Start Rules.pdf",
+  "phase8_excerpt": "# CONTENTS\n\n# Introduction\n\n## Winners and Losers\n\n## Dice Roll Variations\n\n# The Characters\n",
+  "toc_entries": [
+    {"level": 1, "title": "CONTENTS", "page": null},
+    {"level": 1, "title": "Introduction", "page": 2},
+    {"level": 1, "title": "What Is Roleplaying?", "page": 4},
+    {"level": 1, "title": "Winners and Losers", "page": 6},
+    {"level": 1, "title": "Dice Roll Variations", "page": 7},
+    {"level": 1, "title": "The Characters", "page": 8}
+  ],
+  "font_family_mapping": {
+    "signatures": [
+      {
+        "id": "sig001",
+        "family": "Arial-Bold",
+        "size": 18,
+        "candidate_heading": true,
+        "suggested_level": "H1",
+        "label": "H1"
+      }
+    ]
+  },
+  "fixture_notes": "CoC TOC validation test. TOC shows 'Winners and Losers' page 6 and 'Dice Roll Variations' page 7 exist, but they're actually subsections under 'What Is Roleplaying?' (page 4) not top-level sections. Tests gap detection with font-inferred heading skepticism."
+}

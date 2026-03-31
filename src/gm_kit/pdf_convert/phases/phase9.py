@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from gm_kit.pdf_convert.constants import RESOLVED_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
 if TYPE_CHECKING:
@@ -45,6 +46,27 @@ class Phase9(Phase):
     def has_user_steps(self) -> bool:
         return True  # Steps 9.9-9.11: Issue resolution
 
+    @staticmethod
+    def _build_structured_error(step_id: str, error: str, recovery: str) -> str:
+        """Create FR-008 structured error message payload."""
+        return json.dumps({"step_id": step_id, "error": error, "recovery": recovery})
+
+    @staticmethod
+    def _extract_score(envelope) -> int:
+        """Derive a normalized 1-5 score from envelope payload."""
+        data = envelope.data if isinstance(envelope.data, dict) else {}
+        score = data.get("score")
+        if isinstance(score, (int, float)):
+            return max(1, min(5, int(round(score))))
+
+        rubric = envelope.rubric_scores if isinstance(envelope.rubric_scores, dict) else {}
+        rubric_values = [v for v in rubric.values() if isinstance(v, (int, float))]
+        if rubric_values:
+            avg = sum(rubric_values) / len(rubric_values)
+            return max(1, min(5, int(round(avg))))
+
+        return 5
+
     def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
         """Execute lint and review steps.
 
@@ -70,55 +92,12 @@ class Phase9(Phase):
         try:
             input_path.read_text(encoding="utf-8")
 
-            # Step 9.1: Completeness check (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.1",
-                    description="Completeness check (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
+            # Step 9.1: Dropped - Phase 4 guarantees all page markers
+            # No agent step needed for completeness check
 
-            # Step 9.2: Structure validation (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.2",
-                    description="Structure validation (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
-
-            # Step 9.3: Reading flow check (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.3",
-                    description="Reading flow check (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
-
-            # Step 9.4: Table formatting check (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.4",
-                    description="Table formatting check (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
-
-            # Step 9.5: Callout formatting check (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.5",
-                    description="Callout formatting check (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
+            # Execute all quality assessment agent steps (9.2-9.5, 9.7-9.8)
+            output_dir = Path(state.output_dir)
+            self._execute_quality_assessment(result, output_dir, input_path)
 
             # Step 9.6: Run markdown lint using pymarkdownlnt
             lint_violations: list[str] = []
@@ -214,26 +193,6 @@ class Phase9(Phase):
                 )
             )
 
-            # Step 9.7: Review TOC validation issues (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.7",
-                    description="Review TOC validation issues (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
-
-            # Step 9.8: Review two-column reading order (AGENT - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="9.8",
-                    description="Review two-column reading order (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
-
             # Step 9.9: Present issues to user (USER - STUBBED)
             result.add_step(
                 StepResult(
@@ -269,3 +228,202 @@ class Phase9(Phase):
 
         result.complete()
         return result
+
+    def _execute_quality_assessment(  # noqa: PLR0912
+        self,
+        result: PhaseResult,
+        output_dir: Path,
+        input_path: Path,
+    ) -> None:
+        """Execute quality assessment agent steps (9.2, 9.3, 9.4, 9.5, 9.7, 9.8).
+
+        Args:
+            result: Phase result for adding steps
+            output_dir: Output directory
+            input_path: Path to input markdown file
+        """
+        try:
+            from gm_kit.pdf_convert.agents import AgentStepRuntime
+            from gm_kit.pdf_convert.agents.errors import MissingInputError
+            from gm_kit.pdf_convert.agents.step_builders import (
+                build_callout_formatting_payload,
+                build_reading_order_payload,
+                build_structural_clarity_payload,
+                build_table_integrity_payload,
+                build_text_flow_payload,
+                build_toc_validation_payload,
+            )
+
+            runtime = AgentStepRuntime(str(output_dir))
+
+            steps_to_execute = [
+                ("9.2", "Structural clarity assessment"),
+                ("9.3", "Text flow assessment"),
+                ("9.4", "Table integrity check"),
+                ("9.5", "Callout formatting check"),
+                ("9.7", "TOC validation"),
+                ("9.8", "Reading order review"),
+            ]
+
+            for step_id, description in steps_to_execute:
+                try:
+                    # Load TOC file for relevant steps
+                    toc_file = output_dir / "toc-extracted.txt"
+                    font_mapping = output_dir / "font-family-mapping.json"
+                    tables_manifest = output_dir / "tables-manifest.json"
+                    gm_callout_config = output_dir / RESOLVED_CALLOUT_RULES_FILENAME
+
+                    if step_id == "9.2":
+                        inputs = build_structural_clarity_payload(
+                            phase8_file=str(input_path),
+                            toc_file=str(toc_file) if toc_file.exists() else "",
+                            workspace=str(output_dir),
+                        )
+                    elif step_id == "9.3":
+                        # Text flow assessment just needs the phase8 file
+                        inputs = build_text_flow_payload(
+                            phase8_file=str(input_path),
+                            workspace=str(output_dir),
+                        )
+                    elif step_id == "9.4" and tables_manifest.exists():
+                        # Table integrity check is N/A when no tables were confirmed in phase 7.
+                        try:
+                            manifest_data = json.loads(tables_manifest.read_text(encoding="utf-8"))
+                        except Exception:
+                            manifest_data = {}
+
+                        total_tables = int(manifest_data.get("total_count", 0) or 0)
+                        if total_tables == 0:
+                            message = (
+                                "No tables found in tables-manifest.json; "
+                                "table integrity check skipped (N/A)."
+                            )
+                            result.add_step(
+                                StepResult(
+                                    step_id=step_id,
+                                    description=f"{description} (AGENT)",
+                                    status=PhaseStatus.SUCCESS,
+                                    message=message,
+                                )
+                            )
+                            continue
+
+                        inputs = build_table_integrity_payload(
+                            phase8_file=str(input_path),
+                            tables_manifest=str(tables_manifest),
+                            workspace=str(output_dir),
+                        )
+                    elif step_id == "9.4":
+                        raise MissingInputError(
+                            step_id="9.4",
+                            missing_artifact="tables-manifest.json",
+                        )
+                    elif step_id == "9.5" and gm_callout_config.exists():
+                        # Callout formatting check needs callout config
+                        inputs = build_callout_formatting_payload(
+                            phase8_file=str(input_path),
+                            gm_callout_config=str(gm_callout_config),
+                            workspace=str(output_dir),
+                        )
+                    elif step_id == "9.5":
+                        raise MissingInputError(
+                            step_id="9.5",
+                            missing_artifact=RESOLVED_CALLOUT_RULES_FILENAME,
+                        )
+                    elif step_id == "9.7" and font_mapping.exists():
+                        inputs = build_toc_validation_payload(
+                            phase8_file=str(input_path),
+                            toc_file=str(toc_file) if toc_file.exists() else "",
+                            font_family_mapping=str(font_mapping),
+                            workspace=str(output_dir),
+                        )
+                    elif step_id == "9.7":
+                        result.add_step(
+                            StepResult(
+                                step_id=step_id,
+                                description=f"{description} (AGENT)",
+                                status=PhaseStatus.WARNING,
+                                message=(
+                                    "Skipped with flag: required artifact "
+                                    "font-family-mapping.json not available"
+                                ),
+                            )
+                        )
+                        continue
+                    elif step_id == "9.8":
+                        # Reading order review just needs the phase8 file
+                        inputs = build_reading_order_payload(
+                            phase8_file=str(input_path),
+                            pdf_metadata=None,
+                            workspace=str(output_dir),
+                        )
+                    else:
+                        continue
+
+                    envelope, status = runtime.execute_step(step_id, inputs)
+
+                    if envelope and isinstance(envelope.data, dict):
+                        score = self._extract_score(envelope)
+                        result.add_step(
+                            StepResult(
+                                step_id=step_id,
+                                description=f"{description} (AGENT)",
+                                status=PhaseStatus.SUCCESS,
+                                message=f"Score: {score}/5",
+                            )
+                        )
+                    else:
+                        status_hint = f"Agent step status: {status.name}" if status else ""
+                        result.add_step(
+                            StepResult(
+                                step_id=step_id,
+                                description=f"{description} (AGENT)",
+                                status=PhaseStatus.WARNING,
+                                message=f"Agent step returned no envelope. {status_hint}".strip(),
+                            )
+                        )
+                except MissingInputError as e:
+                    message = self._build_structured_error(
+                        step_id=step_id,
+                        error=e.error,
+                        recovery=e.recovery,
+                    )
+                    result.add_step(
+                        StepResult(
+                            step_id=step_id,
+                            description=f"{description} (AGENT)",
+                            status=PhaseStatus.ERROR,
+                            message=message,
+                        )
+                    )
+                    result.add_error(f"Step {step_id} failed due to missing required input")
+                    raise
+                except Exception as e:
+                    high_critical_steps = {"9.2", "9.3", "9.4", "9.5"}
+                    if step_id in high_critical_steps:
+                        message = self._build_structured_error(
+                            step_id=step_id,
+                            error=str(e),
+                            recovery="Fix the step input/output issues and re-run Phase 9",
+                        )
+                        result.add_step(
+                            StepResult(
+                                step_id=step_id,
+                                description=f"{description} (AGENT)",
+                                status=PhaseStatus.ERROR,
+                                message=message,
+                            )
+                        )
+                        result.add_error(f"High-criticality step {step_id} failed")
+                        raise
+                    result.add_step(
+                        StepResult(
+                            step_id=step_id,
+                            description=f"{description} (AGENT)",
+                            status=PhaseStatus.WARNING,
+                            message=f"Agent step failed: {e}",
+                        )
+                    )
+
+        except Exception as e:
+            logger.warning(f"Quality assessment failed: {e}")

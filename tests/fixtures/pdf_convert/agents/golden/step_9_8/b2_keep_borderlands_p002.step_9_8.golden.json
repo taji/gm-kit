@@ -1,0 +1,17 @@
+{
+  "fixture_id": "b2_keep_borderlands_p002",
+  "step_id": "9.8",
+  "status": "success",
+  "data": {
+    "issues": [],
+    "pervasive_flag": false,
+    "affected_percentage": 0,
+    "score": 5
+  },
+  "rubric_scores": {
+    "order_correctness": 5,
+    "confidence_flagging": 5,
+    "threshold_adherence": 5
+  },
+  "warnings": []
+}

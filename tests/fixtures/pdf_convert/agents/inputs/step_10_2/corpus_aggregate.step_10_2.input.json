@@ -1,0 +1,36 @@
+{
+  "step_id": "10.2",
+  "assessment_results": {
+    "9.2": {
+      "heading_hierarchy_valid": true,
+      "score": 5
+    },
+    "9.3": {
+      "flow_issues": [],
+      "readability_score": 5
+    },
+    "9.4": {
+      "tables_checked": 1,
+      "score": 5
+    },
+    "9.5": {
+      "callouts_checked": 1,
+      "score": 5
+    },
+    "9.7": {
+      "gaps": [
+        {
+          "type": "level_mismatch",
+          "note": "possible false positive - font-inferred heading"
+        }
+      ],
+      "score": 4
+    },
+    "9.8": {
+      "pervasive_flag": false,
+      "affected_percentage": 0,
+      "score": 5
+    }
+  },
+  "fixture_notes": "Aggregated quality assessment results for reporting. Based on CoC and Homebrewery corpus test results."
+}

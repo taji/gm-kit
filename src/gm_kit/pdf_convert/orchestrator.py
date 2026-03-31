@@ -8,6 +8,7 @@ from __future__ import annotations
 import logging
 import re
 import zipfile
+from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from gm_kit.pdf_convert.active_conversion import update_active_conversion
+from gm_kit.pdf_convert.agents.errors import AgentStepPause
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
 from gm_kit.pdf_convert.logging_config import reset_output_streams, setup_conversion_logging
@@ -36,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 # Characters that are invalid in Windows filenames
 WINDOWS_INVALID_CHARS = '<>:"|?*'
+PHASE_QUALITY_REVIEW = 9
 
 
 def sanitize_filename(name: str) -> str:
@@ -236,6 +239,7 @@ class Orchestrator:
         output_dir: Path | None = None,
         diagnostics: bool = False,
         auto_proceed: bool = False,
+        agent_debug: bool = False,
         cli_args: str = "",
         gm_keyword: list[str] | None = None,
         gm_callout_config_file: str | None = None,
@@ -247,6 +251,7 @@ class Orchestrator:
             output_dir: Optional output directory
             diagnostics: Enable diagnostic bundle
             auto_proceed: Skip user confirmation prompts
+            agent_debug: Capture agent stdout/stderr logs per step
             cli_args: CLI arguments string for diagnostics
             gm_keyword: Custom keywords for GM callout detection
             gm_callout_config_file: Path to a JSON file defining custom callout boundaries
@@ -290,6 +295,7 @@ class Orchestrator:
                 output_dir,
                 diagnostics,
                 auto_proceed,
+                agent_debug,
                 cli_args,
                 gm_keyword,
                 gm_callout_config_file,
@@ -334,10 +340,12 @@ class Orchestrator:
             config={
                 "cli_args": cli_args,
                 "auto_proceed": auto_proceed,
+                "agent_debug": agent_debug,
                 "gm_keyword": gm_keyword,
                 "gm_callout_config_file": gm_callout_config_file,
             },
         )
+        state.config["run_started_at"] = datetime.now().isoformat()
 
         # Save initial state
         save_state(state)
@@ -352,7 +360,8 @@ class Orchestrator:
         output_dir: Path,
         diagnostics: bool,
         auto_proceed: bool,
-        cli_args: str,
+        agent_debug: bool = False,
+        cli_args: str = "",
         gm_keyword: list[str] | None = None,
         gm_callout_config_file: str | None = None,
     ) -> ExitCode:
@@ -364,6 +373,7 @@ class Orchestrator:
             output_dir: Output directory path
             diagnostics: Enable diagnostic bundle
             auto_proceed: Skip user confirmation prompts
+            agent_debug: Capture agent stdout/stderr logs per step
             cli_args: CLI arguments string
             gm_keyword: Custom keywords for GM callout detection
             gm_callout_config_file: Path to a JSON file defining custom callout boundaries
@@ -416,24 +426,27 @@ class Orchestrator:
                 output_dir,
                 diagnostics,
                 auto_proceed,
+                agent_debug,
                 cli_args,
                 gm_keyword,
                 gm_callout_config_file,
             )
 
         # Resume
-        return self.resume_conversion(output_dir, auto_proceed)
+        return self.resume_conversion(output_dir, auto_proceed, agent_debug)
 
     def resume_conversion(
         self,
         output_dir: Path,
         auto_proceed: bool = False,
+        agent_debug: bool | None = None,
     ) -> ExitCode:
         """Resume an interrupted conversion.
 
         Args:
             output_dir: Directory with existing state
             auto_proceed: Skip user confirmation prompts
+            agent_debug: Override agent debug logging mode for resumed run
 
         Returns:
             Exit code
@@ -483,6 +496,9 @@ class Orchestrator:
 
         # Update state config
         state.config["auto_proceed"] = auto_proceed
+        if agent_debug is not None:
+            state.config["agent_debug"] = agent_debug
+        state.config["run_started_at"] = datetime.now().isoformat()
         state.status = ConversionStatus.IN_PROGRESS
 
         # Resume from next phase after last completed
@@ -495,6 +511,7 @@ class Orchestrator:
         output_dir: Path,
         phase_num: int,
         auto_proceed: bool = False,
+        agent_debug: bool | None = None,
     ) -> ExitCode:
         """Re-run a single phase.
 
@@ -502,6 +519,7 @@ class Orchestrator:
             output_dir: Directory with existing state
             phase_num: Phase number to run
             auto_proceed: Skip user confirmation prompts
+            agent_debug: Override agent debug logging mode for this run
 
         Returns:
             Exit code
@@ -531,6 +549,9 @@ class Orchestrator:
 
         # Update state
         state.config["auto_proceed"] = auto_proceed
+        if agent_debug is not None:
+            state.config["agent_debug"] = agent_debug
+        state.config["run_started_at"] = datetime.now().isoformat()
         state.set_current_phase(phase_num)
 
         # Run just this phase
@@ -541,6 +562,7 @@ class Orchestrator:
         output_dir: Path,
         step_id: str,
         auto_proceed: bool = False,
+        agent_debug: bool | None = None,
     ) -> ExitCode:
         """Resume from a specific step.
 
@@ -548,6 +570,7 @@ class Orchestrator:
             output_dir: Directory with existing state
             step_id: Step identifier (N.N format)
             auto_proceed: Skip user confirmation prompts
+            agent_debug: Override agent debug logging mode for this run
 
         Returns:
             Exit code
@@ -574,13 +597,16 @@ class Orchestrator:
 
         # Update state
         state.config["auto_proceed"] = auto_proceed
+        if agent_debug is not None:
+            state.config["agent_debug"] = agent_debug
+        state.config["run_started_at"] = datetime.now().isoformat()
         state.config["from_step"] = step_id
         state.set_current_phase(phase_num, step_id)
 
         # Run from this phase onwards
         return self._run_phases(state, start_phase=phase_num)
 
-    def show_status(self, output_dir: Path) -> ExitCode:
+    def show_status(self, output_dir: Path) -> ExitCode:  # noqa: PLR0912
         """Display conversion status per FR-009a.
 
         Args:
@@ -611,6 +637,25 @@ class Orchestrator:
         self.console.print(f"Source: {pdf_name} ({size_str})")
         self.console.print(f"Status: {state.status.value}")
         self.console.print(f"Started: {state.started_at[:19].replace('T', ' ')}")
+        if state.status in {ConversionStatus.COMPLETED, ConversionStatus.FAILED}:
+            ended_display = state.updated_at[:19].replace("T", " ")
+            self.console.print(f"Ended: {ended_display}")
+            duration_display = "unknown"
+            try:
+                started_at = datetime.fromisoformat(state.started_at)
+                ended_at = datetime.fromisoformat(state.updated_at)
+                elapsed = max((ended_at - started_at).total_seconds(), 0.0)
+                minutes, seconds = divmod(int(elapsed), 60)
+                hours, minutes = divmod(minutes, 60)
+                if hours:
+                    duration_display = f"{hours}h {minutes}m {seconds}s"
+                elif minutes:
+                    duration_display = f"{minutes}m {seconds}s"
+                else:
+                    duration_display = f"{seconds}s"
+            except ValueError:
+                duration_display = "unknown"
+            self.console.print(f"Duration: {duration_display}")
         self.console.print()
 
         # Phase table
@@ -660,22 +705,60 @@ class Orchestrator:
         Returns:
             Exit code
         """
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=self.console,
-            transient=True,
-        ) as progress:
+        show_progress = not bool(state.config.get("auto_proceed", False))
+        progress_context = (
+            Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=self.console,
+                transient=True,
+            )
+            if show_progress
+            else nullcontext(None)
+        )
+
+        with progress_context as progress:
             for phase_num in range(start_phase, PHASE_MAX + 1):
                 phase_name = PHASE_NAMES.get(phase_num, f"Phase {phase_num}")
-                task = progress.add_task(
-                    f"Phase {phase_num}/{PHASE_MAX}: {phase_name}...",
-                    total=None,
-                )
+                task = None
+                if show_progress and progress is not None:
+                    task = progress.add_task(
+                        f"Phase {phase_num}/{PHASE_MAX}: {phase_name}...",
+                        total=None,
+                    )
+                else:
+                    self.console.print(f"Phase {phase_num}/{PHASE_MAX}: {phase_name}...")
 
-                exit_code = self._run_single_phase(state, phase_num)
+                try:
+                    exit_code = self._run_single_phase(state, phase_num)
+                except AgentStepPause as pause:
+                    if show_progress and progress is not None and task is not None:
+                        progress.remove_task(task)
+                    step_dir = Path(pause.step_dir).resolve()
+                    output_file = (step_dir / "step-output.json").resolve()
+                    self.console.print()
+                    self.console.print(
+                        f"[yellow]Paused for agent step {pause.step_id}[/yellow] in `{step_dir}`."
+                    )
+                    self.console.print("[bold]Output File Checklist[/bold]")
+                    self.console.print(
+                        "- Write `step-output.json` to this exact absolute path:\n"
+                        f"  `{output_file}`"
+                    )
+                    self.console.print(
+                        f"- Ensure the file is inside this step directory:\n  `{step_dir}/`"
+                    )
+                    self.console.print(
+                        "- Do not write it to the workspace root or any parent directory."
+                    )
+                    self.console.print(
+                        "- Confirm the file exists at that path, then resume conversion."
+                    )
+                    self.console.print(pause.recovery)
+                    return ExitCode.SUCCESS
 
-                progress.remove_task(task)
+                if show_progress and progress is not None and task is not None:
+                    progress.remove_task(task)
 
                 if exit_code != ExitCode.SUCCESS:
                     return exit_code
@@ -690,6 +773,7 @@ class Orchestrator:
 
         self.console.print()
         self.console.print("[green]Conversion completed successfully![/green]")
+        self._print_completion_summary(state)
 
         # Reset stdout/stderr to original streams
         reset_output_streams()
@@ -774,3 +858,51 @@ class Orchestrator:
         save_state(state)
 
         return ExitCode.SUCCESS
+
+    def _print_completion_summary(self, state: ConversionState) -> None:
+        """Print post-conversion summary with duration and validation highlights."""
+        duration_text = "unknown"
+        try:
+            started_at_raw = state.config.get("run_started_at", state.started_at)
+            started_at = datetime.fromisoformat(started_at_raw)
+            completed_at = datetime.fromisoformat(state.updated_at)
+            elapsed = max((completed_at - started_at).total_seconds(), 0.0)
+            minutes, seconds = divmod(int(elapsed), 60)
+            hours, minutes = divmod(minutes, 60)
+            if hours:
+                duration_text = f"{hours}h {minutes}m {seconds}s"
+            elif minutes:
+                duration_text = f"{minutes}m {seconds}s"
+            else:
+                duration_text = f"{seconds}s"
+        except ValueError:
+            pass
+
+        self.console.print(f"Total conversion time: [bold]{duration_text}[/bold]")
+
+        phase9_result = next(
+            (
+                phase
+                for phase in reversed(state.phase_results)
+                if phase.get("phase_num") == PHASE_QUALITY_REVIEW
+            ),
+            None,
+        )
+        if not phase9_result:
+            return
+
+        validation_steps = {"9.2", "9.3", "9.4", "9.5", "9.6", "9.7", "9.8"}
+        steps = [
+            step
+            for step in phase9_result.get("steps", [])
+            if step.get("step_id") in validation_steps
+        ]
+        if not steps:
+            return
+
+        self.console.print("Validation summary (Phase 9):")
+        for step in steps:
+            status = str(step.get("status", "unknown")).upper()
+            step_id = step.get("step_id", "?")
+            message = step.get("message", "N/A")
+            self.console.print(f"  - {step_id} [{status}] {message}")

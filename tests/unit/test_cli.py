@@ -339,7 +339,7 @@ def test_cli_pdf_convert__should_return_exit_code__when_error_simulated_with_res
     runner = CliRunner()
 
     class StubOrchestrator:
-        def resume_conversion(self, _path, auto_proceed=False):
+        def resume_conversion(self, _path, auto_proceed=False, agent_debug=None):
             return ExitCode.STATE_ERROR
 
     monkeypatch.setattr(
@@ -364,7 +364,7 @@ def test_cli_pdf_convert__should_use_active_conversion__when_resume_without_path
     update_active_conversion(tmp_path, output_dir)
 
     class StubOrchestrator:
-        def resume_conversion(self, path, auto_proceed=False):
+        def resume_conversion(self, path, auto_proceed=False, agent_debug=None):
             assert path == output_dir
             return ExitCode.SUCCESS
 

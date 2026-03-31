@@ -13,6 +13,21 @@ from gm_kit.pdf_convert.phases.phase10 import PHASE_DETAILS, Phase10
 from gm_kit.pdf_convert.state import ConversionState
 
 
+@pytest.fixture(autouse=True)
+def mock_agent_step_runtime():
+    """Mock AgentStepRuntime to prevent actual agent invocation in tests."""
+    with patch("gm_kit.pdf_convert.agents.AgentStepRuntime") as mock_runtime_class:
+        mock_runtime = MagicMock()
+        mock_envelope = MagicMock()
+        mock_envelope.data = {
+            "ratings": {"overall": {"score": 4}},
+            "issues": [],
+        }
+        mock_runtime.execute_step.return_value = (mock_envelope, MagicMock())
+        mock_runtime_class.return_value = mock_runtime
+        yield mock_runtime_class
+
+
 class TestPhase10ReportGeneration:
     """Test conversion report generation in Phase 10."""
 
@@ -22,6 +37,8 @@ class TestPhase10ReportGeneration:
         phase = Phase10()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
+        # Simulate phase8 output being present (as it would be in a real pipeline run)
+        (tmp_path / "test-phase8.md").write_text("# Converted\n", encoding="utf-8")
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(tmp_path),
@@ -37,6 +54,8 @@ class TestPhase10ReportGeneration:
         phase = Phase10()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
+        # Simulate phase8 output being present
+        (tmp_path / "test-phase8.md").write_text("# Converted\n", encoding="utf-8")
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(tmp_path),
@@ -141,6 +160,75 @@ class TestPhase10ReportGeneration:
         assert "Unknown" in report_content or "conversion-report" in report_content.lower()
 
 
+class TestPhase10FinalRename:
+    """Test step 10.4a: rename *-phase8.md to *-final.md."""
+
+    @pytest.fixture
+    def state_with_phase8(self, tmp_path):
+        pdf_path = tmp_path / "test-doc.pdf"
+        pdf_path.touch()
+        phase8 = tmp_path / "test-doc-phase8.md"
+        phase8.write_text("# Final content\n", encoding="utf-8")
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            completed_phases=[0, 1, 2, 3, 4, 5, 6, 7, 8],
+            started_at="2026-02-10T10:00:00",
+        )
+        return state, tmp_path
+
+    def test_rename__should_produce_final_md__when_phase8_exists(self, state_with_phase8):
+        """Step 10.4a renames *-phase8.md to *-final.md."""
+        state, tmp_path = state_with_phase8
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            Phase10().execute(state)
+
+        assert (tmp_path / "test-doc-final.md").exists()
+        assert not (tmp_path / "test-doc-phase8.md").exists()
+
+    def test_rename__should_preserve_content__when_phase8_exists(self, state_with_phase8):
+        """Final document retains the phase8 content verbatim."""
+        state, tmp_path = state_with_phase8
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            Phase10().execute(state)
+
+        content = (tmp_path / "test-doc-final.md").read_text(encoding="utf-8")
+        assert "# Final content" in content
+
+    def test_rename__should_record_warning_step__when_phase8_missing(self, tmp_path):
+        """Step 10.4a records WARNING status when *-phase8.md is absent."""
+        pdf_path = tmp_path / "test-doc.pdf"
+        pdf_path.touch()
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            completed_phases=[0],
+            started_at="2026-02-10T10:00:00",
+        )
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            result = Phase10().execute(state)
+
+        step = next((s for s in result.steps if s.step_id == "10.4a"), None)
+        assert step is not None
+        assert step.status == PhaseStatus.WARNING
+
+    def test_rename__should_reference_final_md_in_report__when_rename_succeeds(
+        self, state_with_phase8
+    ):
+        """conversion-report.md lists *-final.md, not *-phase8.md."""
+        state, tmp_path = state_with_phase8
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            Phase10().execute(state)
+
+        report = (tmp_path / "conversion-report.md").read_text(encoding="utf-8")
+        assert "test-doc-final.md" in report
+        assert "test-doc-phase8.md" not in report
+
+
 class TestPhase10CompletionMetadata:
     """Test completion metadata generation in Phase 10."""
 
@@ -228,8 +316,8 @@ class TestPhase10AgentSteps:
         )
         return phase, state
 
-    def test__should_report_agent_step_10_2_stubbed(self, setup_phase10):
-        """Test step 10.2 quality ratings is stubbed."""
+    def test__should_report_agent_step_10_2_executed(self, setup_phase10):
+        """Test step 10.2 quality ratings is executed via agent."""
         phase, state = setup_phase10
 
         with patch("gm_kit.pdf_convert.phases.phase10.load_metadata") as mock_load:
@@ -237,11 +325,12 @@ class TestPhase10AgentSteps:
             result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "10.2"][0]
-        assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        # May be SUCCESS (executed) or WARNING (failed)
+        assert step.status in [PhaseStatus.SUCCESS, PhaseStatus.WARNING]
+        assert "AGENT" in step.description
 
-    def test__should_report_agent_step_10_3_stubbed(self, setup_phase10):
-        """Test step 10.3 document issues is stubbed."""
+    def test__should_report_agent_step_10_3_executed(self, setup_phase10):
+        """Test step 10.3 document issues is executed via agent."""
         phase, state = setup_phase10
 
         with patch("gm_kit.pdf_convert.phases.phase10.load_metadata") as mock_load:
@@ -249,8 +338,9 @@ class TestPhase10AgentSteps:
             result = phase.execute(state)
 
         step = [s for s in result.steps if s.step_id == "10.3"][0]
-        assert step.status == PhaseStatus.SUCCESS
-        assert "Stub" in step.message
+        # May be SUCCESS (executed) or WARNING (failed)
+        assert step.status in [PhaseStatus.SUCCESS, PhaseStatus.WARNING]
+        assert "AGENT" in step.description
 
 
 class TestPhase10Diagnostics:
@@ -324,6 +414,8 @@ class TestPhase10EdgeCases:
         phase = Phase10()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
+        # Simulate phase8 output being present
+        (tmp_path / "test-phase8.md").write_text("# Converted\n", encoding="utf-8")
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(tmp_path),

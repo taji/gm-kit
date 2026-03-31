@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Chunk size for large PDFs (pages per chunk)
 CHUNK_SIZE = 50
+TRAILING_CONTEXT_CHARS = 20
 
 
 def _escape_marker_chars(text: str) -> str:
@@ -383,6 +384,35 @@ class Phase4(Phase):
 
         return marked_text
 
+    def _detect_chunk_boundaries(self, all_pages_text: list[str]) -> list[dict]:
+        """Detect chunk/page boundaries for sentence split detection.
+
+        Args:
+            all_pages_text: List of text for each page
+
+        Returns:
+            List of boundary locations with page and line info
+        """
+        boundaries = []
+        for page_num, text in enumerate(all_pages_text):
+            lines = text.split("\n")
+            for line_num, line in enumerate(lines):
+                # Check for hyphenation at line end
+                if line.rstrip().endswith("-"):
+                    boundaries.append(
+                        {
+                            "page": page_num + 1,
+                            "line": line_num,
+                            "type": "hyphenation",
+                            "text": (
+                                line[-TRAILING_CONTEXT_CHARS:]
+                                if len(line) > TRAILING_CONTEXT_CHARS
+                                else line
+                            ),
+                        }
+                    )
+        return boundaries
+
     def execute(self, state: ConversionState) -> PhaseResult:
         """Execute text extraction steps.
 
@@ -427,19 +457,59 @@ class Phase4(Phase):
             # Step 4.4: Merge chunks into single document
             marked_text = self._merge_pages(all_pages_text, result)
 
-            # Step 4.5: Resolve split sentences (AGENT STEP - STUBBED)
-            result.add_step(
-                StepResult(
-                    step_id="4.5",
-                    description="Resolve split sentences (AGENT)",
-                    status=PhaseStatus.SUCCESS,
-                    message="Stub: Agent step will be implemented in E4-07b",
-                )
-            )
-
-            # Save output
+            # Save phase output before agent step so the agent can edit this file in-place.
             with open(output_md_path, "w", encoding="utf-8") as f:
                 f.write(marked_text)
+
+            # Step 4.5: Resolve split sentences (AGENT STEP)
+            try:
+                from gm_kit.pdf_convert.agents import AgentStepRuntime
+                from gm_kit.pdf_convert.agents.step_builders import build_sentence_boundary_payload
+
+                runtime = AgentStepRuntime(str(output_dir))
+
+                # Get chunk boundaries from step 4.4
+                chunk_boundaries = self._detect_chunk_boundaries(all_pages_text)
+
+                inputs = build_sentence_boundary_payload(
+                    phase4_file=str(output_md_path),
+                    chunk_boundaries=chunk_boundaries,
+                    workspace=str(output_dir),
+                )
+
+                envelope, _status = runtime.execute_step("4.5", inputs)
+
+                if envelope:
+                    result.add_step(
+                        StepResult(
+                            step_id="4.5",
+                            description="Resolve split sentences (AGENT)",
+                            status=PhaseStatus.SUCCESS,
+                            message=(
+                                f"Resolved {envelope.data.get('changes_made', 0)} "
+                                "sentence splits"
+                            ),
+                        )
+                    )
+                else:
+                    result.add_step(
+                        StepResult(
+                            step_id="4.5",
+                            description="Resolve split sentences (AGENT)",
+                            status=PhaseStatus.WARNING,
+                            message="Agent step returned no envelope",
+                        )
+                    )
+            except Exception as e:
+                logger.warning(f"Step 4.5 failed: {e}")
+                result.add_step(
+                    StepResult(
+                        step_id="4.5",
+                        description="Resolve split sentences (AGENT)",
+                        status=PhaseStatus.WARNING,
+                        message=f"Agent step failed: {e}",
+                    )
+                )
 
             result.output_file = str(output_md_path)
             doc.close()

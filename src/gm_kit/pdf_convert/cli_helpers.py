@@ -114,6 +114,7 @@ def _handle_resume_command(
     pdf_path: str | None,
     output: str | None,
     yes: bool,
+    agent_debug: bool,
     orchestrator: Orchestrator,
 ) -> int:
     """Handle the --resume command.
@@ -132,14 +133,16 @@ def _handle_resume_command(
     return orchestrator.resume_conversion(
         resume_path,
         auto_proceed=yes,
+        agent_debug=agent_debug,
     )
 
 
-def _handle_phase_command(
+def _handle_phase_command(  # noqa: PLR0913
     pdf_path: str | None,
     output: str | None,
     phase: int,
     yes: bool,
+    agent_debug: bool,
     orchestrator: Orchestrator,
 ) -> int:
     """Handle the --phase command.
@@ -167,14 +170,16 @@ def _handle_phase_command(
         dir_path,
         phase,
         auto_proceed=yes,
+        agent_debug=agent_debug,
     )
 
 
-def _handle_from_step_command(
+def _handle_from_step_command(  # noqa: PLR0913
     pdf_path: str | None,
     output: str | None,
     from_step: str,
     yes: bool,
+    agent_debug: bool,
     orchestrator: Orchestrator,
 ) -> int:
     """Handle the --from-step command.
@@ -202,6 +207,7 @@ def _handle_from_step_command(
         dir_path,
         from_step,
         auto_proceed=yes,
+        agent_debug=agent_debug,
     )
 
 
@@ -210,6 +216,7 @@ def _handle_new_conversion(  # noqa: PLR0913
     output: str | None,
     diagnostics: bool,
     yes: bool,
+    agent_debug: bool,
     gm_keyword: list[str] | None,
     gm_callout_config_file: str | None,
     orchestrator: Orchestrator,
@@ -235,6 +242,7 @@ def _handle_new_conversion(  # noqa: PLR0913
         output_dir=Path(output) if output else None,
         diagnostics=diagnostics,
         auto_proceed=yes,
+        agent_debug=agent_debug,
         cli_args=cli_args,
         gm_keyword=gm_keyword,
         gm_callout_config_file=gm_callout_config_file,
@@ -273,6 +281,7 @@ def run_pdf_convert_command(  # noqa: PLR0913
     status: bool,
     diagnostics: bool,
     yes: bool,
+    agent_debug: bool,
     gm_keyword: list[str] | None,
     gm_callout_config_file: str | None,
 ) -> None:
@@ -301,15 +310,17 @@ def run_pdf_convert_command(  # noqa: PLR0913
         raise typer.Exit(code=exit_code)
 
     if resume:
-        exit_code = _handle_resume_command(pdf_path, output, yes, orchestrator)
+        exit_code = _handle_resume_command(pdf_path, output, yes, agent_debug, orchestrator)
         raise typer.Exit(code=exit_code)
 
     if phase is not None:
-        exit_code = _handle_phase_command(pdf_path, output, phase, yes, orchestrator)
+        exit_code = _handle_phase_command(pdf_path, output, phase, yes, agent_debug, orchestrator)
         raise typer.Exit(code=exit_code)
 
     if from_step:
-        exit_code = _handle_from_step_command(pdf_path, output, from_step, yes, orchestrator)
+        exit_code = _handle_from_step_command(
+            pdf_path, output, from_step, yes, agent_debug, orchestrator
+        )
         raise typer.Exit(code=exit_code)
 
     # New conversion - pdf_path is required
@@ -323,6 +334,7 @@ def run_pdf_convert_command(  # noqa: PLR0913
         output,
         diagnostics,
         yes,
+        agent_debug,
         gm_keyword,
         gm_callout_config_file,
         orchestrator,

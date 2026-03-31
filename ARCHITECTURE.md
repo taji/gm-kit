@@ -106,7 +106,7 @@ User prompts use fixed-width, plain-text layouts with lettered choices for broad
 | 7 | Font Label Assignment | Updated font-family-mapping.json | Detect headings, callouts, structure |
 | 8 | Heading Insertion | *-phase8.md | Apply markdown formatting based on labels |
 | 9 | Lint & Final Review | (quality report) | Markdown linting via pymarkdownlnt |
-| 10 | Report Generation | conversion-report.md | Generate conversion summary |
+| 10 | Report Generation | *-final.md, conversion-report.md | Rename phase8 output to final, generate summary |
 
 ### Core Components
 
@@ -182,7 +182,8 @@ class Phase(ABC):
 
 #### 4. Configuration Files
 
-**callout_config.json**: Defines GM callout boundaries by start/end text fragments
+**callout-rules.input.json**: Defines GM callout boundaries by start/end text fragments
+**callout-rules.resolved.json**: Normalized callout rules artifact used by downstream phases
 ```json
 [
   {
@@ -426,5 +427,5 @@ Core rules:
 
 ---
 
-*Last Updated: 2026-02-26*
-*Status: E4-07a (Code-driven pipeline) complete, E2-09 (agent audit) complete, E4-07b (Agent steps) pending implementation*
+*Last Updated: 2026-03-23*
+*Status: E4-07a (Code-driven pipeline) complete, E2-09 (agent audit) complete, E4-07b (Agent steps) in implementation on `007-agent-pipeline` branch (stabilization/validation in progress)*

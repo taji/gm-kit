@@ -1,0 +1,14 @@
+{
+  "step_id": "9.4",
+  "source_pdf": "tests/fixtures/pdf_convert/Dungeon Module B2, The Keep on the Borderlands.pdf",
+  "phase8_excerpt": "| Armor Class | Type of Armor |\n|:-----------:|:--------------|\n| 9 | None |\n| 8 | Shield only |\n| 7 | Leather |\n| 6 | Leather & Shield |\n| 5 | Chainmail |\n| 4 | Chainmail & Shield |\n| 3 | Plate Mail |\n| 2 | Plate Mail & Shield |\n| 1 | Plate Mail & magic Shield +1 (or other combinations)|",
+  "table_manifest": [
+    {
+      "table_id": "t1",
+      "source": "step_7_7",
+      "rows": 9,
+      "columns": 2
+    }
+  ],
+  "fixture_notes": "B2 Armor Class table from step 7.7/8.7 fixtures. Tests table integrity validation."
+}

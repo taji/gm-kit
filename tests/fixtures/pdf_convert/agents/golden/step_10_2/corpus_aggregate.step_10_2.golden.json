@@ -1,0 +1,43 @@
+{
+  "fixture_id": "corpus_aggregate",
+  "step_id": "10.2",
+  "status": "success",
+  "data": {
+    "ratings": {
+      "structural_clarity": {
+        "score": 5,
+        "justification": "Clean hierarchy, no skips detected"
+      },
+      "text_flow": {
+        "score": 5,
+        "justification": "Good paragraph continuity throughout"
+      },
+      "table_integrity": {
+        "score": 5,
+        "justification": "All tables accurate and properly formatted"
+      },
+      "callout_formatting": {
+        "score": 5,
+        "justification": "Proper blockquote syntax for GM notes"
+      },
+      "toc_validation": {
+        "score": 4,
+        "justification": "2 font-inferred heading mismatches flagged for review"
+      },
+      "reading_order": {
+        "score": 5,
+        "justification": "Correct two-column reading order"
+      },
+      "overall": {
+        "score": 4.8,
+        "justification": "High quality conversion with minor TOC hierarchy questions"
+      }
+    }
+  },
+  "rubric_scores": {
+    "rating_justification": 5,
+    "dimension_coverage": 5,
+    "score_consistency": 5
+  },
+  "warnings": []
+}

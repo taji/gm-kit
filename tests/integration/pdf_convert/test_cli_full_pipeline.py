@@ -39,6 +39,17 @@ def gmkit_cli():
     return [sys.executable, "-m", "gm_kit.cli"]
 
 
+@pytest.fixture
+def stub_env():
+    """Subprocess environment with GMKIT_AGENT_STUB=1.
+
+    Use this fixture in tests that need the full CLI pipeline to complete
+    end-to-end without a real agent being present.  Agent steps return a
+    canned success envelope immediately instead of pausing.
+    """
+    return {**os.environ, "PYTHONPATH": "src", "GMKIT_AGENT_STUB": "1"}
+
+
 class TestNewConversion:
     """Tests for new conversion via CLI."""
 
@@ -47,10 +58,12 @@ class TestNewConversion:
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",  # Skip confirmation
             ],
             capture_output=True,
@@ -68,10 +81,12 @@ class TestNewConversion:
         output_dir = tmp_path / "output"
 
         subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
@@ -93,10 +108,12 @@ class TestNewConversion:
         output_dir = tmp_path / "output"
 
         subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
@@ -112,10 +129,13 @@ class TestNewConversion:
         assert "page_count" in data
         assert data["page_count"] > 0
 
-    def test_full_pipeline__should_use_pdf_basename__when_no_output_specified(self, tmp_path, gmkit_cli, monkeypatch):
+    def test_full_pipeline__should_use_pdf_basename__when_no_output_specified(
+        self, tmp_path, gmkit_cli, monkeypatch
+    ):
         """gmkit pdf-convert defaults to ./<pdf-basename>/."""
         # Copy test PDF to tmp_path
         import shutil
+
         local_pdf = tmp_path / "test-document.pdf"
         shutil.copy(TEST_PDF_PATH, local_pdf)
 
@@ -123,7 +143,8 @@ class TestNewConversion:
         src_path = Path(__file__).parent.parent.parent.parent / "src"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(local_pdf),
                 "--yes",
@@ -141,22 +162,24 @@ class TestNewConversion:
         assert expected_dir.exists()
 
     def test_phase_flag__should_run_only_requested_phase__when_phase_specified(
-        self, tmp_path, gmkit_cli
+        self, tmp_path, gmkit_cli, stub_env
     ):
         """gmkit pdf-convert --phase executes only the requested phase."""
         output_dir = tmp_path / "output"
 
         # Run full pipeline once to establish state and phase artifacts
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
+            env=stub_env,
             timeout=120,
         )
 
@@ -174,9 +197,30 @@ class TestNewConversion:
         assert not phase6_path.exists()
 
         phase_result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--phase", "5",
+                "--phase",
+                "5",
+                str(output_dir),
+                "--yes",
+            ],
+            capture_output=True,
+            text=True,
+            env=stub_env,
+            timeout=60,
+        )
+
+        assert phase_result.returncode == 0
+        assert phase5_path.exists()
+        assert not phase6_path.exists()
+
+        phase_result = subprocess.run(
+            gmkit_cli
+            + [
+                "pdf-convert",
+                "--phase",
+                "5",
                 str(output_dir),
                 "--yes",
             ],
@@ -191,22 +235,24 @@ class TestNewConversion:
         assert not phase6_path.exists()
 
     def test_heading_signatures__should_differ__when_weight_or_style_changes(
-        self, tmp_path, gmkit_cli
+        self, tmp_path, gmkit_cli, stub_env
     ):
         """Font signatures include weight/style (same family+size differ)."""
         _require_fixture(B2_PDF_PATH, "B2")
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(B2_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
+            env=stub_env,
             timeout=120,
         )
 
@@ -234,22 +280,24 @@ class TestNewConversion:
         assert any(len(variants) > 1 for variants in candidates_by_family_size.values())
 
     def test_cofc_fixture__should_create_font_mapping__when_fixture_available(
-        self, tmp_path, gmkit_cli
+        self, tmp_path, gmkit_cli, stub_env
     ):
         """Optional CoC fixture should run pipeline and emit font mapping."""
         _require_fixture(COFC_PDF_PATH, "CoC")
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(COFC_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
+            env=stub_env,
             timeout=180,
         )
 
@@ -271,7 +319,8 @@ class TestCLIErrorHandling:
     def test_full_pipeline__should_return_error__when_pdf_missing(self, gmkit_cli, tmp_path):
         """gmkit pdf-convert with missing PDF returns error."""
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(tmp_path / "nonexistent.pdf"),
                 "--yes",
@@ -293,10 +342,13 @@ class TestCLIErrorHandling:
     def test_full_pipeline__should_reject__when_mutually_exclusive_flags(self, gmkit_cli, tmp_path):
         """gmkit pdf-convert rejects mutually exclusive flags."""
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--resume", str(tmp_path),
-                "--phase", "5",
+                "--resume",
+                str(tmp_path),
+                "--phase",
+                "5",
             ],
             capture_output=True,
             text=True,
@@ -362,10 +414,12 @@ class TestStatusCommand:
         output_dir = tmp_path / "output"
 
         subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
@@ -376,9 +430,11 @@ class TestStatusCommand:
 
         # Now check status
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--status", str(output_dir),
+                "--status",
+                str(output_dir),
             ],
             capture_output=True,
             text=True,
@@ -395,9 +451,11 @@ class TestStatusCommand:
     def test_status_command__should_show_message__when_no_state(self, tmp_path, gmkit_cli):
         """gmkit pdf-convert --status with no state shows informative message."""
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--status", str(tmp_path),
+                "--status",
+                str(tmp_path),
             ],
             capture_output=True,
             text=True,
@@ -410,7 +468,9 @@ class TestStatusCommand:
         output = (result.stdout + result.stderr).lower()
         assert "no conversion" in output or "not found" in output or "no state" in output
 
-    def test_status_command__should_show_partial_completion__when_at_phase_6(self, tmp_path, gmkit_cli):
+    def test_status_command__should_show_partial_completion__when_at_phase_6(
+        self, tmp_path, gmkit_cli
+    ):
         """gmkit pdf-convert --status shows partial completion at Phase 6 (T052)."""
         from datetime import datetime
 
@@ -439,9 +499,11 @@ class TestStatusCommand:
         (tmp_path / "test.pdf").write_bytes(b"%PDF-1.4 test")
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
-                "--status", str(output_dir),
+                "--status",
+                str(output_dir),
             ],
             capture_output=True,
             text=True,
@@ -469,10 +531,12 @@ class TestPreflightDisplay:
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
@@ -492,22 +556,26 @@ class TestPreflightDisplay:
 class TestDiagnosticsFlag:
     """Tests for --diagnostics flag (T031)."""
 
-    def test_diagnostics__should_create_bundle__when_flag_enabled(self, tmp_path, gmkit_cli):
+    def test_diagnostics__should_create_bundle__when_flag_enabled(
+        self, tmp_path, gmkit_cli, stub_env
+    ):
         """gmkit pdf-convert --diagnostics creates diagnostic-bundle.zip."""
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
                 "--diagnostics",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
-            timeout=120,  # Longer timeout for full conversion
+            env=stub_env,
+            timeout=120,
         )
 
         # If conversion completes, bundle should exist
@@ -516,76 +584,88 @@ class TestDiagnosticsFlag:
         assert bundle_path.exists(), "Diagnostic bundle should be created on success"
         assert zipfile.is_zipfile(bundle_path), "Bundle should be valid zip file"
 
-    def test_diagnostics__should_contain_state__when_bundle_created(self, tmp_path, gmkit_cli):
+    def test_diagnostics__should_contain_state__when_bundle_created(
+        self, tmp_path, gmkit_cli, stub_env
+    ):
         """Diagnostic bundle contains .state.json per FR-010b."""
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
                 "--diagnostics",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
+            env=stub_env,
             timeout=120,
         )
 
         bundle_path = output_dir / "diagnostic-bundle.zip"
         assert result.returncode == 0
         assert bundle_path.exists()
-        with zipfile.ZipFile(bundle_path, 'r') as zf:
+        with zipfile.ZipFile(bundle_path, "r") as zf:
             assert ".state.json" in zf.namelist()
 
-    def test_diagnostics__should_contain_metadata__when_bundle_created(self, tmp_path, gmkit_cli):
+    def test_diagnostics__should_contain_metadata__when_bundle_created(
+        self, tmp_path, gmkit_cli, stub_env
+    ):
         """Diagnostic bundle contains metadata.json per FR-010b."""
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
                 "--diagnostics",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
+            env=stub_env,
             timeout=120,
         )
 
         bundle_path = output_dir / "diagnostic-bundle.zip"
         assert result.returncode == 0
         assert bundle_path.exists()
-        with zipfile.ZipFile(bundle_path, 'r') as zf:
+        with zipfile.ZipFile(bundle_path, "r") as zf:
             assert "metadata.json" in zf.namelist()
 
-    def test_diagnostics__should_contain_cli_args__when_bundle_created(self, tmp_path, gmkit_cli):
+    def test_diagnostics__should_contain_cli_args__when_bundle_created(
+        self, tmp_path, gmkit_cli, stub_env
+    ):
         """Diagnostic bundle contains cli-args.txt per FR-010b."""
         output_dir = tmp_path / "output"
 
         result = subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
                 "--diagnostics",
             ],
             capture_output=True,
             text=True,
-            env={**os.environ, "PYTHONPATH": "src"},
+            env=stub_env,
             timeout=120,
         )
 
         bundle_path = output_dir / "diagnostic-bundle.zip"
         assert result.returncode == 0
         assert bundle_path.exists()
-        with zipfile.ZipFile(bundle_path, 'r') as zf:
+        with zipfile.ZipFile(bundle_path, "r") as zf:
             assert "cli-args.txt" in zf.namelist()
             args_content = zf.read("cli-args.txt").decode()
             assert "--diagnostics" in args_content
@@ -595,10 +675,12 @@ class TestDiagnosticsFlag:
         output_dir = tmp_path / "output"
 
         subprocess.run(
-            gmkit_cli + [
+            gmkit_cli
+            + [
                 "pdf-convert",
                 str(TEST_PDF_PATH),
-                "--output", str(output_dir),
+                "--output",
+                str(output_dir),
                 "--yes",
             ],
             capture_output=True,
