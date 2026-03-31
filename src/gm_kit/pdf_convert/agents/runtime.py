@@ -347,9 +347,65 @@ class AgentStepRuntime:
         # the inputs dict carries the canonical step type id ("7.7") while the persisted
         # file stores the page-specific id ("7.7_p1"), so comparing that key would
         # always produce a false mismatch and cause an infinite re-pause loop.
-        return all(
+        matches_inputs = all(
             persisted_input.get(key) == value for key, value in inputs.items() if key != "step_id"
         )
+        if not matches_inputs:
+            return False
+
+        # Step 4.5 edits and evaluates the same phase file (`phase4.md`) that is
+        # regenerated earlier in Phase 4 on each resume. That makes the input
+        # artifact mtime newer than step-output.json by design, which would
+        # otherwise force an infinite re-pause loop. For 4.5, rely on payload
+        # matching and consume the pending output.
+        if step_id == "4.5":
+            return True
+
+        # Otherwise, if upstream artifacts changed since this output was produced,
+        # the output is stale and must be regenerated (e.g., phase rerun changed
+        # phase8.md and old step output should not be reused).
+        return not self._input_artifacts_newer_than_output(persisted_input, output_file)
+
+    def _input_artifacts_newer_than_output(
+        self, persisted_input: dict[str, Any], output_file: Path
+    ) -> bool:
+        """Return True when referenced input artifacts are newer than step output."""
+        try:
+            output_mtime = output_file.stat().st_mtime
+        except OSError:
+            return True
+
+        def _iter_values(node: Any) -> list[str]:
+            values: list[str] = []
+            if isinstance(node, dict):
+                for v in node.values():
+                    values.extend(_iter_values(v))
+            elif isinstance(node, list):
+                for item in node:
+                    values.extend(_iter_values(item))
+            elif isinstance(node, str):
+                values.append(node)
+            return values
+
+        artifact_sections = [
+            persisted_input.get("input_artifacts", {}),
+            persisted_input.get("optional_artifacts", {}),
+        ]
+
+        for section in artifact_sections:
+            for value in _iter_values(section):
+                path = Path(value)
+                if not path.is_absolute():
+                    path = Path(self.workspace) / path
+                if not path.exists():
+                    continue
+                try:
+                    if path.stat().st_mtime > output_mtime:
+                        return True
+                except OSError:
+                    continue
+
+        return False
 
     def _load_state(self) -> dict[str, Any]:
         """Load state from workspace when present."""

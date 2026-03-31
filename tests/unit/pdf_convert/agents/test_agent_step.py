@@ -74,6 +74,40 @@ class TestWriteAgentInputs:
 
         assert not output_file.exists()
 
+    def test_copies_schema_into_workspace(self, tmp_path):
+        """Should materialize step schema under workspace/schemas."""
+        write_agent_inputs(
+            step_id="4.5",
+            workspace=str(tmp_path),
+            inputs={"context": "schema-check"},
+        )
+
+        schema_file = tmp_path / "schemas" / "step_4_5.schema.json"
+        assert schema_file.exists()
+
+    def test_sets_default_output_contract_when_missing(self, tmp_path):
+        """Should set output_contract in step-input when caller omits it."""
+        write_agent_inputs(
+            step_id="4.5",
+            workspace=str(tmp_path),
+            inputs={"context": "contract-check"},
+        )
+
+        input_file = tmp_path / "agent_steps" / "step_4_5" / "step-input.json"
+        data = json.loads(input_file.read_text(encoding="utf-8"))
+        assert data["output_contract"] == "schemas/step_4_5.schema.json"
+
+    def test_logs_warning_when_defaulting_output_contract(self, tmp_path, caplog):
+        """Should warn when fallback output_contract is used."""
+        with caplog.at_level("WARNING"):
+            write_agent_inputs(
+                step_id="4.5",
+                workspace=str(tmp_path),
+                inputs={"context": "contract-check"},
+            )
+
+        assert "Missing output_contract in step payload for 4.5" in caplog.text
+
 
 class TestReadAgentOutput:
     """Test read_agent_output function."""

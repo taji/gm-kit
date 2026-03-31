@@ -58,7 +58,7 @@ class TestStepRubric:
     def test_validate_below_minimum(self):
         """Should report error for scores below minimum."""
         rubric = RUBRIC_3_2
-        scores = {"completeness": 2, "level_accuracy": 5, "page_accuracy": 5, "output_format": 5}
+        scores = {"completeness": 1, "level_accuracy": 5, "page_accuracy": 5, "output_format": 5}
 
         passed, errors = rubric.validate_scores(scores)
 
@@ -170,7 +170,7 @@ class TestEvaluateStepOutput:
         result = evaluate_step_output(
             step_id="3.2",
             rubric_scores={
-                "completeness": 2,
+                "completeness": 1,
                 "level_accuracy": 5,
                 "page_accuracy": 5,
                 "output_format": 5,

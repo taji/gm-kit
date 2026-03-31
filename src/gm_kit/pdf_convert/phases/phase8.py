@@ -14,7 +14,7 @@ import logging
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
@@ -409,6 +409,29 @@ class Phase8(Phase):
 
         return "\n".join(result_lines)
 
+    @staticmethod
+    def _extract_markdown_table(data: dict[str, Any]) -> str | None:
+        """Extract markdown table from step 8.7 output.
+
+        Supports both legacy shape:
+            {"markdown_table": "..."}
+        and current instruction shape:
+            {"tables": [{"markdown": "..."}], "changes_made": 1}
+        """
+        markdown_table = data.get("markdown_table")
+        if isinstance(markdown_table, str) and markdown_table.strip():
+            return markdown_table
+
+        tables = data.get("tables")
+        if isinstance(tables, list):
+            for table in tables:
+                if not isinstance(table, dict):
+                    continue
+                table_markdown = table.get("markdown")
+                if isinstance(table_markdown, str) and table_markdown.strip():
+                    return table_markdown
+        return None
+
     def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
         """Execute heading insertion and callout formatting steps.
 
@@ -569,12 +592,17 @@ class Phase8(Phase):
 
                         envelope, _status = runtime.execute_step("8.7", inputs)
 
-                        if envelope and envelope.data.get("markdown_table"):
+                        if envelope:
+                            markdown_table = self._extract_markdown_table(envelope.data)
+                        else:
+                            markdown_table = None
+
+                        if markdown_table:
                             # Replace the garbled table text with markdown table
                             content = self._replace_table_with_markdown(
                                 content,
                                 table_data["page_number_1based"],
-                                envelope.data["markdown_table"],
+                                markdown_table,
                             )
                             tables_converted += 1
 

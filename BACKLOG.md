@@ -784,6 +784,59 @@ Testing approach:
 
 Success looks like: User can invoke `/gmkit.pdf-to-markdown` with a PDF path, see a pre-flight complexity report, confirm to proceed, and have the pipeline execute with proper state tracking and resumability.
 
+### E4-08. PDF Analyze-and-Prep Workflow **[FEATURE, PLANNED]**
+
+Feature description:
+
+Add a pre-conversion command that performs PDF analysis and preparation before
+`pdf-convert` runs. The goal is to move structural detection and user-guided
+annotation review earlier so conversion phases operate on explicit intent
+instead of late-stage heuristics.
+
+Proposed command:
+- `gmkit analyze-and-prep-pdf <pdf-path> --output <dir>`
+
+Requirements:
+- Move current pre-conversion analysis responsibilities (currently Phases 0-3) into the prep workflow.
+- Extract and preserve prep metadata/artifacts for downstream conversion.
+- Support user review/edit of detected regions (headings, callouts, tables, skip areas) before conversion.
+- Support optional user-provided pre-analysis guidance (for example: table titles usually contain
+  "Table", callouts usually begin with "Guidance", etc.) so detection can be biased toward known
+  document conventions.
+- Generate and persist a prep guidance config artifact that `analyze-and-prep-pdf` consumes during
+  detection/annotation passes.
+- Make `gmkit pdf-convert` fail fast with actionable guidance when prep artifacts are missing.
+- Add large-PDF readiness (chunk/chapter prep metadata for long campaigns/adventures).
+
+TODOs:
+1. Define prep artifact contract consumed by `pdf-convert` (schema + versioning + compatibility rules).
+2. Define annotation model for table/callout/heading/skip overlays and user edits.
+3. Define pre-analysis guidance config format (user hints + agent-normalized rules) and how the
+   prep command applies those hints to table/callout boundary proposals.
+
+Success looks like: users can review and tune structural intent before conversion, and conversions complete with clearer issue triage instead of brittle hard-fail behavior for minor quality defects.
+
+### E4-08b. Post-Conversion Rubric Failure Policy Review **[FEATURE, PLANNED]**
+
+Feature description:
+
+Review and recalibrate post-conversion rubric/failure thresholds so minor, easily-fixable quality defects
+do not hard-fail full conversions.
+
+Temporary status (2026-03-31):
+- Global rubric minimum score was temporarily relaxed from 3 -> 2 in code to keep
+  end-to-end validation unblocked during E4-08a/E4-08b design work.
+- This is explicitly temporary and must be re-evaluated as part of this feature.
+
+TODOs:
+1. Revisit rubric thresholds/criticality for post-conversion review steps so non-catastrophic issues
+   (easy human/agent fixes) are surfaced as warnings/checklist items instead of hard conversion failures.
+2. Define failure-policy rules that reserve hard-fail behavior for contract violations and genuinely
+   blocking corruption.
+
+Success looks like: hard-fail behavior is reserved for true blockers, while recoverable quality defects
+are triaged with actionable warnings/checklists.
+
 ### E4-08. Workspace-Level Active Conversion Tracking **[FEATURE]**
 
 Feature description:

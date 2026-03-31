@@ -46,10 +46,12 @@ class ContractValidator:
         if step_id in self._schema_cache:
             return self._schema_cache[step_id]
 
-        # Multi-page steps use a page/part suffix (e.g. "7.7_p1", "7.7_p2").
-        # All pages of the same step share one schema, so strip the suffix before
-        # resolving the filename (e.g. "7.7_p1" -> "step_7_7.schema.json").
-        schema_step_id = re.sub(r"_p\d+$", "", step_id)
+        # Multi-page/variant steps use suffixes like:
+        # - 7.7_p1            (text scan page 1)
+        # - 7.7_p2_t1         (vision confirmation table 1 on page 2)
+        # All variants of the same logical step share one schema, so strip
+        # variant suffixes before resolving the schema filename.
+        schema_step_id = re.sub(r"_p\d+(?:_t\d+)?$", "", step_id)
         schema_file = self.schemas_dir / f"step_{schema_step_id.replace('.', '_')}.schema.json"
 
         if not schema_file.exists():

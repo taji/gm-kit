@@ -499,6 +499,232 @@ class TestAgentStepRuntime:
 
         mock_write.assert_called_once()
 
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
+    def test_execute_step__should_not_reuse_stale_output__when_input_artifact_newer_than_output(
+        self, mock_write, mock_evaluate, tmp_path
+    ):
+        """Should create new handoff when referenced artifacts changed after step output."""
+        from gm_kit.pdf_convert.agents.errors import AgentStepPause
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        phase8 = tmp_path / "phase8.md"
+        phase8.write_text("# updated", encoding="utf-8")
+
+        step_dir = tmp_path / "agent_steps" / "step_9_4"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-input.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "9.4",
+                    "input_artifacts": {"phase8_file": str(phase8)},
+                    "optional_artifacts": {},
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+        output_file = step_dir / "step-output.json"
+        output_file.write_text(
+            json.dumps(
+                {
+                    "step_id": "9.4",
+                    "status": "success",
+                    "data": {"tables_checked": 1, "issues": [], "score": 5},
+                    "warnings": [],
+                    "rubric_scores": {
+                        "cell_accuracy": 5,
+                        "structure_preservation": 5,
+                        "alignment_check": 5,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        # Make artifact newer than step-output to simulate rerun-updated upstream file.
+        newer = output_file.stat().st_mtime + 10
+        os.utime(phase8, (newer, newer))
+
+        mock_write.return_value = step_dir
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="9.4",
+            passed=True,
+            dimension_scores={},
+            critical_failures=[],
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+
+        with pytest.raises(AgentStepPause):
+            runtime.execute_step(
+                step_id="9.4",
+                inputs={
+                    "input_artifacts": {"phase8_file": str(phase8)},
+                    "optional_artifacts": {},
+                    "attempt": 1,
+                },
+                attempt=1,
+            )
+
+        mock_write.assert_called_once()
+
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
+    def test_execute_step__should_reuse_output__when_paused_on_same_step(
+        self, mock_write, mock_evaluate, tmp_path
+    ):
+        """Should consume pending output for current paused step despite newer artifacts."""
+        from gm_kit.pdf_convert.agents.base import StepStatus
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        phase4 = tmp_path / "phase4.md"
+        phase4.write_text("updated", encoding="utf-8")
+
+        step_dir = tmp_path / "agent_steps" / "step_4_5"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-input.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "4.5",
+                    "input_artifacts": {"phase_file": str(phase4)},
+                    "optional_artifacts": {},
+                    "context": {"chunk_boundaries": []},
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+        output_file = step_dir / "step-output.json"
+        output_file.write_text(
+            json.dumps(
+                {
+                    "step_id": "4.5",
+                    "status": "success",
+                    "data": {"changes_made": 0, "joins_made": []},
+                    "warnings": [],
+                    "rubric_scores": {
+                        "correct_joins": 5,
+                        "no_false_joins": 5,
+                        "readability": 5,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        # Simulate phase artifact newer than output (would normally trigger stale path).
+        newer = output_file.stat().st_mtime + 10
+        os.utime(phase4, (newer, newer))
+
+        (tmp_path / ".state.json").write_text(
+            json.dumps(
+                {
+                    "current_step": "4.5",
+                    "agent_step_status": "AWAITING_AGENT",
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="4.5",
+            passed=True,
+            dimension_scores={},
+            critical_failures=[],
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+        with patch.object(runtime.validator, "validate"):
+            envelope, status = runtime.execute_step(
+                step_id="4.5",
+                inputs={
+                    "input_artifacts": {"phase_file": str(phase4)},
+                    "optional_artifacts": {},
+                    "context": {"chunk_boundaries": []},
+                    "attempt": 1,
+                },
+                attempt=1,
+            )
+
+        assert envelope is not None
+        assert status == StepStatus.COMPLETED
+        mock_write.assert_not_called()
+
+    @patch("gm_kit.pdf_convert.agents.runtime.evaluate_step_output")
+    @patch("gm_kit.pdf_convert.agents.runtime.write_agent_inputs")
+    def test_execute_step__should_reuse_output__for_step_4_5_when_phase_file_is_newer(
+        self, mock_write, mock_evaluate, tmp_path
+    ):
+        """Should not stale-invalidate 4.5 output when phase4 artifact mtime advances."""
+        from gm_kit.pdf_convert.agents.base import StepStatus
+        from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
+
+        phase4 = tmp_path / "phase4.md"
+        phase4.write_text("updated", encoding="utf-8")
+
+        step_dir = tmp_path / "agent_steps" / "step_4_5"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-input.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "4.5",
+                    "input_artifacts": {"phase_file": str(phase4)},
+                    "optional_artifacts": {},
+                    "context": {"chunk_boundaries": []},
+                    "output_contract": "schemas/step_4_5.schema.json",
+                    "attempt": 1,
+                }
+            ),
+            encoding="utf-8",
+        )
+        output_file = step_dir / "step-output.json"
+        output_file.write_text(
+            json.dumps(
+                {
+                    "step_id": "4.5",
+                    "status": "success",
+                    "data": {"changes_made": 0, "joins_made": []},
+                    "warnings": [],
+                    "rubric_scores": {
+                        "correct_joins": 5,
+                        "no_false_joins": 5,
+                        "readability": 5,
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        newer = output_file.stat().st_mtime + 10
+        os.utime(phase4, (newer, newer))
+
+        mock_evaluate.return_value = EvaluationResult(
+            step_id="4.5",
+            passed=True,
+            dimension_scores={},
+            critical_failures=[],
+        )
+
+        runtime = AgentStepRuntime(str(tmp_path))
+        with patch.object(runtime.validator, "validate"):
+            envelope, status = runtime.execute_step(
+                step_id="4.5",
+                inputs={
+                    "input_artifacts": {"phase_file": str(phase4)},
+                    "optional_artifacts": {},
+                    "context": {"chunk_boundaries": []},
+                    "output_contract": "schemas/step_4_5.schema.json",
+                    "attempt": 1,
+                },
+                attempt=1,
+            )
+
+        assert envelope is not None
+        assert status == StepStatus.COMPLETED
+        mock_write.assert_not_called()
+
     @patch("gm_kit.pdf_convert.agents.runtime.Path.exists")
     @patch(
         "gm_kit.pdf_convert.agents.runtime.open",

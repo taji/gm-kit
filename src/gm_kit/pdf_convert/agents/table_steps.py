@@ -161,6 +161,7 @@ def build_step_7_7_input_payload(
 
     return {
         "step_id": "7.7",
+        "output_contract": "schemas/step_7_7.schema.json",
         "source_pdf": pdf_path,
         "page_number_1based": page_num + 1,
         "extracted_text": extracted_text,
@@ -207,6 +208,7 @@ def build_step_7_7_vision_payload(
     for table in detected_tables:
         payload = {
             "step_id": "7.7",
+            "output_contract": "schemas/step_7_7.schema.json",
             "source_pdf": pdf_path,
             "page_number_1based": page_num + 1,
             "page_image": str(page_image_path),
@@ -253,6 +255,7 @@ def build_step_8_7_input_payload(
 
     return {
         "step_id": "8.7",
+        "output_contract": "schemas/step_8_7.schema.json",
         "table_id": table_id,
         "page_number_1based": table_data["page_number_1based"],
         "dpi": dpi,

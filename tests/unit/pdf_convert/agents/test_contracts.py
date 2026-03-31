@@ -27,6 +27,20 @@ class TestContractValidator:
         assert schema["type"] == "object"
         assert "step_id" in schema["required"]
 
+    def test_load_schema__should_strip_page_and_table_suffixes(self, tmp_path):
+        """Should reuse base schema for variant step IDs (e.g., 7.7_p2_t1)."""
+        schema_dir = tmp_path / "schemas"
+        schema_dir.mkdir()
+
+        schema_file = schema_dir / "step_7_7.schema.json"
+        schema_file.write_text('{"type": "object", "required": ["step_id"]}')
+
+        validator = ContractValidator(schema_dir)
+        schema = validator.load_schema("7.7_p2_t1")
+
+        assert schema["type"] == "object"
+        assert "step_id" in schema["required"]
+
     def test_validate_valid_output(self, tmp_path):
         """Should pass validation for valid output."""
         schema_dir = tmp_path / "schemas"

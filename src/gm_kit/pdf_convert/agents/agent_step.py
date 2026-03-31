@@ -2,12 +2,16 @@
 
 import importlib.util
 import json
+import logging
 import re
+import shutil
 from pathlib import Path
 from typing import Any
 
 from .base import AgentStepOutputEnvelope
 from .errors import AgentStepError
+
+logger = logging.getLogger(__name__)
 
 
 def write_agent_inputs(
@@ -42,6 +46,7 @@ def write_agent_inputs(
     # so that _has_pending_output can match it correctly on resume.
     input_file = step_dir / "step-input.json"
     input_payload = {**inputs, "step_id": step_id, "attempt": attempt}
+    _ensure_workspace_schema_for_step(step_id=step_id, workspace_path=workspace_path, payload=input_payload)
 
     with open(input_file, "w") as f:
         json.dump(input_payload, f, indent=2)
@@ -62,6 +67,33 @@ def write_agent_inputs(
         output_file.unlink()
 
     return step_dir
+
+
+def _ensure_workspace_schema_for_step(step_id: str, workspace_path: Path, payload: dict[str, Any]) -> None:
+    """Copy step schema into workspace/schemas and ensure output_contract path.
+
+    Agents receive `output_contract: schemas/<file>` in step-input.json. Keeping
+    that schema file present in each workspace prevents repeated "file not found"
+    fallback searches during live handoff runs.
+    """
+    base_step_id = re.sub(r"_p\d+(?:_t\d+)?$", "", step_id)
+    schema_file = f"step_{base_step_id.replace('.', '_')}.schema.json"
+    schema_src = Path(__file__).parent / "schemas" / schema_file
+    if not schema_src.exists():
+        return
+
+    schema_dir = workspace_path / "schemas"
+    schema_dir.mkdir(parents=True, exist_ok=True)
+    schema_dest = schema_dir / schema_file
+    shutil.copy2(schema_src, schema_dest)
+
+    if "output_contract" not in payload:
+        logger.warning(
+            "Missing output_contract in step payload for %s; defaulting to schemas/%s",
+            step_id,
+            schema_file,
+        )
+        payload["output_contract"] = f"schemas/{schema_file}"
 
 
 def read_agent_output(

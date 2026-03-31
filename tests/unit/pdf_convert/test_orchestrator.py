@@ -476,6 +476,9 @@ class TestShowStatus:
 
         # Expect: "Status: completed"
         assert "Status: completed" in captured.out
+        # Expect completion metadata summary
+        assert "Ended:" in captured.out
+        assert "Duration:" in captured.out
 
     def test_status__should_show_error_info__when_status_failed(self, tmp_path, capsys):
         """--status shows failed status with error info per FR-009a."""

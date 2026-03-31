@@ -637,6 +637,25 @@ class Orchestrator:
         self.console.print(f"Source: {pdf_name} ({size_str})")
         self.console.print(f"Status: {state.status.value}")
         self.console.print(f"Started: {state.started_at[:19].replace('T', ' ')}")
+        if state.status in {ConversionStatus.COMPLETED, ConversionStatus.FAILED}:
+            ended_display = state.updated_at[:19].replace("T", " ")
+            self.console.print(f"Ended: {ended_display}")
+            duration_display = "unknown"
+            try:
+                started_at = datetime.fromisoformat(state.started_at)
+                ended_at = datetime.fromisoformat(state.updated_at)
+                elapsed = max((ended_at - started_at).total_seconds(), 0.0)
+                minutes, seconds = divmod(int(elapsed), 60)
+                hours, minutes = divmod(minutes, 60)
+                if hours:
+                    duration_display = f"{hours}h {minutes}m {seconds}s"
+                elif minutes:
+                    duration_display = f"{minutes}m {seconds}s"
+                else:
+                    duration_display = f"{seconds}s"
+            except ValueError:
+                duration_display = "unknown"
+            self.console.print(f"Duration: {duration_display}")
         self.console.print()
 
         # Phase table

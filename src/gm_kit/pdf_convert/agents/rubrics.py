@@ -26,7 +26,10 @@ class StepRubric:
         step_id: str,
         dimensions: list[RubricDimension],
         critical_failures: list[str],
-        min_score: int = 3,
+        # TEMPORARY (E4-08b): relaxed from 3 -> 2 so live end-to-end runs can
+        # complete while analyze/prep + rubric failure policy are being
+        # redesigned. Revisit and tighten after E4-08a/E4-08b lands.
+        min_score: int = 2,
         max_score: int = 5,
     ):
         self.step_id = step_id

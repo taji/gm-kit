@@ -430,3 +430,33 @@ class TestPhase8EdgeCases:
         result = phase.execute(state)
 
         assert result.status == PhaseStatus.SUCCESS
+
+
+class TestPhase8TableExtraction:
+    """Test table markdown extraction from step 8.7 outputs."""
+
+    def test_phase8__should_extract_legacy_markdown_table__when_field_present(self):
+        """Phase8 should read legacy `markdown_table` output shape."""
+        data = {"markdown_table": "| A | B |\n| --- | --- |\n| 1 | 2 |"}
+
+        markdown = Phase8._extract_markdown_table(data)
+
+        assert markdown == "| A | B |\n| --- | --- |\n| 1 | 2 |"
+
+    def test_phase8__should_extract_tables_array_markdown__when_current_shape_used(self):
+        """Phase8 should read current `tables[].markdown` output shape."""
+        data = {
+            "tables": [
+                {
+                    "table_id": "t1",
+                    "markdown": "| Col A | Col B |\n| --- | --- |\n| 1A | 2A |",
+                    "rows": 2,
+                    "columns": 2,
+                }
+            ],
+            "changes_made": 1,
+        }
+
+        markdown = Phase8._extract_markdown_table(data)
+
+        assert markdown == "| Col A | Col B |\n| --- | --- |\n| 1A | 2A |"

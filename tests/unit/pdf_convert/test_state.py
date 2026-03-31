@@ -480,6 +480,22 @@ class TestValidateStateForResume:
         errors = validate_state_for_resume(state)
         assert errors == ["Invalid current_step format: invalid"]
 
+    def test_validate_state__should_allow_dynamic_step_suffixes(self, tmp_path):
+        """Dynamic step IDs like 7.7_p2_t1 should be valid for resume."""
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+
+        state = ConversionState(
+            pdf_path=str(pdf_path),
+            output_dir=str(tmp_path),
+            current_phase=7,
+            current_step="7.7_p2_t1",
+            completed_phases=[0, 1, 2, 3, 4, 5, 6],
+        )
+
+        errors = validate_state_for_resume(state)
+        assert errors == []
+
     def test_validate_state__should_return_error__when_completed_phases_unsorted(self, tmp_path):
         """Unsorted completed_phases returns error."""
         pdf_path = tmp_path / "test.pdf"

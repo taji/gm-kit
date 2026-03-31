@@ -175,6 +175,26 @@ def sanitize_agent_instructions(instructions: str, step_dir: Path | None = None)
     return instructions + harness_note
 
 
+def ensure_schema_files(workspace: Path) -> None:
+    """Copy agent schema JSON files into the workspace for local validation."""
+    schema_root = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "gm_kit"
+        / "pdf_convert"
+        / "agents"
+        / "schemas"
+    )
+    if not schema_root.exists():
+        return
+    schema_dest = workspace / "schemas"
+    schema_dest.mkdir(parents=True, exist_ok=True)
+    for schema in schema_root.glob("*.json"):
+        target = schema_dest / schema.name
+        if not target.exists():
+            target.write_bytes(schema.read_bytes())
+
+
 def build_gmkit_cmd(args: argparse.Namespace, python_version: str, resume: bool) -> list[str]:
     cmd = [
         "uv",
@@ -183,6 +203,7 @@ def build_gmkit_cmd(args: argparse.Namespace, python_version: str, resume: bool)
         python_version,
         "--extra",
         "dev",
+        "--editable",
         "--",
         "gmkit",
         "pdf-convert",
@@ -300,6 +321,7 @@ def run_status(
         python_version,
         "--extra",
         "dev",
+        "--editable",
         "--",
         "gmkit",
         "pdf-convert",
@@ -477,6 +499,7 @@ def main() -> int:
     next_resume = args.resume
 
     while True:
+        ensure_schema_files(output_dir)
         gmkit_cmd = build_gmkit_cmd(args, python_version, resume=next_resume)
         gmkit_start = time.perf_counter()
         gmkit_res = run_cmd(gmkit_cmd, cwd=root, env=env)

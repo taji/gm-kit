@@ -412,7 +412,7 @@ def validate_state_for_resume(state: ConversionState) -> list[str]:
     # Check step format
     import re
 
-    if not re.match(r"^\d+\.\d+(_p\d+)?$", state.current_step):
+    if not re.match(r"^\d+\.\d+(_p\d+(_t\d+)?)?$", state.current_step):
         errors.append(f"Invalid current_step format: {state.current_step}")
 
     # Check completed phases are valid and sorted
