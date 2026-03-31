@@ -35,19 +35,21 @@ This document captures the canonical design decisions for GM-Kit. Feature-specif
 
 ---
 
-## PDF Pipeline Architecture (E4-07a)
+## PDF Pipeline Architecture (E4-07a + E4-07b)
 
 ### Overview
 
 For detailed step-by-step specifications, see `specs/004-pdf-research/pdf-conversion-architecture.md`. This document summarizes the canonical decisions and highlights cross-cutting rules.
 
-The PDF-to-Markdown conversion pipeline consists of **11 phases (0-10)** with **70 total steps**, categorized by execution type:
+The PDF-to-Markdown conversion pipeline consists of **11 phases (0-10)** with **77 total steps**, categorized by execution type:
 
 | Category | Count | Description |
 |----------|-------|-------------|
-| **Code** | 49 | Deterministic automation via Python/PyMuPDF |
-| **Agent** | 15 | Judgment calls requiring AI analysis |
-| **User** | 5 | Confirmation steps requiring human decision |
+| **Code** | 58 | Deterministic automation via Python/PyMuPDF |
+| **Agent** | 13 | Judgment calls requiring AI analysis |
+| **User** | 6 | Confirmation steps requiring human decision |
+
+E4-07b agent-pipeline implementation is merged. Agent steps now execute via file-based pause/resume handoff, not SDK calls from Python.
 
 ### Design Principles
 
@@ -180,7 +182,25 @@ class Phase(ABC):
 
 **Resume Capability**: Pipeline can resume from any completed phase
 
-#### 4. Configuration Files
+#### 4. Agent Step Runtime (E4-07b)
+
+Agent steps use workspace handoff artifacts:
+
+- Input directory: `<output-dir>/agent_steps/step_X_Y/`
+- Inputs written by Python:
+  - `step-input.json`
+  - `step-instructions.md`
+- Output written by agent:
+  - `step-output.json`
+
+Runtime behavior:
+- Phase execution pauses with `AgentStepPause` when an agent step is required.
+- On resume, runtime validates `step-output.json` against `src/gm_kit/pdf_convert/agents/schemas/step_X_Y.schema.json`.
+- Dynamic paged/table step IDs (for example `7.7_p2_t1`) map to base step schema (`step_7_7.schema.json`).
+- Runtime freshness checks prevent stale output reuse when upstream input artifacts changed.
+- Retry budget is 3 attempts per agent step, then criticality policy applies.
+
+#### 5. Configuration Files
 
 **callout-rules.input.json**: Defines GM callout boundaries by start/end text fragments
 **callout-rules.resolved.json**: Normalized callout rules artifact used by downstream phases
@@ -235,11 +255,12 @@ Phase 7: Structural Detection
     → Updated font-family-mapping.json (with labels)
     ↓
 Phase 8: Markdown Generation
-    → *-phase8.md (final markdown)
+    → *-phase8.md (intermediate markdown)
     ↓
 Phase 9: Quality Review
     ↓
-Phase 10: Report
+Phase 10: Report + Finalize
+    → *-final.md
     → conversion-report.md
 ```
 

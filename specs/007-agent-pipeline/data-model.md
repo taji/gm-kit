@@ -1,5 +1,7 @@
 # Data Model: PDF->Markdown Agent-Driven Pipeline
 
+**Architecture Sync**: Synced to `ARCHITECTURE.md` on 2026-03-31.
+
 ## Entities
 
 ### AgentStepDefinition

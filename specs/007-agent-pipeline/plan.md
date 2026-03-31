@@ -2,6 +2,7 @@
 
 **Branch**: `007-agent-pipeline` | **Date**: 2026-02-16 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specs/007-agent-pipeline/spec.md`
+**Architecture Sync**: Synced to `ARCHITECTURE.md` on 2026-03-31
 
 ## Summary
 
@@ -51,7 +52,7 @@ specs/007-agent-pipeline/
 │   └── agent-steps.md   # Contract summary + per-step schema references
 ├── checklists/
 │   └── requirements.md  # Spec quality checklist (see file for current item count/status)
-└── feature-implementation-journal.txt
+└── feature_journal.md
 ```
 
 ### Source Code (repository root)

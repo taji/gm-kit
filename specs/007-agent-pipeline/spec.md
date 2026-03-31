@@ -2,8 +2,8 @@
 
 **Feature Branch**: `007-agent-pipeline`
 **Created**: 2026-02-06
-**Updated**: 2026-02-25
-**Status**: Draft
+**Updated**: 2026-03-31
+**Status**: Completed (merged)
 **Input**: User description: "Implement the Agent-category steps (13 of 77 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, quality assessments, and two-column reading order validation."
 **Architecture Reference**: `specs/004-pdf-research/pdf-conversion-architecture.md` (v11)
 

@@ -52,6 +52,10 @@ gm-kit is not yet published to a package index. Installation is currently done d
 3. In your agent, run: `/gmkit.hello-gmkit "Hello from Agent!"`
 4. Result: `greetings/greeting01.md` is created from the template.
 
+For PDF conversion, use:
+- Agent entrypoint: `/gmkit.pdf-to-markdown "<pdf-path>"`
+- CLI entrypoint: `gmkit pdf-convert <pdf-path> --output <dir> --yes`
+
 ## Alternative: editable install (for contributors)
 
 If someone is hacking on gm-kit itself:
@@ -61,6 +65,8 @@ git clone https://github.com/taji/gm-kit.git
 cd gm-kit
 uv pip install -e .
 ```
+
+Note: `uv run --editable -- ...` is a **development-only** workflow for contributors running from a local clone. End users should run the installed `gmkit` command directly (no `--editable`).
 ### Supported Agents
 `claude`, `codex-cli`, `opencode`, `gemini`, `qwen`
 

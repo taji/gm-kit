@@ -1,5 +1,7 @@
 # Research Notes: PDF→Markdown Agent-Driven Pipeline
 
+**Architecture Sync**: Synced to `ARCHITECTURE.md` on 2026-03-31.
+
 ## Decision 1: JSON schema format for step contracts
 
 **Decision:** Use per-step JSON Schema definitions (Draft-07) for agent outputs, with a shared metadata envelope (step_id, input_artifact, warnings, errors, notes).

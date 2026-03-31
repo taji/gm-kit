@@ -690,6 +690,47 @@ Next Steps:
 
 Recorded by: gpt-5-codex
 
+Session: 2026-03-31 - Post-Merge Doc + Lifecycle Sync
+--------------------------------------------------------
+Branch: 007-agent-pipeline-implementation
+Date: 2026-03-31
+
+Work Completed:
+1. Synced user-facing docs for E4-07b into `docs/user/user_guide.md`:
+   - Added `/gmkit.pdf-to-markdown` as recommended entrypoint.
+   - Documented paused agent-step handoff workflow (`step-output.json` + resume).
+   - Updated output artifact list to include `*-final.md`, `agent_steps/`, `tables-manifest.json`, `.completion.json`, and logs.
+2. Synced architecture docs in `ARCHITECTURE.md`:
+   - Updated pipeline totals/categories to 77 steps (58 Code / 13 Agent / 6 User).
+   - Added E4-07b runtime handoff model details (schema validation, dynamic step IDs, stale-output freshness checks).
+   - Clarified phase 8 as intermediate markdown and phase 10 as finalize/report (`*-final.md`).
+3. Updated lifecycle status:
+   - `specs/007-agent-pipeline/spec.md` status moved to `Completed (merged)`.
+   - `BACKLOG.md` E4-07b moved to `COMPLETED` and marked doc sync as **SYNCED**.
+   - Added sync markers to `specs/007-agent-pipeline/plan.md`, `research.md`, and `data-model.md`.
+4. Updated `README.md`:
+   - Added PDF conversion entrypoint guidance.
+   - Added explicit note that `uv run --editable -- ...` is contributor/dev-only.
+5. Verified staged-content hygiene:
+   - No `tmp/` artifacts or fixture churn in this update set.
+
+Key Decisions:
+- Keep deferred-risk notes explicit in merge communication:
+  - temporary rubric/failure-policy relaxation follow-up (E4-08b)
+  - annotation-driven table detection redesign follow-up (E4-08a/E4-08b)
+
+Current State:
+- E4-07b is now represented as completed in both spec and backlog lifecycle tracking.
+- User and architecture docs reflect merged E4-07b runtime behavior.
+- Remaining work is post-merge follow-on under E4-08a/E4-08b.
+
+Next Steps:
+1. Include deferred-risk note block in commit/PR message text for traceability.
+2. Continue with E4-08a (analyze-and-prep workflow) planning/implementation.
+3. Revisit rubric/failure policy thresholds in E4-08b after E4-08a lands.
+
+Recorded by: gpt-5-codex
+
 Session: 2026-03-31 - CI Gate Stabilization Pass
 --------------------------------------------------------
 Branch: 007-agent-pipeline-implementation

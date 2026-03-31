@@ -4,7 +4,7 @@ Use this outline as the canonical user-facing documentation. Keep it current by 
 
 ## Overview
 - GM-Kit helps GMs initialize a project workspace with agent-specific prompts, scripts, and templates.
-- Current focus: PDF → Markdown conversion via `gmkit pdf-convert` (code-driven pipeline with per-phase artifacts).
+- Current focus: PDF → Markdown conversion via `/gmkit.pdf-to-markdown` (agent entrypoint) and `gmkit pdf-convert` (CLI/orchestrator).
 
 ## Getting Started
 ### Prerequisites
@@ -33,14 +33,19 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ```
 
 ## Core Workflows
-### PDF → Markdown (`gmkit pdf-convert`)
-1. Run `gmkit pdf-convert <pdf-path> --output <output-dir>`.
-2. Review generated phase outputs and the final markdown draft.
-3. Optionally re-run a phase or resume from an existing output directory.
+### PDF -> Markdown (`/gmkit.pdf-to-markdown` + `gmkit pdf-convert`)
+Recommended entrypoint: use the slash command in your agent:
+
+```text
+/gmkit.pdf-to-markdown "<pdf-path>"
+```
+
+Under the hood, it invokes `gmkit pdf-convert` and may pause for agent steps. If paused, write `step-output.json` in the shown step folder and resume.
 
 #### Common Commands
 - Full pipeline: `gmkit pdf-convert <pdf-path> --output <output-dir> --yes`
 - Re-run a phase: `gmkit pdf-convert --phase <n> <output-dir>`
+- Re-run from a specific step: `gmkit pdf-convert <output-dir> --from-step <X.Y>`
 - Resume: `gmkit pdf-convert --resume <output-dir>`
 - Status: `gmkit pdf-convert --status <output-dir>`
 - Diagnostics bundle: `gmkit pdf-convert <pdf-path> --output <output-dir> --diagnostics`
@@ -49,12 +54,14 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 #### Key Outputs
 ```
 <output-dir>/
+├── .completion.json
 ├── .state.json
 ├── metadata.json
 ├── toc-extracted.txt
 ├── font-family-mapping.json
-├── callout-rules.input.json
 ├── callout-rules.resolved.json
+├── footer_config.json
+├── icon_config.json
 ├── images/
 │   └── image-manifest.json
 ├── preprocessed/
@@ -62,15 +69,23 @@ gmkit init /tmp/gmkit-test --agent qwen --os macos/linux
 ├── <filename>-phase4.md
 ├── <filename>-phase5.md
 ├── <filename>-phase6.md
-├── <filename>-phase8.md
+├── <filename>-final.md
+├── tables-manifest.json
+├── agent_steps/
+│   └── step_X_Y/
+│       ├── step-input.json
+│       ├── step-instructions.md
+│       └── step-output.json
 ├── conversion-report.md
+├── conversion.log
 └── diagnostic-bundle.zip (when --diagnostics is set)
 ```
 
 Notes:
-- `callout-rules.input.json` is created automatically if not provided; edit it before proceeding if you need custom callout boundaries.
 - `callout-rules.resolved.json` is the normalized rules artifact used by later phases.
 - `font-family-mapping.json` captures font signatures (family + size + weight + style) used for heading inference.
+- Final markdown is `<filename>-final.md` (produced in phase 10); `<filename>-phase8.md` is an intermediate.
+- During paused agent steps, the CLI prints the exact step directory and expected `step-output.json` path.
 - `diagnostic-bundle.zip` contains state, metadata, and phase outputs for troubleshooting.
 
 ### /gmkit.hello-gmkit
@@ -117,6 +132,7 @@ Agent prompt locations:
 
 - `gmkit pdf-convert <pdf-path> [--output <dir>] [--yes]`
 - `gmkit pdf-convert --phase <n> <dir>`
+- `gmkit pdf-convert <dir> --from-step <X.Y>`
 - `gmkit pdf-convert --resume <dir>`
 - `gmkit pdf-convert --status <dir>`
 - `gmkit pdf-convert --diagnostics <pdf-path> --output <dir>`

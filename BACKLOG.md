@@ -638,14 +638,14 @@ Success looks like: A log file is produced for conversions and included in the d
 
 **Status: COMPLETED** (2026-02-13) - UTF-8 logging with horizontal line format, TeeOutput for stdout/stderr capture, 17 unit tests, integrated with diagnostic bundle.
 
-### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE, IN IMPLEMENTATION as specs/007-agent-pipeline/spec.md]**
+### E4-07b. PDF→Markdown Agent-Driven Pipeline **[FEATURE, COMPLETED as specs/007-agent-pipeline/spec.md]**
 
 Feature description:
 
 Implement the Agent-category steps (13 of 77 total) from the PDF conversion architecture. This includes prompt templates and contracts for visual TOC parsing, sentence boundary resolution, spelling correction, table detection, table conversion, quality assessments, and two-column reading order validation. Step 9.1 (completeness check) dropped — Phase 4 guarantees all page markers; a code-level check is sufficient.
 
 Architecture reference: `specs/004-pdf-research/pdf-conversion-architecture.md`
-Doc sync state: implementation artifacts are actively being reconciled while E4-07b stabilization is in progress; finalize canonical sync to `docs/user/user-guide.md` and `ARCHITECTURE.md` at feature completion/merge.
+Doc sync state: quickstart synced to `docs/user/user_guide.md`; plan/research/data-model synced to `ARCHITECTURE.md`; mark **SYNCED**.
 
 Requirements:
 - Prompt templates for each agent step (13 total): These are AI-directed prompts invoked by the orchestrator at specific steps—not user-facing prompts, not phase-level, and not for the entire command. Each template defines the task, input format, expected output format, and edge cases for a single step.
