@@ -54,7 +54,7 @@ PHASE_DETAILS: dict[int, dict[str, str]] = {
     2: {
         "name": "Image Removal",
         "changes": (
-            "Creates text-only PDF by covering images with"
+            "Creates no-images PDF by covering images with"
             " white rectangles; preserves layout for"
             " text extraction"
         ),
@@ -189,6 +189,7 @@ class Phase10(Phase):
         result = self.create_result()
         output_dir = Path(state.output_dir)
         pdf_name = Path(state.pdf_path).stem
+        prep_guidance = self._load_effective_prep_guidance(output_dir, pdf_name)
 
         try:
             # Step 10.1: Summarize pipeline outcomes
@@ -230,7 +231,10 @@ class Phase10(Phase):
                 assessment_results = self._collect_assessment_results(state, output_dir)
 
                 inputs = build_reporting_payload(
-                    step_id="10.2", assessment_results=assessment_results, workspace=str(output_dir)
+                    step_id="10.2",
+                    assessment_results=assessment_results,
+                    workspace=str(output_dir),
+                    prep_guidance=prep_guidance,
                 )
 
                 envelope, _status = runtime.execute_step("10.2", inputs)
@@ -279,7 +283,10 @@ class Phase10(Phase):
                 assessment_results = self._collect_assessment_results(state, output_dir)
 
                 inputs = build_reporting_payload(
-                    step_id="10.3", assessment_results=assessment_results, workspace=str(output_dir)
+                    step_id="10.3",
+                    assessment_results=assessment_results,
+                    workspace=str(output_dir),
+                    prep_guidance=prep_guidance,
                 )
 
                 envelope, _status = runtime.execute_step("10.3", inputs)
@@ -575,3 +582,23 @@ class Phase10(Phase):
             }
 
         return assessment_results
+
+    @staticmethod
+    def _load_effective_prep_guidance(
+        output_dir: Path, pdf_name: str
+    ) -> dict[str, object] | None:
+        """Load reviewed prep guidance when available, otherwise the baseline guidance."""
+        from gm_kit.pdf_convert.prep import (
+            load_effective_prep_guidance,
+        )
+        from gm_kit.pdf_convert.prep.analysis_artifacts import (
+            build_analysis_artifact_paths,
+        )
+
+        analysis_paths = build_analysis_artifact_paths(output_dir, pdf_stem=pdf_name)
+        if not (
+            analysis_paths.guidance_resolved.exists()
+            or analysis_paths.reviewed_guidance.exists()
+        ):
+            return None
+        return load_effective_prep_guidance(analysis_paths).to_dict()

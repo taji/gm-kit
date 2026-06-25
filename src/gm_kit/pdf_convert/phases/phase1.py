@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 import fitz  # PyMuPDF
 
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
+from gm_kit.pdf_convert.prep.handlers import extract_images_to_artifacts
 
 if TYPE_CHECKING:
     from gm_kit.pdf_convert.state import ConversionState
@@ -44,57 +45,18 @@ class Phase1(Phase):
         pdf_path = Path(state.pdf_path)
         output_dir = Path(state.output_dir)
         images_dir = output_dir / "images"
-        images_dir.mkdir(exist_ok=True)
-
-        # Step 1.1: Identify images per page
-        image_manifest = []
-        total_images = 0
 
         try:
             doc = fitz.open(pdf_path)
             page_count = len(doc)
-
-            for page_num in range(page_count):
-                page = doc[page_num]
-                image_list = page.get_images()
-
-                for img_index, img in enumerate(image_list):
-                    xref = img[0]
-                    base_image = doc.extract_image(xref)
-                    image_bytes = base_image["image"]
-
-                    # Generate filename
-                    img_filename = f"page{page_num + 1:03d}_img{img_index + 1:02d}.png"
-                    img_path = images_dir / img_filename
-
-                    # Save image bytes
-                    img_path.write_bytes(image_bytes)
-
-                    # Get image position on page
-                    rect = page.get_image_rects(xref)
-                    if rect:
-                        rect = rect[0]
-                        position = {
-                            "x": rect.x0,
-                            "y": rect.y0,
-                            "width": rect.width,
-                            "height": rect.height,
-                        }
-                    else:
-                        position = {"x": 0, "y": 0, "width": 0, "height": 0}
-
-                    # Add to manifest
-                    image_manifest.append(
-                        {
-                            "page": page_num + 1,
-                            "filename": img_filename,
-                            "position": position,
-                        }
-                    )
-
-                    total_images += 1
-
             doc.close()
+            manifest_path, total_images = extract_images_to_artifacts(
+                pdf_path=pdf_path,
+                images_dir=images_dir,
+            )
+            with open(manifest_path, encoding="utf-8") as manifest_file:
+                manifest = json.load(manifest_file)
+            image_manifest = manifest["images"]
 
             result.add_step(
                 StepResult(
@@ -130,10 +92,6 @@ class Phase1(Phase):
         )
 
         # Step 1.3: Generate alt-text placeholders
-        # For now, generate simple placeholders based on position
-        for img in image_manifest:
-            img["alt_text"] = f"[Figure on page {img['page']}"
-
         result.add_step(
             StepResult(
                 step_id="1.3",
@@ -145,18 +103,6 @@ class Phase1(Phase):
 
         # Step 1.4: Create image-manifest.json
         try:
-            manifest_path = images_dir / "image-manifest.json"
-            with open(manifest_path, "w", encoding="utf-8") as f:
-                json.dump(
-                    {
-                        "images": image_manifest,
-                        "total_count": len(image_manifest),
-                    },
-                    f,
-                    indent=2,
-                    sort_keys=True,
-                )
-
             result.add_step(
                 StepResult(
                     step_id="1.4",

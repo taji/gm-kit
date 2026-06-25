@@ -14,7 +14,6 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from gm_kit.pdf_convert.constants import RESOLVED_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
 
 if TYPE_CHECKING:
@@ -79,6 +78,7 @@ class Phase9(Phase):
         result = self.create_result()
         output_dir = Path(state.output_dir)
         pdf_name = Path(state.pdf_path).stem
+        prep_guidance = self._load_effective_prep_guidance(output_dir, pdf_name)
 
         input_path = output_dir / f"{pdf_name}-phase8.md"
 
@@ -97,7 +97,12 @@ class Phase9(Phase):
 
             # Execute all quality assessment agent steps (9.2-9.5, 9.7-9.8)
             output_dir = Path(state.output_dir)
-            self._execute_quality_assessment(result, output_dir, input_path)
+            self._execute_quality_assessment(
+                result,
+                output_dir,
+                input_path,
+                prep_guidance,
+            )
 
             # Step 9.6: Run markdown lint using pymarkdownlnt
             lint_violations: list[str] = []
@@ -234,6 +239,7 @@ class Phase9(Phase):
         result: PhaseResult,
         output_dir: Path,
         input_path: Path,
+        prep_guidance: dict[str, object] | None,
     ) -> None:
         """Execute quality assessment agent steps (9.2, 9.3, 9.4, 9.5, 9.7, 9.8).
 
@@ -270,32 +276,30 @@ class Phase9(Phase):
                     # Load TOC file for relevant steps
                     toc_file = output_dir / "toc-extracted.txt"
                     font_mapping = output_dir / "font-family-mapping.json"
-                    tables_manifest = output_dir / "tables-manifest.json"
-                    gm_callout_config = output_dir / RESOLVED_CALLOUT_RULES_FILENAME
 
                     if step_id == "9.2":
                         inputs = build_structural_clarity_payload(
                             phase8_file=str(input_path),
                             toc_file=str(toc_file) if toc_file.exists() else "",
                             workspace=str(output_dir),
+                            prep_guidance=prep_guidance,
                         )
                     elif step_id == "9.3":
                         # Text flow assessment just needs the phase8 file
                         inputs = build_text_flow_payload(
                             phase8_file=str(input_path),
                             workspace=str(output_dir),
+                            prep_guidance=prep_guidance,
                         )
-                    elif step_id == "9.4" and tables_manifest.exists():
-                        # Table integrity check is N/A when no tables were confirmed in phase 7.
-                        try:
-                            manifest_data = json.loads(tables_manifest.read_text(encoding="utf-8"))
-                        except Exception:
-                            manifest_data = {}
-
-                        total_tables = int(manifest_data.get("total_count", 0) or 0)
-                        if total_tables == 0:
+                    elif step_id == "9.4":
+                        if prep_guidance is None:
+                            raise MissingInputError(
+                                step_id="9.4",
+                                missing_artifact="prep-guidance.resolved.json",
+                            )
+                        if not prep_guidance.get("table_regions", []):
                             message = (
-                                "No tables found in tables-manifest.json; "
+                                "No tables finalized in prep guidance; "
                                 "table integrity check skipped (N/A)."
                             )
                             result.add_step(
@@ -310,25 +314,19 @@ class Phase9(Phase):
 
                         inputs = build_table_integrity_payload(
                             phase8_file=str(input_path),
-                            tables_manifest=str(tables_manifest),
-                            workspace=str(output_dir),
-                        )
-                    elif step_id == "9.4":
-                        raise MissingInputError(
-                            step_id="9.4",
-                            missing_artifact="tables-manifest.json",
-                        )
-                    elif step_id == "9.5" and gm_callout_config.exists():
-                        # Callout formatting check needs callout config
-                        inputs = build_callout_formatting_payload(
-                            phase8_file=str(input_path),
-                            gm_callout_config=str(gm_callout_config),
+                            prep_guidance=prep_guidance,
                             workspace=str(output_dir),
                         )
                     elif step_id == "9.5":
-                        raise MissingInputError(
-                            step_id="9.5",
-                            missing_artifact=RESOLVED_CALLOUT_RULES_FILENAME,
+                        if prep_guidance is None:
+                            raise MissingInputError(
+                                step_id="9.5",
+                                missing_artifact="prep-guidance.resolved.json",
+                            )
+                        inputs = build_callout_formatting_payload(
+                            phase8_file=str(input_path),
+                            workspace=str(output_dir),
+                            prep_guidance=prep_guidance,
                         )
                     elif step_id == "9.7" and font_mapping.exists():
                         inputs = build_toc_validation_payload(
@@ -336,6 +334,7 @@ class Phase9(Phase):
                             toc_file=str(toc_file) if toc_file.exists() else "",
                             font_family_mapping=str(font_mapping),
                             workspace=str(output_dir),
+                            prep_guidance=prep_guidance,
                         )
                     elif step_id == "9.7":
                         result.add_step(
@@ -356,6 +355,7 @@ class Phase9(Phase):
                             phase8_file=str(input_path),
                             pdf_metadata=None,
                             workspace=str(output_dir),
+                            prep_guidance=prep_guidance,
                         )
                     else:
                         continue
@@ -427,3 +427,24 @@ class Phase9(Phase):
 
         except Exception as e:
             logger.warning(f"Quality assessment failed: {e}")
+            result.add_error(f"Quality assessment failed: {e}")
+
+    @staticmethod
+    def _load_effective_prep_guidance(
+        output_dir: Path, pdf_name: str
+    ) -> dict[str, object] | None:
+        """Load reviewed prep guidance when available, otherwise the baseline guidance."""
+        from gm_kit.pdf_convert.prep import (
+            load_effective_prep_guidance,
+        )
+        from gm_kit.pdf_convert.prep.analysis_artifacts import (
+            build_analysis_artifact_paths,
+        )
+
+        analysis_paths = build_analysis_artifact_paths(output_dir, pdf_stem=pdf_name)
+        if not (
+            analysis_paths.guidance_resolved.exists()
+            or analysis_paths.reviewed_guidance.exists()
+        ):
+            return None
+        return load_effective_prep_guidance(analysis_paths).to_dict()

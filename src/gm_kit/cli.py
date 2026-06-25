@@ -208,6 +208,55 @@ def pdf_convert(  # noqa: PLR0913
     )
 
 
+@app.command("analyze-and-prep-pdf")
+def analyze_and_prep_pdf(
+    pdf_path: str = typer.Argument(
+        None,
+        help="Path to the PDF file to analyze and prep",
+    ),
+    output: str = typer.Option(
+        None,
+        "--output",
+        help="Output directory for prep artifacts",
+    ),
+    resume: bool = typer.Option(
+        False,
+        "--resume",
+        help="Resume prep in an existing workspace",
+    ),
+    status: bool = typer.Option(
+        False,
+        "--status",
+        help="Show prep status for a workspace",
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        help="Non-interactive mode (accept defaults)",
+    ),
+) -> None:
+    """Analyze a PDF and prepare workspace artifacts."""
+    from gm_kit.pdf_convert.prep.cli_helpers import run_analyze_and_prep_command
+
+    run_analyze_and_prep_command(
+        pdf_path=pdf_path,
+        output=output,
+        resume=resume,
+        status=status,
+        yes=yes,
+    )
+
+
+@app.command("revise-prep-guidance")
+def revise_prep_guidance(
+    workspace: str = typer.Argument(..., help="Path to an existing prep workspace"),
+) -> None:
+    """Regenerate reviewed guidance from edited prep artifacts."""
+    from gm_kit.pdf_convert.prep.cli_helpers import run_revise_prep_guidance_command
+
+    run_revise_prep_guidance_command(workspace)
+
+
 def main() -> None:
     app()
 

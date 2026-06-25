@@ -1,6 +1,6 @@
 """Unit tests for Phase 2 (Image Removal).
 
-Tests for creating text-only PDF by covering images with white rectangles.
+Tests for creating no-images PDF by covering images with white rectangles.
 """
 
 from pathlib import Path
@@ -188,6 +188,27 @@ class TestPhase2Execute:
 
         assert result.status == PhaseStatus.ERROR
         assert "Drawing failed" in result.errors[0]
+
+    def test__should_preserve_helper_removed_count_message__when_refactored_to_shared_helper(
+        self, mock_state, tmp_path
+    ):
+        """Test that Phase 2 still reports helper-produced removal counts."""
+        phase = Phase2()
+
+        with patch(
+            "gm_kit.pdf_convert.phases.phase2.create_no_images_pdf",
+            return_value=3,
+        ) as mock_create:
+            result = phase.execute(mock_state)
+
+        mock_create.assert_called_once_with(
+            pdf_path=Path(mock_state.pdf_path),
+            output_pdf_path=tmp_path / "preprocessed" / "test-no-images.pdf",
+        )
+        step_2_1 = [step for step in result.steps if step.step_id == "2.1"]
+        assert len(step_2_1) == 1
+        assert step_2_1[0].message == "Found and covered 3 image instances"
+        assert result.status == PhaseStatus.SUCCESS
 
     def test__should_report_step_results__when_successful(self, mock_state, tmp_path):
         """Test that step results are properly reported on success."""

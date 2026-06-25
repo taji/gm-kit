@@ -5,10 +5,12 @@ Analyzes PDF files before conversion and displays results to user.
 
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import cast
 
 from rich.console import Console
 from rich.table import Table
@@ -72,6 +74,46 @@ class PreflightReport:
     warnings: list[str] = field(default_factory=list)
     user_involvement_phases: list[int] = field(default_factory=lambda: [7, 9])
     copyright_notice: str | None = None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "pdf_name": self.pdf_name,
+            "file_size_display": self.file_size_display,
+            "page_count": self.page_count,
+            "image_count": self.image_count,
+            "text_extractable": self.text_extractable,
+            "toc_approach": self.toc_approach.value,
+            "font_complexity": self.font_complexity.value,
+            "overall_complexity": self.overall_complexity.value,
+            "warnings": list(self.warnings),
+            "user_involvement_phases": list(self.user_involvement_phases),
+            "copyright_notice": self.copyright_notice,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, object]) -> PreflightReport:
+        warnings = cast(list[object], data.get("warnings", []))
+        user_involvement_phases = cast(
+            list[object],
+            data.get("user_involvement_phases", [7, 9]),
+        )
+        return cls(
+            pdf_name=str(data["pdf_name"]),
+            file_size_display=str(data["file_size_display"]),
+            page_count=int(cast(int | str, data["page_count"])),
+            image_count=int(cast(int | str, data["image_count"])),
+            text_extractable=bool(data["text_extractable"]),
+            toc_approach=TOCApproach(str(data["toc_approach"])),
+            font_complexity=Complexity(str(data["font_complexity"])),
+            overall_complexity=Complexity(str(data["overall_complexity"])),
+            warnings=[str(item) for item in warnings],
+            user_involvement_phases=[
+                int(cast(int | str, item)) for item in user_involvement_phases
+            ],
+            copyright_notice=(
+                None if data.get("copyright_notice") is None else str(data["copyright_notice"])
+            ),
+        )
 
 
 def _format_file_size(size_bytes: int) -> str:
@@ -177,7 +219,10 @@ def check_text_extractability(pdf_path: Path, threshold: int = 100) -> bool:
         return False
 
 
-def analyze_pdf(pdf_path: Path) -> PreflightReport:
+def analyze_pdf(
+    pdf_path: Path,
+    metadata: PDFMetadata | None = None,
+) -> PreflightReport:
     """Perform pre-flight analysis on a PDF file.
 
     Args:
@@ -189,7 +234,8 @@ def analyze_pdf(pdf_path: Path) -> PreflightReport:
     pdf_path = Path(pdf_path)
 
     # Extract metadata
-    metadata = extract_metadata(pdf_path)
+    if metadata is None:
+        metadata = extract_metadata(pdf_path)
 
     # Check text extractability
     text_extractable = check_text_extractability(pdf_path)
@@ -231,6 +277,13 @@ def analyze_pdf(pdf_path: Path) -> PreflightReport:
         warnings=warnings,
         copyright_notice=metadata.copyright,
     )
+
+
+def load_preflight_report(report_path: Path) -> PreflightReport:
+    payload = json.loads(Path(report_path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{report_path.name} must contain a JSON object")
+    return PreflightReport.from_dict(payload)
 
 
 def display_preflight_report(
@@ -393,12 +446,13 @@ def prompt_user_confirmation(
             return False
 
 
-def run_preflight(
+def run_preflight(  # noqa: PLR0913
     pdf_path: Path,
     console: Console | None = None,
     auto_proceed: bool = False,
     output_dir: Path | None = None,
     gm_callout_config_file_path: str | None = None,
+    preflight_report_path: Path | None = None,
 ) -> PreflightReport | None:
     """Run complete pre-flight analysis and display results.
 
@@ -412,7 +466,10 @@ def run_preflight(
     Returns:
         PreflightReport if user proceeds, None if aborted
     """
-    report = analyze_pdf(pdf_path)
+    if preflight_report_path is not None:
+        report = load_preflight_report(preflight_report_path)
+    else:
+        report = analyze_pdf(pdf_path)
     display_preflight_report(report, console)
 
     # Scanned PDF check moved to orchestrator (Phase 0)

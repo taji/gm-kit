@@ -5,7 +5,7 @@ Verify proper formatting of GM/Keeper notes and read-aloud text callouts.
 
 ## Input
 - `phase8_file`: Path to phase8.md
-- `callout_config`: Callout boundary definitions
+- `prep_guidance`: Finalized prep guidance, including callout regions
 
 ## Instructions
 1. Identify callout blocks:

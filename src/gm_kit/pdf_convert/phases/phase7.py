@@ -20,6 +20,11 @@ import fitz  # PyMuPDF
 
 from gm_kit.pdf_convert.constants import RESOLVED_CALLOUT_RULES_FILENAME
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
+from gm_kit.pdf_convert.prep.analysis_artifacts import build_analysis_artifact_paths
+from gm_kit.pdf_convert.prep.contracts import (
+    BOUNDING_BOX_COORDINATE_COUNT,
+    PrepGuidanceResolved,
+)
 
 if TYPE_CHECKING:
     from gm_kit.pdf_convert.state import ConversionState
@@ -846,6 +851,57 @@ class Phase7(Phase):
         tables_manifest_path = output_dir / "tables-manifest.json"
         with open(tables_manifest_path, "w", encoding="utf-8") as f:
             json.dump({"tables": detected_tables, "total_count": total_count}, f, indent=2)
+        self._write_baseline_prep_guidance(output_dir, detected_tables)
+
+    def _write_baseline_prep_guidance(
+        self,
+        output_dir: Path,
+        detected_tables: list[dict],
+    ) -> None:
+        """Persist baseline prep guidance for downstream conversion phases."""
+        guidance_path = build_analysis_artifact_paths(output_dir).guidance_resolved
+        guidance_path.parent.mkdir(parents=True, exist_ok=True)
+        table_regions: list[dict[str, object]] = []
+        for table in detected_tables:
+            page_number = table.get("page_number_1based")
+            bbox_pixels = table.get("bbox_pixels")
+            if not isinstance(page_number, int) or isinstance(page_number, bool):
+                continue
+            if isinstance(bbox_pixels, dict):
+                bbox = [
+                    bbox_pixels.get("x0"),
+                    bbox_pixels.get("y0"),
+                    bbox_pixels.get("x1"),
+                    bbox_pixels.get("y1"),
+                ]
+            elif isinstance(bbox_pixels, list):
+                bbox = bbox_pixels
+            else:
+                continue
+            if len(bbox) != BOUNDING_BOX_COORDINATE_COUNT or any(value is None for value in bbox):
+                continue
+            bbox_values = [float(value) for value in bbox]
+            table_region = {
+                "page": page_number,
+                "bbox": bbox_values,
+                "table_id": table.get("table_id", ""),
+                "proposal_id": table.get("table_id", ""),
+            }
+            page_image = table.get("page_image")
+            if isinstance(page_image, str) and page_image:
+                table_region["page_image"] = page_image
+            table_regions.append(table_region)
+
+        guidance = PrepGuidanceResolved(
+            skip_pages=[],
+            skip_regions=[],
+            table_regions=table_regions,
+            callout_regions=[],
+        )
+        guidance_path.write_text(
+            json.dumps(guidance.to_dict(), indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
 
     def execute(self, state: ConversionState) -> PhaseResult:
         """Execute structural detection steps.

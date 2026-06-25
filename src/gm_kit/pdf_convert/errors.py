@@ -69,10 +69,10 @@ class ErrorMessages:
         "Verify you have write access to the parent directory",
     )
 
-    # FR-033: Failed to create text-only PDF
+    # FR-033: Failed to create no-images PDF
     TEXT_PDF_ERROR = (
         "ERROR",
-        "Failed to create text-only PDF",
+        "Failed to create no-images PDF",
         "Check disk space and PDF integrity",
     )
 

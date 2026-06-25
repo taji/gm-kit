@@ -1,15 +1,16 @@
 """Unit tests for orchestrator resume logic (T038) and copyright notice (T056)."""
 
+import json
 import re
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from rich.console import Console
 
 from gm_kit.pdf_convert.agents.errors import AgentStepPause
 from gm_kit.pdf_convert.errors import ExitCode
-from gm_kit.pdf_convert.metadata import PDFMetadata
 from gm_kit.pdf_convert.orchestrator import (
     Orchestrator,
     create_diagnostic_bundle,
@@ -1038,6 +1039,24 @@ class TestDiagnosticBundle:
 class TestRunNewConversion:
     """Tests for new conversion paths."""
 
+    @staticmethod
+    def _seed_prep_startup(monkeypatch, output_dir: Path) -> Path:
+        """Stub prep artifact resolution so run_new_conversion can start."""
+        preflight_report_path = output_dir / "prep" / "preflight-report.json"
+
+        def _build_effective_prep_artifact_paths(workspace_dir: Path, pdf_stem: str):
+            analysis = SimpleNamespace(preflight_report=preflight_report_path)
+            return SimpleNamespace(
+                analysis=analysis,
+                effective_guidance=workspace_dir / "prep" / "prep-guidance.resolved.json",
+            )
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.orchestrator.build_effective_prep_artifact_paths",
+            _build_effective_prep_artifact_paths,
+        )
+        return preflight_report_path
+
     def test_run_new_conversion__should_return_file_error__when_pdf_missing(self, tmp_path):
         """Missing PDFs return FILE_ERROR."""
         orchestrator = Orchestrator()
@@ -1090,6 +1109,7 @@ class TestRunNewConversion:
             pdf_path=str(pdf_path),
             output_dir=str(output_dir),
         )
+        self._seed_prep_startup(monkeypatch, output_dir)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.create_output_directory",
             lambda *_a, **_k: output_dir,
@@ -1275,14 +1295,25 @@ class TestRunNewConversion:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
+        self._seed_prep_startup(monkeypatch, output_dir)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.create_output_directory",
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
+        report = PreflightReport(
+            pdf_name=pdf_path.name,
+            file_size_display="1.0 KB",
+            page_count=1,
+            image_count=0,
+            text_extractable=False,
+            toc_approach=TOCApproach.NONE,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.LOW,
+        )
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.extract_metadata",
-            lambda *_a, **_k: (_ for _ in ()).throw(ValueError("encrypted")),
+            "gm_kit.pdf_convert.orchestrator.run_preflight",
+            lambda *_a, **_k: report,
         )
 
         orchestrator = Orchestrator()
@@ -1300,13 +1331,14 @@ class TestRunNewConversion:
         output_dir = tmp_path / "output"
         output_dir.mkdir()
 
+        self._seed_prep_startup(monkeypatch, output_dir)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.create_output_directory",
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
         monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.extract_metadata",
+            "gm_kit.pdf_convert.orchestrator.run_preflight",
             lambda *_a, **_k: (_ for _ in ()).throw(ValueError("bad metadata")),
         )
 
@@ -1324,7 +1356,6 @@ class TestRunNewConversion:
         pdf_path.write_bytes(b"%PDF-1.4 test content")
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
         report = PreflightReport(
             pdf_name=pdf_path.name,
             file_size_display="1.0 KB",
@@ -1341,10 +1372,7 @@ class TestRunNewConversion:
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
-        )
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        self._seed_prep_startup(monkeypatch, output_dir)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.run_preflight", lambda *_a, **_k: report
         )
@@ -1363,17 +1391,13 @@ class TestRunNewConversion:
         pdf_path.write_bytes(b"%PDF-1.4 test content")
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
 
+        self._seed_prep_startup(monkeypatch, output_dir)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.create_output_directory",
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
-        )
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.run_preflight",
             lambda *_a, **_k: None,
@@ -1393,7 +1417,6 @@ class TestRunNewConversion:
         pdf_path.write_bytes(b"%PDF-1.4 test content")
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
         report = PreflightReport(
             pdf_name=pdf_path.name,
             file_size_display="1.0 KB",
@@ -1410,10 +1433,7 @@ class TestRunNewConversion:
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
-        )
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        self._seed_prep_startup(monkeypatch, output_dir)
         monkeypatch.setattr(
             "gm_kit.pdf_convert.orchestrator.run_preflight",
             lambda *_a, **_k: report,
@@ -1442,7 +1462,6 @@ class TestRunNewConversion:
         pdf_path.write_bytes(b"%PDF-1.4 test content")
         output_dir = tmp_path / "output"
         output_dir.mkdir()
-        metadata = PDFMetadata(page_count=1, file_size_bytes=1024)
         report = PreflightReport(
             pdf_name=pdf_path.name,
             file_size_display="1.0 KB",
@@ -1462,13 +1481,13 @@ class TestRunNewConversion:
             lambda *_a, **_k: output_dir,
         )
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.load_state", lambda *_a, **_k: None)
-        monkeypatch.setattr(
-            "gm_kit.pdf_convert.orchestrator.extract_metadata", lambda *_a, **_k: metadata
-        )
-        monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.save_metadata", lambda *_a, **_k: None)
+        preflight_report_path = self._seed_prep_startup(monkeypatch, output_dir)
+        preflight_report_path.parent.mkdir(parents=True, exist_ok=True)
+        preflight_report_path.write_text(json.dumps(report.to_dict()), encoding="utf-8")
 
-        def _run_preflight(_pdf_path, _console, _auto_proceed, _output_dir, cfg_path):
+        def _run_preflight(_pdf_path, _console, _auto_proceed, _output_dir, cfg_path, **kwargs):
             captured["path"] = cfg_path
+            captured["preflight_report_path"] = kwargs.get("preflight_report_path")
             return report
 
         monkeypatch.setattr("gm_kit.pdf_convert.orchestrator.run_preflight", _run_preflight)
@@ -1481,6 +1500,7 @@ class TestRunNewConversion:
         )
         assert exit_code == ExitCode.SUCCESS
         assert captured["path"] == str(callout_path)
+        assert captured["preflight_report_path"] == preflight_report_path
 
 
 class TestRunSinglePhase:

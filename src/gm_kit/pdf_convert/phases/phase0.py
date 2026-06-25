@@ -13,9 +13,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from gm_kit.pdf_convert.constants import DEFAULT_CALLOUT_RULES_FILENAME
-from gm_kit.pdf_convert.metadata import extract_metadata, save_metadata
+from gm_kit.pdf_convert.metadata import extract_metadata, load_metadata, save_metadata
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
-from gm_kit.pdf_convert.preflight import analyze_pdf
+from gm_kit.pdf_convert.preflight import analyze_pdf, load_preflight_report
+from gm_kit.pdf_convert.prep.analysis_artifacts import build_analysis_artifact_paths
 
 if TYPE_CHECKING:
     from gm_kit.pdf_convert.state import ConversionState
@@ -54,30 +55,48 @@ class Phase0(Phase):
         result = self.create_result()
         pdf_path = Path(state.pdf_path)
 
-        # Step 0.1: Extract PDF metadata
+        analysis_paths = build_analysis_artifact_paths(
+            Path(state.output_dir),
+            pdf_stem=pdf_path.stem,
+        )
+
+        # Step 0.1: Load PDF metadata from prep artifacts
         try:
-            metadata = extract_metadata(pdf_path)
-            save_metadata(metadata, Path(state.output_dir))
+            metadata = load_metadata(Path(state.output_dir))
+            if metadata is None:
+                raise FileNotFoundError(f"metadata.json not found in {state.output_dir}")
             result.add_step(
                 StepResult(
                     step_id="0.1",
-                    description="Extract PDF metadata",
+                    description="Load PDF metadata",
                     status=PhaseStatus.SUCCESS,
                     message=f"Title: {metadata.title or 'N/A'}, Pages: {metadata.page_count}",
                 )
             )
-        except Exception as e:
-            result.add_step(
-                StepResult(
-                    step_id="0.1",
-                    description="Extract PDF metadata",
-                    status=PhaseStatus.ERROR,
-                    message=str(e),
+        except Exception:
+            try:
+                metadata = extract_metadata(pdf_path)
+                save_metadata(metadata, Path(state.output_dir))
+                result.add_step(
+                    StepResult(
+                        step_id="0.1",
+                        description="Load PDF metadata",
+                        status=PhaseStatus.WARNING,
+                        message="Prep metadata missing; regenerated from source PDF",
+                    )
                 )
-            )
-            result.add_error(f"Failed to extract metadata: {e}")
-            result.complete()
-            return result
+            except Exception as e:
+                result.add_step(
+                    StepResult(
+                        step_id="0.1",
+                        description="Load PDF metadata",
+                        status=PhaseStatus.ERROR,
+                        message=str(e),
+                    )
+                )
+                result.add_error(f"Failed to load metadata: {e}")
+                result.complete()
+                return result
 
         # Step 0.2: Detect embedded TOC
         try:
@@ -104,7 +123,7 @@ class Phase0(Phase):
         # Step 0.3: Check text extractability
         report = None
         try:
-            report = analyze_pdf(pdf_path)
+            report = load_preflight_report(analysis_paths.preflight_report)
             text_extractable = report.text_extractable
             status = PhaseStatus.SUCCESS if text_extractable else PhaseStatus.ERROR
             message = "Text extractable" if text_extractable else "Scanned PDF detected"
@@ -118,16 +137,37 @@ class Phase0(Phase):
             )
             if not text_extractable:
                 result.add_error("Scanned PDF detected - very little extractable text")
-        except Exception as e:
-            result.add_step(
-                StepResult(
-                    step_id="0.3",
-                    description="Check text extractability",
-                    status=PhaseStatus.WARNING,
-                    message=f"Extractability check error: {e}",
+        except Exception:
+            try:
+                report = analyze_pdf(pdf_path)
+                analysis_paths.preflight_report.write_text(
+                    json.dumps(report.to_dict(), indent=2) + "\n",
+                    encoding="utf-8",
                 )
-            )
-            result.add_warning(f"Extractability check error: {e}")
+                text_extractable = report.text_extractable
+                status = PhaseStatus.SUCCESS if text_extractable else PhaseStatus.ERROR
+                message = "Text extractable" if text_extractable else "Scanned PDF detected"
+                result.add_step(
+                    StepResult(
+                        step_id="0.3",
+                        description="Check text extractability",
+                        status=status,
+                        message=message,
+                    )
+                )
+                if not text_extractable:
+                    result.add_error("Scanned PDF detected - very little extractable text")
+                result.add_warning("Prep preflight report missing; regenerated from source PDF")
+            except Exception as inner_exception:
+                result.add_step(
+                    StepResult(
+                        step_id="0.3",
+                        description="Check text extractability",
+                        status=PhaseStatus.WARNING,
+                        message=f"Preflight report error: {inner_exception}",
+                    )
+                )
+                result.add_warning(f"Preflight report error: {inner_exception}")
 
         # Step 0.4: Detect images
         try:

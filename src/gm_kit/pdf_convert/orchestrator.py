@@ -20,10 +20,11 @@ from gm_kit.pdf_convert.agents.errors import AgentStepPause
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN, PHASE_NAMES
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
 from gm_kit.pdf_convert.logging_config import reset_output_streams, setup_conversion_logging
-from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata, save_metadata
+from gm_kit.pdf_convert.metadata import PDFMetadata
 from gm_kit.pdf_convert.phases.base import Phase, get_phase_registry
 from gm_kit.pdf_convert.phases.stubs import get_mock_phases
 from gm_kit.pdf_convert.preflight import run_preflight
+from gm_kit.pdf_convert.prep.resolution import build_effective_prep_artifact_paths
 from gm_kit.pdf_convert.state import (
     ConversionState,
     ConversionStatus,
@@ -281,6 +282,8 @@ class Orchestrator:
             self.error_console.print(str(e))
             return ExitCode.FILE_ERROR
 
+        effective_paths = build_effective_prep_artifact_paths(output_dir, pdf_path.stem)
+
         update_active_conversion(output_dir, output_dir)
 
         # Initialize conversion logging
@@ -301,25 +304,17 @@ class Orchestrator:
                 gm_callout_config_file,
             )
 
-        # Run pre-flight analysis (Phase 0)
-        try:
-            metadata = extract_metadata(pdf_path)
-        except ValueError as e:
-            if "encrypted" in str(e).lower():
-                self.error_console.print(format_error(ErrorMessages.PDF_ENCRYPTED))
-                return ExitCode.PDF_ERROR
-            raise
-
-        # Save metadata
-        save_metadata(metadata, output_dir)
-
-        # Run pre-flight analysis (Phase 0)
         report = run_preflight(
             pdf_path,
             self.console,
             auto_proceed,
             output_dir,
             gm_callout_config_file,
+            preflight_report_path=(
+                effective_paths.analysis.preflight_report
+                if effective_paths.analysis.preflight_report.exists()
+                else None
+            ),
         )
 
         if report is None:  # User aborted during pre-flight

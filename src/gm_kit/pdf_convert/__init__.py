@@ -11,10 +11,13 @@ including pre-flight analysis, state tracking, and phase execution.
 #   from gm_kit.pdf_convert.preflight import PreflightReport
 #   from gm_kit.pdf_convert.errors import ExitCode
 
+from . import prep
+
 __all__ = [
     "state",
     "metadata",
     "preflight",
     "errors",
     "phases",
+    "prep",
 ]

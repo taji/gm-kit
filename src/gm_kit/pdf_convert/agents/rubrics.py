@@ -5,7 +5,6 @@ The agent performs self-evaluation against these rubrics.
 """
 
 
-
 class RubricDimension:
     """One scoring dimension within a rubric."""
 

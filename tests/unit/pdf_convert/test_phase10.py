@@ -342,6 +342,60 @@ class TestPhase10AgentSteps:
         assert step.status in [PhaseStatus.SUCCESS, PhaseStatus.WARNING]
         assert "AGENT" in step.description
 
+    def test__should_pass_reviewed_guidance_to_reporting_payloads__when_reviewed_artifact_exists(
+        self, setup_phase10, tmp_path, mock_agent_step_runtime
+    ):
+        """Reviewed guidance should be preferred over baseline guidance in reporting payloads."""
+        phase, state = setup_phase10
+        prep_root = tmp_path / "prep"
+        prep_root.mkdir(parents=True, exist_ok=True)
+        (prep_root / "prep-guidance.resolved.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [1],
+                    "skip_regions": [],
+                    "table_regions": [
+                        {"page": 1, "bbox": [1.0, 2.0, 3.0, 4.0], "proposal_id": "baseline"}
+                    ],
+                    "callout_regions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (prep_root / "prep-guidance.reviewed.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [3],
+                    "skip_regions": [],
+                    "table_regions": [
+                        {"page": 3, "bbox": [5.0, 6.0, 7.0, 8.0], "proposal_id": "reviewed"}
+                    ],
+                    "callout_regions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        captured_inputs: dict[str, dict] = {}
+        runtime = mock_agent_step_runtime.return_value
+
+        def _execute(step_id, inputs):
+            captured_inputs[step_id] = inputs
+            envelope = MagicMock()
+            envelope.data = {
+                "ratings": {"overall": {"score": 4}},
+                "issues": [],
+            }
+            return envelope, MagicMock()
+
+        runtime.execute_step.side_effect = _execute
+
+        with patch("gm_kit.pdf_convert.phases.phase10.load_metadata", return_value=None):
+            phase.execute(state)
+
+        assert captured_inputs["10.2"]["context"]["prep_guidance"]["skip_pages"] == [3]
+        assert captured_inputs["10.3"]["context"]["prep_guidance"]["table_regions"][0]["proposal_id"] == "reviewed"
+
 
 class TestPhase10Diagnostics:
     """Test diagnostics bundle handling in Phase 10."""

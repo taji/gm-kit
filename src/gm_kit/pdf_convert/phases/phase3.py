@@ -16,6 +16,7 @@ import fitz  # PyMuPDF
 from gm_kit.pdf_convert.agents import AgentStepRuntime
 from gm_kit.pdf_convert.agents.step_builders import build_toc_parsing_payload
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
+from gm_kit.pdf_convert.prep.handlers import extract_toc_to_artifact
 
 if TYPE_CHECKING:
     from gm_kit.pdf_convert.state import ConversionState
@@ -61,36 +62,15 @@ class Phase3(Phase):
         """
         toc_entries = []
         try:
-            doc = fitz.open(pdf_path)
-            toc = doc.get_toc()
-
-            if toc:
-                for level, title, page in toc:
-                    toc_entries.append(
-                        {
-                            "level": level,
-                            "title": title,
-                            "page": page,
-                        }
-                    )
+            toc_path = output_dir / "toc-extracted.txt"
+            toc_entries = extract_toc_to_artifact(pdf_path=pdf_path, output_path=toc_path)
+            if toc_entries:
                 message = f"Found {len(toc_entries)} TOC entries"
                 status = PhaseStatus.SUCCESS
             else:
                 message = "No embedded TOC found"
                 status = PhaseStatus.WARNING
                 result.add_warning("No embedded TOC found - will attempt visual TOC detection")
-
-            doc.close()
-
-            # Save TOC to file with source indication
-            toc_path = output_dir / "toc-extracted.txt"
-            with open(toc_path, "w", encoding="utf-8") as f:
-                f.write(f"# TOC Source: {'embedded' if toc_entries else 'none'}\n")
-                f.write("# Extraction method: PDF metadata (step 3.1)\n")
-                f.write(f"# Total entries: {len(toc_entries)}\n\n")
-                for entry in toc_entries:
-                    indent = "  " * (entry["level"] - 1)
-                    f.write(f"{indent}{entry['title']} (page {entry['page']})\n")
 
             result.add_step(
                 StepResult(
@@ -552,8 +532,7 @@ class Phase3(Phase):
         else:
             # Embedded TOC found - skip step 3.2
             skip_message = (
-                "Skipped - using embedded TOC with "
-                f"{len(embedded_toc_entries)} entries"
+                "Skipped - using embedded TOC with " f"{len(embedded_toc_entries)} entries"
             )
             result.add_step(
                 StepResult(

@@ -13,6 +13,15 @@ class _Report:
         self.image_count = image_count
 
 
+class _Metadata:
+    """Minimal metadata stub for tests."""
+
+    def __init__(self, page_count: int = 1, has_toc: bool = False):
+        self.title = ""
+        self.page_count = page_count
+        self.has_toc = has_toc
+
+
 def test_phase0__should_preserve_user_callout_config__when_provided(tmp_path, monkeypatch):
     """Phase 0 should not overwrite a provided gm_callout_config_file."""
     pdf_path = tmp_path / "input.pdf"
@@ -27,12 +36,11 @@ def test_phase0__should_preserve_user_callout_config__when_provided(tmp_path, mo
     )
 
     monkeypatch.setattr(
-        "gm_kit.pdf_convert.phases.phase0.extract_metadata",
-        lambda *_a, **_k: type("M", (), {"title": "", "page_count": 1, "has_toc": False})(),
+        "gm_kit.pdf_convert.phases.phase0.load_metadata",
+        lambda *_a, **_k: _Metadata(page_count=1, has_toc=False),
     )
-    monkeypatch.setattr("gm_kit.pdf_convert.phases.phase0.save_metadata", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        "gm_kit.pdf_convert.phases.phase0.analyze_pdf",
+        "gm_kit.pdf_convert.phases.phase0.load_preflight_report",
         lambda *_a, **_k: _Report(text_extractable=True, image_count=0),
     )
 
@@ -59,12 +67,11 @@ def test_phase0__should_create_default_callout_config__when_not_provided(tmp_pat
     )
 
     monkeypatch.setattr(
-        "gm_kit.pdf_convert.phases.phase0.extract_metadata",
-        lambda *_a, **_k: type("M", (), {"title": "", "page_count": 1, "has_toc": False})(),
+        "gm_kit.pdf_convert.phases.phase0.load_metadata",
+        lambda *_a, **_k: _Metadata(page_count=1, has_toc=False),
     )
-    monkeypatch.setattr("gm_kit.pdf_convert.phases.phase0.save_metadata", lambda *_a, **_k: None)
     monkeypatch.setattr(
-        "gm_kit.pdf_convert.phases.phase0.analyze_pdf",
+        "gm_kit.pdf_convert.phases.phase0.load_preflight_report",
         lambda *_a, **_k: _Report(text_extractable=True, image_count=0),
     )
 

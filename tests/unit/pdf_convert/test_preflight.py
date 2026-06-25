@@ -1,5 +1,6 @@
 """Unit tests for preflight analysis (T018)."""
 
+import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,6 +19,7 @@ from gm_kit.pdf_convert.preflight import (
     analyze_pdf,
     check_text_extractability,
     display_preflight_report,
+    load_preflight_report,
     prompt_user_confirmation,
     run_preflight,
 )
@@ -263,6 +265,53 @@ class TestPreflightReport:
             overall_complexity=Complexity.LOW,
         )
         assert report.warnings == []
+
+    def test_preflight_report__should_round_trip_dict__when_serialized(self):
+        """Preflight reports preserve values through dict serialization."""
+        report = PreflightReport(
+            pdf_name="test.pdf",
+            file_size_display="1.0 MB",
+            page_count=10,
+            image_count=5,
+            text_extractable=True,
+            toc_approach=TOCApproach.VISUAL,
+            font_complexity=Complexity.MODERATE,
+            overall_complexity=Complexity.HIGH,
+            warnings=["warn"],
+            user_involvement_phases=[1, 7],
+            copyright_notice="copyright",
+        )
+
+        restored = PreflightReport.from_dict(report.to_dict())
+
+        assert restored == report
+
+
+class TestLoadPreflightReport:
+    """Tests for loading preflight reports from disk."""
+
+    def test_load_preflight_report__should_restore_report__when_file_contains_json(
+        self,
+        tmp_path,
+    ):
+        """Load preflight report from JSON file."""
+        report = PreflightReport(
+            pdf_name="test.pdf",
+            file_size_display="1.0 MB",
+            page_count=10,
+            image_count=5,
+            text_extractable=True,
+            toc_approach=TOCApproach.EMBEDDED,
+            font_complexity=Complexity.LOW,
+            overall_complexity=Complexity.MODERATE,
+            warnings=["note"],
+        )
+        report_path = tmp_path / "preflight-report.json"
+        report_path.write_text(json.dumps(report.to_dict()), encoding="utf-8")
+
+        restored = load_preflight_report(report_path)
+
+        assert restored == report
 
 
 class TestAnalyzePdf:

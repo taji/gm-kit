@@ -9,6 +9,7 @@ Tests multi-paragraph callout preservation including:
 """
 
 import json
+from unittest.mock import MagicMock, patch
 
 from gm_kit.pdf_convert.phases.base import PhaseStatus
 from gm_kit.pdf_convert.phases.phase8 import Phase8
@@ -158,7 +159,6 @@ class TestMultiParagraphCalloutHandling:
 
         callout_config_path = output_dir / "callout-rules.input.json"
         callout_config_path.write_text("[]")
-
         state = ConversionState(
             pdf_path=str(pdf_path),
             output_dir=str(output_dir),
@@ -434,6 +434,127 @@ class TestPhase8EdgeCases:
 
 class TestPhase8TableExtraction:
     """Test table markdown extraction from step 8.7 outputs."""
+
+    def test_phase8__should_convert_tables_from_prep_guidance__when_table_regions_exist(
+        self, tmp_path
+    ):
+        """Phase8 should drive table conversion from resolved prep guidance."""
+        phase = Phase8()
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+
+        mapping = {
+            "signatures": [
+                {"id": "sig001", "family": "Body", "size": 10.0, "label": None},
+            ]
+        }
+        (output_dir / "font-family-mapping.json").write_text(json.dumps(mapping), encoding="utf-8")
+        (output_dir / "test-phase6.md").write_text(
+            """«sig001:Body text»
+<!-- Page 1 -->
+Table source text""",
+            encoding="utf-8",
+        )
+
+        prep_root = output_dir / "prep"
+        prep_root.mkdir(parents=True, exist_ok=True)
+        (prep_root / "prep-guidance.resolved.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [],
+                    "skip_regions": [],
+                    "table_regions": [
+                        {
+                            "page": 1,
+                            "bbox": [72.0, 240.0, 520.0, 610.0],
+                            "proposal_id": "ap-001",
+                        }
+                    ],
+                    "callout_regions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        captured_payloads: list[dict[str, object]] = []
+
+        def _build_payload(*, table_data, page_image_path, flat_text_path, workspace, dpi=None):
+            captured_payloads.append(
+                {
+                    "table_data": table_data,
+                    "page_image_path": page_image_path,
+                    "flat_text_path": flat_text_path,
+                    "workspace": workspace,
+                    "dpi": dpi,
+                }
+            )
+            return {
+                "table_id": table_data["table_id"],
+                "markdown_table": "| A | B |\n| --- | --- |\n| 1 | 2 |",
+            }
+
+        with (
+            patch("gm_kit.pdf_convert.agents.AgentStepRuntime") as mock_runtime_cls,
+            patch(
+                "gm_kit.pdf_convert.agents.table_steps.build_step_8_7_input_payload",
+                side_effect=_build_payload,
+            ),
+            patch("gm_kit.pdf_convert.agents.table_steps.render_page_image") as mock_render_page,
+            patch(
+                "gm_kit.pdf_convert.agents.table_steps.get_page_dimensions",
+                return_value=(612.0, 792.0),
+            ),
+        ):
+            mock_runtime = MagicMock()
+            mock_envelope = MagicMock()
+            mock_envelope.data = {"markdown_table": "| A | B |\n| --- | --- |\n| 1 | 2 |"}
+            mock_runtime.execute_step.return_value = (mock_envelope, MagicMock())
+            mock_runtime_cls.return_value = mock_runtime
+
+            result = phase.execute(
+                ConversionState(
+                    pdf_path=str(pdf_path),
+                    output_dir=str(output_dir),
+                    config={},
+                )
+            )
+
+        assert result.status == PhaseStatus.SUCCESS
+        assert captured_payloads[0]["table_data"]["table_id"] == "ap-001"
+        assert captured_payloads[0]["table_data"]["page_number_1based"] == 1
+        assert mock_render_page.called
+
+    def test_phase8__should_fail__when_prep_guidance_missing(self, tmp_path):
+        """Phase8 should halt when resolved prep guidance is missing."""
+        phase = Phase8()
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        pdf_path = tmp_path / "test.pdf"
+        pdf_path.touch()
+
+        (output_dir / "font-family-mapping.json").write_text(
+            json.dumps({"signatures": []}),
+            encoding="utf-8",
+        )
+        (output_dir / "test-phase6.md").write_text("Body text", encoding="utf-8")
+
+        result = phase.execute(
+            ConversionState(
+                pdf_path=str(pdf_path),
+                output_dir=str(output_dir),
+                config={},
+            )
+        )
+
+        assert _phase_status_ok(result.status)
+        step_87 = next((s for s in result.steps if s.step_id == "8.7"), None)
+        assert step_87 is not None
+        assert step_87.status == PhaseStatus.SKIPPED
+        assert "No resolved prep guidance available" in (step_87.message or "")
 
     def test_phase8__should_extract_legacy_markdown_table__when_field_present(self):
         """Phase8 should read legacy `markdown_table` output shape."""

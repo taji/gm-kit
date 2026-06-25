@@ -16,10 +16,28 @@ from gm_kit.pdf_convert.state import ConversionState
 
 def _write_required_quality_artifacts(output_dir):
     """Create required artifacts so high-critical quality steps can execute."""
-    (output_dir / "tables-manifest.json").write_text(json.dumps({"tables": [], "total_count": 0}))
-    (output_dir / "callout-rules.resolved.json").write_text(json.dumps([]))
     (output_dir / "font-family-mapping.json").write_text(
         json.dumps({"version": "1.0", "signatures": []})
+    )
+    prep_root = output_dir / "prep"
+    prep_root.mkdir(parents=True, exist_ok=True)
+    (prep_root / "prep-guidance.resolved.json").write_text(
+        json.dumps(
+            {
+                "skip_pages": [],
+                "skip_regions": [],
+                "table_regions": [],
+                "callout_regions": [
+                    {
+                        "proposal_id": "ap-001",
+                        "page": 1,
+                        "bbox": [1.0, 2.0, 3.0, 4.0],
+                        "label": "callout_gm",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
     )
 
 
@@ -155,7 +173,7 @@ class TestPhase9AgentSteps:
 
         step = [s for s in result.steps if s.step_id == "9.4"][0]
         assert step.status == PhaseStatus.SUCCESS
-        assert "No tables found" in (step.message or "")
+        assert "No tables finalized in prep guidance" in (step.message or "")
         assert "skipped (N/A)" in (step.message or "")
 
     def test__should_report_agent_step_9_5_status(self, setup_phase9):
@@ -212,6 +230,58 @@ class TestPhase9AgentSteps:
         step = [s for s in result.steps if s.step_id == "9.3"][0]
         assert step.status == PhaseStatus.SUCCESS
         assert step.message == "Score: 4/5"
+
+    def test__should_pass_reviewed_guidance_to_agent_payloads__when_reviewed_artifact_exists(
+        self, setup_phase9, tmp_path, mock_agent_step_runtime
+    ):
+        """Reviewed guidance should be preferred over baseline guidance in agent payloads."""
+        phase, state = setup_phase9
+        prep_root = tmp_path / "prep"
+        prep_root.mkdir(parents=True, exist_ok=True)
+        (prep_root / "prep-guidance.resolved.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [1],
+                    "skip_regions": [],
+                    "table_regions": [
+                        {"page": 1, "bbox": [1.0, 2.0, 3.0, 4.0], "proposal_id": "baseline"}
+                    ],
+                    "callout_regions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (prep_root / "prep-guidance.reviewed.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [2],
+                    "skip_regions": [],
+                    "table_regions": [
+                        {"page": 2, "bbox": [5.0, 6.0, 7.0, 8.0], "proposal_id": "reviewed"}
+                    ],
+                    "callout_regions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        captured_inputs: dict[str, dict] = {}
+        runtime = mock_agent_step_runtime.return_value
+
+        def _execute(step_id, inputs):
+            if step_id == "9.2":
+                captured_inputs[step_id] = inputs
+            envelope = MagicMock()
+            envelope.data = {"score": 4, "issues": [], "ratings": {"overall": {"score": 4}}}
+            envelope.rubric_scores = {"overall": 4}
+            return envelope, MagicMock()
+
+        runtime.execute_step.side_effect = _execute
+
+        phase.execute(state)
+
+        assert captured_inputs["9.2"]["context"]["prep_guidance"]["skip_pages"] == [2]
+        assert captured_inputs["9.2"]["context"]["prep_guidance"]["table_regions"][0]["proposal_id"] == "reviewed"
 
 
 class TestPhase9UserSteps:
@@ -341,15 +411,14 @@ class TestPhase9EdgeCases:
         step_ids = [step.step_id for step in result.steps]
         assert len(step_ids) == len(set(step_ids))
 
-    def test__should_return_structured_error__when_table_manifest_missing(self, tmp_path):
-        """High-critical step 9.4 must fail with structured error when input is missing."""
+    def test__should_return_structured_error__when_prep_guidance_missing(self, tmp_path):
+        """High-critical step 9.4 must fail with structured error when guidance is missing."""
         phase = Phase9()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
         state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
         input_path = tmp_path / "test-phase8.md"
         input_path.write_text("Content")
-        (tmp_path / "callout-rules.resolved.json").write_text(json.dumps([]))
         (tmp_path / "font-family-mapping.json").write_text(
             json.dumps({"version": "1.0", "signatures": []})
         )
@@ -362,25 +431,63 @@ class TestPhase9EdgeCases:
         assert payload["step_id"] == "9.4"
         assert "missing" in payload["error"].lower()
         assert "re-run previous phase" in payload["recovery"].lower()
+        assert "prep-guidance.resolved.json" in payload["error"]
 
-    def test__should_return_structured_error__when_callout_config_missing(self, tmp_path):
-        """High-critical step 9.5 must fail with structured error when input is missing."""
+    def test__should_pass_reviewed_callout_guidance_to_agent_payloads__when_reviewed_artifact_exists(
+        self, tmp_path, mock_agent_step_runtime
+    ):
+        """Reviewed guidance should be passed to callout assessment payloads."""
         phase = Phase9()
         pdf_path = tmp_path / "test.pdf"
         pdf_path.touch()
         state = ConversionState(pdf_path=str(pdf_path), output_dir=str(tmp_path), current_phase=0)
-        input_path = tmp_path / "test-phase8.md"
-        input_path.write_text("Content")
-        (tmp_path / "tables-manifest.json").write_text(json.dumps({"tables": [], "total_count": 0}))
-        (tmp_path / "font-family-mapping.json").write_text(
-            json.dumps({"version": "1.0", "signatures": []})
+        (tmp_path / "test-phase8.md").write_text("Content")
+        _write_required_quality_artifacts(tmp_path)
+        prep_root = tmp_path / "prep"
+        prep_root.mkdir(parents=True, exist_ok=True)
+        (prep_root / "prep-guidance.resolved.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [],
+                    "skip_regions": [],
+                    "table_regions": [],
+                    "callout_regions": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        (prep_root / "prep-guidance.reviewed.json").write_text(
+            json.dumps(
+                {
+                    "skip_pages": [],
+                    "skip_regions": [],
+                    "table_regions": [],
+                    "callout_regions": [
+                        {
+                            "proposal_id": "ap-003",
+                            "page": 3,
+                            "bbox": [1.0, 2.0, 3.0, 4.0],
+                            "label": "callout_read_aloud",
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
         )
 
-        result = phase.execute(state)
+        captured_inputs: dict[str, dict] = {}
+        runtime = mock_agent_step_runtime.return_value
 
-        step = [s for s in result.steps if s.step_id == "9.5"][0]
-        assert step.status == PhaseStatus.ERROR
-        payload = json.loads(step.message or "{}")
-        assert payload["step_id"] == "9.5"
-        assert "missing" in payload["error"].lower()
-        assert "re-run previous phase" in payload["recovery"].lower()
+        def _execute(step_id, inputs):
+            if step_id == "9.5":
+                captured_inputs[step_id] = inputs
+            envelope = MagicMock()
+            envelope.data = {"score": 4, "issues": [], "ratings": {"overall": {"score": 4}}}
+            envelope.rubric_scores = {"overall": 4}
+            return envelope, MagicMock()
+
+        runtime.execute_step.side_effect = _execute
+
+        phase.execute(state)
+
+        assert captured_inputs["9.5"]["context"]["prep_guidance"]["callout_regions"][0]["label"] == "callout_read_aloud"

@@ -11,12 +11,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from gm_kit.pdf_convert.phases.base import Phase, PhaseResult, PhaseStatus, StepResult
+from gm_kit.pdf_convert.prep import load_effective_prep_guidance
+from gm_kit.pdf_convert.prep.analysis_artifacts import build_analysis_artifact_paths
 
 if TYPE_CHECKING:
     from gm_kit.pdf_convert.state import ConversionState
@@ -432,6 +435,19 @@ class Phase8(Phase):
                     return table_markdown
         return None
 
+    @staticmethod
+    def _load_effective_prep_guidance(
+        output_dir: Path, pdf_name: str
+    ) -> dict[str, object] | None:
+        """Load reviewed prep guidance when available, otherwise the baseline guidance."""
+        analysis_paths = build_analysis_artifact_paths(output_dir, pdf_stem=pdf_name)
+        if not (
+            analysis_paths.guidance_resolved.exists()
+            or analysis_paths.reviewed_guidance.exists()
+        ):
+            return None
+        return load_effective_prep_guidance(analysis_paths).to_dict()
+
     def execute(self, state: ConversionState) -> PhaseResult:  # noqa: PLR0912
         """Execute heading insertion and callout formatting steps.
 
@@ -444,6 +460,7 @@ class Phase8(Phase):
         result = self.create_result()
         output_dir = Path(state.output_dir)
         pdf_name = Path(state.pdf_path).stem
+        pdf_path = Path(state.pdf_path)
 
         input_path = output_dir / f"{pdf_name}-phase6.md"
         output_path = output_dir / f"{pdf_name}-phase8.md"
@@ -550,80 +567,130 @@ class Phase8(Phase):
             try:
                 from gm_kit.pdf_convert.agents import AgentStepRuntime
                 from gm_kit.pdf_convert.agents.table_steps import (
+                    bbox_points_to_pixels,
                     build_step_8_7_input_payload,
-                    crop_table_image,
+                    get_page_dimensions,
+                    render_page_image,
                 )
 
-                runtime = AgentStepRuntime(str(output_dir))
-
-                # Load table detection results from step 7.7
-                tables_manifest_path = output_dir / "tables-manifest.json"
-                if tables_manifest_path.exists():
-                    with open(tables_manifest_path, encoding="utf-8") as f:
-                        tables_manifest = json.load(f)
-
-                    tables_converted = 0
-                    for table_data in tables_manifest.get("tables", []):
-                        # Build payload for table conversion
-                        table_id = table_data["table_id"]
-                        page_image_path = table_data["page_image"]
-                        bbox_pixels = table_data["bbox_pixels"]
-
-                        # Crop table image if needed
-                        table_crops_dir = output_dir / "table_crops"
-                        table_crops_dir.mkdir(parents=True, exist_ok=True)
-                        crop_path = table_crops_dir / f"{table_id}_crop.png"
-
-                        if not crop_path.exists():
-                            crop_table_image(page_image_path, bbox_pixels, str(crop_path))
-
-                        # Extract flat text from table area for context
-                        flat_text = self._extract_table_flat_text(
-                            content, table_data["page_number_1based"], bbox_pixels
-                        )
-
-                        # Build and execute payload
-                        inputs = build_step_8_7_input_payload(
-                            table_data=table_data,
-                            page_image_path=page_image_path,
-                            flat_text_path=flat_text,
-                            workspace=str(output_dir),
-                        )
-
-                        envelope, _status = runtime.execute_step("8.7", inputs)
-
-                        if envelope:
-                            markdown_table = self._extract_markdown_table(envelope.data)
-                        else:
-                            markdown_table = None
-
-                        if markdown_table:
-                            # Replace the garbled table text with markdown table
-                            content = self._replace_table_with_markdown(
-                                content,
-                                table_data["page_number_1based"],
-                                markdown_table,
-                            )
-                            tables_converted += 1
-
-                    result.add_step(
-                        StepResult(
-                            step_id="8.7",
-                            description="Convert tables to markdown format (AGENT)",
-                            status=PhaseStatus.SUCCESS,
-                            message=f"Converted {tables_converted} table(s) to markdown",
-                        )
-                    )
-                else:
-                    # No tables detected in step 7.7 - skip
+                prep_guidance = self._load_effective_prep_guidance(output_dir, pdf_name)
+                if prep_guidance is None:
                     result.add_step(
                         StepResult(
                             step_id="8.7",
                             description="Convert tables to markdown format (AGENT)",
                             status=PhaseStatus.SKIPPED,
-                            message="No tables detected in Phase 7",
+                            message=(
+                                "No resolved prep guidance available; "
+                                "table conversion skipped (N/A)"
+                            ),
                         )
                     )
+                else:
+                    runtime = AgentStepRuntime(str(output_dir))
+                    table_regions = cast(
+                        list[dict[str, object]],
+                        prep_guidance.get("table_regions", []),
+                    )
+                    if not table_regions:
+                        result.add_step(
+                            StepResult(
+                                step_id="8.7",
+                                description="Convert tables to markdown format (AGENT)",
+                                status=PhaseStatus.SKIPPED,
+                                message=(
+                                    "No tables finalized in prep guidance; "
+                                    "table conversion skipped (N/A)"
+                                ),
+                            )
+                        )
+                    else:
+                        dpi = int(os.environ.get("GM_PAGE_IMAGE_DPI", 150))
+                        page_images_dir = output_dir / "page_images"
+                        tables_converted = 0
+                        for table_region in sorted(
+                            table_regions,
+                            key=lambda region: (
+                                int(cast(int | str, region["page"])),
+                                str(region.get("proposal_id", "")),
+                            ),
+                        ):
+                            page_number = int(cast(int | str, table_region["page"]))
+                            bbox_points = cast(list[float] | list[int], table_region["bbox"])
+                            proposal_id = str(
+                                table_region.get("proposal_id", f"table-p{page_number}")
+                            )
+                            page_width_pts, page_height_pts = get_page_dimensions(
+                                str(pdf_path),
+                                page_number - 1,
+                            )
+                            page_image_path = page_images_dir / f"page_{page_number:03d}.png"
+                            if not page_image_path.exists():
+                                render_page_image(
+                                    str(pdf_path),
+                                    page_number - 1,
+                                    str(page_image_path),
+                                    dpi,
+                                )
+
+                            image_width_px = int(page_width_pts * dpi / 72)
+                            image_height_px = int(page_height_pts * dpi / 72)
+                            bbox_pixels = bbox_points_to_pixels(
+                                {
+                                    "x0": float(bbox_points[0]),
+                                    "y0": float(bbox_points[1]),
+                                    "x1": float(bbox_points[2]),
+                                    "y1": float(bbox_points[3]),
+                                },
+                                page_width_pts=page_width_pts,
+                                page_height_pts=page_height_pts,
+                                image_width_px=image_width_px,
+                                image_height_px=image_height_px,
+                            )
+                            table_data = {
+                                "table_id": proposal_id,
+                                "page_number_1based": page_number,
+                                "bbox_pixels": bbox_pixels,
+                                "table_slug": proposal_id,
+                            }
+
+                            flat_text = self._extract_table_flat_text(
+                                content,
+                                page_number,
+                                bbox_pixels,
+                            )
+                            inputs = build_step_8_7_input_payload(
+                                table_data=table_data,
+                                page_image_path=str(page_image_path),
+                                flat_text_path=flat_text,
+                                workspace=str(output_dir),
+                            )
+
+                            envelope, _status = runtime.execute_step("8.7", inputs)
+
+                            if envelope:
+                                markdown_table = self._extract_markdown_table(envelope.data)
+                            else:
+                                markdown_table = None
+
+                            if markdown_table:
+                                content = self._replace_table_with_markdown(
+                                    content,
+                                    page_number,
+                                    markdown_table,
+                                )
+                                tables_converted += 1
+
+                        result.add_step(
+                            StepResult(
+                                step_id="8.7",
+                                description="Convert tables to markdown format (AGENT)",
+                                status=PhaseStatus.SUCCESS,
+                                message=(
+                                    f"Converted {tables_converted} table(s) from prep guidance"
+                                ),
+                            )
+                        )
             except Exception as e:
                 logger.warning(f"Step 8.7 failed: {e}")
                 result.add_step(

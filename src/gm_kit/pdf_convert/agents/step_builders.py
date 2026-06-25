@@ -148,7 +148,10 @@ def build_quality_assessment_payload(
 
 
 def build_structural_clarity_payload(
-    phase8_file: str, toc_file: str, workspace: str
+    phase8_file: str,
+    toc_file: str,
+    workspace: str,
+    prep_guidance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build input payload for step 9.2 (structural clarity assessment).
 
@@ -160,7 +163,7 @@ def build_structural_clarity_payload(
     Returns:
         Input payload for step-input.json
     """
-    return build_quality_assessment_payload(
+    payload = build_quality_assessment_payload(
         step_id="9.2",
         phase8_file=phase8_file,
         context={
@@ -169,9 +172,16 @@ def build_structural_clarity_payload(
         },
         workspace=workspace,
     )
+    if prep_guidance is not None:
+        payload["context"]["prep_guidance"] = prep_guidance
+    return payload
 
 
-def build_text_flow_payload(phase8_file: str, workspace: str) -> dict[str, Any]:
+def build_text_flow_payload(
+    phase8_file: str,
+    workspace: str,
+    prep_guidance: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Build input payload for step 9.3 (text flow assessment).
 
     Args:
@@ -181,7 +191,7 @@ def build_text_flow_payload(phase8_file: str, workspace: str) -> dict[str, Any]:
     Returns:
         Input payload for step-input.json
     """
-    return build_quality_assessment_payload(
+    payload = build_quality_assessment_payload(
         step_id="9.3",
         phase8_file=phase8_file,
         context={
@@ -189,10 +199,17 @@ def build_text_flow_payload(phase8_file: str, workspace: str) -> dict[str, Any]:
         },
         workspace=workspace,
     )
+    if prep_guidance is not None:
+        payload["context"]["prep_guidance"] = prep_guidance
+    return payload
 
 
 def build_toc_validation_payload(
-    phase8_file: str, toc_file: str, font_family_mapping: str, workspace: str
+    phase8_file: str,
+    toc_file: str,
+    font_family_mapping: str,
+    workspace: str,
+    prep_guidance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build input payload for step 9.7 (TOC validation).
 
@@ -205,7 +222,7 @@ def build_toc_validation_payload(
     Returns:
         Input payload for step-input.json
     """
-    return build_quality_assessment_payload(
+    payload = build_quality_assessment_payload(
         step_id="9.7",
         phase8_file=phase8_file,
         context={
@@ -215,10 +232,16 @@ def build_toc_validation_payload(
         workspace=workspace,
         font_family_mapping=font_family_mapping,
     )
+    if prep_guidance is not None:
+        payload["context"]["prep_guidance"] = prep_guidance
+    return payload
 
 
 def build_reading_order_payload(
-    phase8_file: str, pdf_metadata: dict | None, workspace: str
+    phase8_file: str,
+    pdf_metadata: dict | None,
+    workspace: str,
+    prep_guidance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build input payload for step 9.8 (reading order review).
 
@@ -230,7 +253,7 @@ def build_reading_order_payload(
     Returns:
         Input payload for step-input.json
     """
-    return build_quality_assessment_payload(
+    payload = build_quality_assessment_payload(
         step_id="9.8",
         phase8_file=phase8_file,
         context={
@@ -239,10 +262,16 @@ def build_reading_order_payload(
         },
         workspace=workspace,
     )
+    if prep_guidance is not None:
+        payload["context"]["prep_guidance"] = prep_guidance
+    return payload
 
 
 def build_reporting_payload(
-    step_id: str, assessment_results: dict[str, Any], workspace: str
+    step_id: str,
+    assessment_results: dict[str, Any],
+    workspace: str,
+    prep_guidance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build input payload for reporting steps (10.2, 10.3).
 
@@ -256,15 +285,19 @@ def build_reporting_payload(
     Returns:
         Input payload for step-input.json
     """
+    context: dict[str, Any] = {
+        "workspace": workspace,
+        "assessment_results": assessment_results,
+        "task": "generate_report" if step_id == "10.2" else "document_issues",
+    }
+    if prep_guidance is not None:
+        context["prep_guidance"] = prep_guidance
+
     return {
         "step_id": step_id,
         "input_artifacts": {},
         "optional_artifacts": {},
-        "context": {
-            "workspace": workspace,
-            "assessment_results": assessment_results,
-            "task": "generate_report" if step_id == "10.2" else "document_issues",
-        },
+        "context": context,
         "output_contract": f"schemas/step_{step_id.replace('.', '_')}.schema.json",
     }
 
@@ -324,48 +357,54 @@ def _extract_domain_terms(font_signatures: dict[str, Any]) -> list[str]:
 
 
 def build_table_integrity_payload(
-    phase8_file: str, tables_manifest: str, workspace: str
+    phase8_file: str,
+    prep_guidance: dict[str, Any] | None,
+    workspace: str,
 ) -> dict[str, Any]:
     """Build input payload for step 9.4 (table integrity check).
 
     Args:
         phase8_file: Path to phase8.md
-        tables_manifest: Path to tables-manifest.json from step 7.7
+        prep_guidance: Resolved prep guidance contract
         workspace: Conversion workspace
 
     Returns:
         Input payload for step-input.json
     """
-    return build_quality_assessment_payload(
+    payload = build_quality_assessment_payload(
         step_id="9.4",
         phase8_file=phase8_file,
         context={
-            "tables_manifest": tables_manifest,
+            "prep_guidance": prep_guidance,
             "task": "check_table_integrity",
         },
         workspace=workspace,
     )
+    return payload
 
 
 def build_callout_formatting_payload(
-    phase8_file: str, gm_callout_config: str, workspace: str
+    phase8_file: str,
+    workspace: str,
+    prep_guidance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build input payload for step 9.5 (callout formatting check).
 
     Args:
         phase8_file: Path to phase8.md
-        gm_callout_config: Path to GM callout configuration file
         workspace: Conversion workspace
 
     Returns:
         Input payload for step-input.json
     """
-    return build_quality_assessment_payload(
+    payload = build_quality_assessment_payload(
         step_id="9.5",
         phase8_file=phase8_file,
         context={
-            "gm_callout_config": gm_callout_config,
             "task": "check_callout_formatting",
         },
         workspace=workspace,
     )
+    if prep_guidance is not None:
+        payload["context"]["prep_guidance"] = prep_guidance
+    return payload

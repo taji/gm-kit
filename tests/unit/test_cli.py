@@ -385,3 +385,122 @@ def test_cli_pdf_convert__should_error__when_pdf_path_missing():
 
     assert result.exit_code == ExitCode.FILE_ERROR
     assert "ERROR: PDF path is required for new conversion" in result.output
+
+
+def test_cli_analyze_and_prep_pdf__should_register_command__when_help_rendered():
+    """analyze-and-prep-pdf is exposed from the top-level CLI."""
+    runner = CliRunner()
+
+    result = runner.invoke(cli.app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "analyze-and-prep-pdf" in result.output
+
+
+def test_cli_revise_prep_guidance__should_register_command__when_help_rendered():
+    """revise-prep-guidance is exposed from the top-level CLI."""
+    runner = CliRunner()
+
+    result = runner.invoke(cli.app, ["--help"])
+
+    assert result.exit_code == 0
+    assert "revise-prep-guidance" in result.output
+
+
+def test_cli_revise_prep_guidance__should_route_to_prep_helper__when_invoked(
+    monkeypatch,
+):
+    """revise-prep-guidance forwards the workspace path to the prep helper."""
+    runner = CliRunner()
+    captured: dict[str, Any] = {}
+
+    def _fake_run_revise_prep_guidance_command(workspace: str) -> None:
+        captured["workspace"] = workspace
+
+    monkeypatch.setattr(
+        "gm_kit.pdf_convert.prep.cli_helpers.run_revise_prep_guidance_command",
+        _fake_run_revise_prep_guidance_command,
+    )
+
+    result = runner.invoke(cli.app, ["revise-prep-guidance", "workspace"])
+
+    assert result.exit_code == 0
+    assert captured == {"workspace": "workspace"}
+
+
+def test_cli_analyze_and_prep_pdf__should_expose_long_options_only__when_help_rendered():
+    """analyze-and-prep-pdf keeps the E7-02 long-option-only surface."""
+    runner = CliRunner()
+
+    result = runner.invoke(cli.app, ["analyze-and-prep-pdf", "--help"])
+
+    assert result.exit_code == 0
+    assert "--output" in result.output
+    assert "--resume" in result.output
+    assert "--status" in result.output
+    assert "--yes" in result.output
+    assert "  -o" not in result.output
+    assert "  -r" not in result.output
+    assert "  -s" not in result.output
+    assert "  -y" not in result.output
+
+
+def test_cli_analyze_and_prep_pdf__should_reject_short_output_flag__when_invoked():
+    """analyze-and-prep-pdf rejects legacy short aliases for E7-02."""
+    runner = CliRunner()
+
+    result = runner.invoke(
+        cli.app,
+        ["analyze-and-prep-pdf", "module.pdf", "-o", "prep-out"],
+    )
+
+    assert result.exit_code != 0
+    assert "No such option: -o" in result.output
+
+
+def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
+    monkeypatch,
+):
+    """analyze-and-prep-pdf forwards the minimal E7-02 options to the prep helper."""
+    runner = CliRunner()
+    captured: dict[str, Any] = {}
+
+    def _fake_run_analyze_and_prep_command(
+        pdf_path: str | None,
+        output: str | None,
+        resume: bool,
+        status: bool,
+        yes: bool,
+    ) -> None:
+        captured["pdf_path"] = pdf_path
+        captured["output"] = output
+        captured["resume"] = resume
+        captured["status"] = status
+        captured["yes"] = yes
+
+    monkeypatch.setattr(
+        "gm_kit.pdf_convert.prep.cli_helpers.run_analyze_and_prep_command",
+        _fake_run_analyze_and_prep_command,
+    )
+
+    result = runner.invoke(
+        cli.app,
+        [
+            "analyze-and-prep-pdf",
+            "module.pdf",
+            "--output",
+            "prep-out",
+            "--resume",
+            "--status",
+            "--yes",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured == {
+        "pdf_path": "module.pdf",
+        "output": "prep-out",
+        "resume": True,
+        "status": True,
+        "yes": True,
+    }

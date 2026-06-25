@@ -184,6 +184,38 @@ class TestPhase1Execute:
 
         assert result.status == PhaseStatus.ERROR
 
+    def test__should_preserve_helper_manifest_output__when_refactored_to_shared_helper(
+        self, mock_state
+    ):
+        """Test that Phase 1 still reports the helper-produced manifest path."""
+        phase = Phase1()
+        manifest_path = Path(mock_state.output_dir) / "images" / "image-manifest.json"
+        manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        manifest_path.write_text(
+            json.dumps({"images": [], "total_count": 0}),
+            encoding="utf-8",
+        )
+
+        with (
+            patch("gm_kit.pdf_convert.phases.phase1.fitz.open") as mock_open,
+            patch(
+                "gm_kit.pdf_convert.phases.phase1.extract_images_to_artifacts",
+                return_value=(manifest_path, 0),
+            ) as mock_extract,
+        ):
+            mock_doc = MagicMock()
+            mock_doc.__len__ = MagicMock(return_value=2)
+            mock_open.return_value = mock_doc
+
+            result = phase.execute(mock_state)
+
+        mock_extract.assert_called_once_with(
+            pdf_path=Path(mock_state.pdf_path),
+            images_dir=Path(mock_state.output_dir) / "images",
+        )
+        assert result.output_file == str(manifest_path)
+        assert result.status == PhaseStatus.SUCCESS
+
 
 class TestPhase1ManifestFormat:
     """Test image manifest format and content."""
