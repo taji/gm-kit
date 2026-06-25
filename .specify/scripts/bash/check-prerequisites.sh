@@ -12,7 +12,6 @@
 #   --require-tasks     Require tasks.md to exist (for implementation phase)
 #   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
 #   --paths-only        Only output path variables (no validation)
-#   --constitution-check  Validate spec.md against constitution.md principles
 #   --help, -h          Show help message
 #
 # OUTPUTS:
@@ -27,7 +26,6 @@ JSON_MODE=false
 REQUIRE_TASKS=false
 INCLUDE_TASKS=false
 PATHS_ONLY=false
-CONSTITUTION_CHECK=false
 
 for arg in "$@"; do
     case "$arg" in
@@ -43,9 +41,6 @@ for arg in "$@"; do
         --paths-only)
             PATHS_ONLY=true
             ;;
-        --constitution-check)
-            CONSTITUTION_CHECK=true
-            ;;
         --help|-h)
             cat << 'EOF'
 Usage: check-prerequisites.sh [OPTIONS]
@@ -57,21 +52,17 @@ OPTIONS:
   --require-tasks     Require tasks.md to exist (for implementation phase)
   --include-tasks     Include tasks.md in AVAILABLE_DOCS list
   --paths-only        Only output path variables (no prerequisite validation)
-  --constitution-check  Validate spec.md against constitution.md principles
   --help, -h          Show this help message
 
 EXAMPLES:
   # Check task prerequisites (plan.md required)
   ./check-prerequisites.sh --json
-
+  
   # Check implementation prerequisites (plan.md + tasks.md required)
   ./check-prerequisites.sh --json --require-tasks --include-tasks
-
+  
   # Get feature paths only (no validation)
   ./check-prerequisites.sh --paths-only
-
-  # Validate spec against constitution
-  ./check-prerequisites.sh --constitution-check
   
 EOF
             exit 0
@@ -88,15 +79,28 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get feature paths and validate branch
-eval $(get_feature_paths)
+_paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
+eval "$_paths_output"
+unset _paths_output
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 
 # If paths-only mode, output paths and exit (support JSON + paths-only combined)
 if $PATHS_ONLY; then
     if $JSON_MODE; then
         # Minimal JSON paths payload (no validation performed)
-        printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s"}\n' \
-            "$REPO_ROOT" "$CURRENT_BRANCH" "$FEATURE_DIR" "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS"
+        if has_jq; then
+            jq -cn \
+                --arg repo_root "$REPO_ROOT" \
+                --arg branch "$CURRENT_BRANCH" \
+                --arg feature_dir "$FEATURE_DIR" \
+                --arg feature_spec "$FEATURE_SPEC" \
+                --arg impl_plan "$IMPL_PLAN" \
+                --arg tasks "$TASKS" \
+                '{REPO_ROOT:$repo_root,BRANCH:$branch,FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,TASKS:$tasks}'
+        else
+            printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s"}\n' \
+                "$(json_escape "$REPO_ROOT")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$TASKS")"
+        fi
     else
         echo "REPO_ROOT: $REPO_ROOT"
         echo "BRANCH: $CURRENT_BRANCH"
@@ -107,45 +111,6 @@ if $PATHS_ONLY; then
     fi
     exit 0
 fi
-
-# Function to check constitution compliance
-check_constitution() {
-    local spec_file="$1"
-    local errors=()
-
-    # Check for AI agent support (Principle VI)
-    if ! grep -q "FR-006" "$spec_file"; then
-        errors+=("Missing FR-006: Agent support requirement not found")
-    fi
-
-    # Check for testing approach (Principle VII)
-    if ! grep -q "pexpect" "$spec_file" && ! grep -q "interactive.*test" "$spec_file"; then
-        errors+=("Missing interactive testing approach (pexpect or equivalent)")
-    fi
-
-    # Check for UV installation (Principle VIII)
-    if ! grep -q "uv.*install" "$spec_file"; then
-        errors+=("Missing UV installation requirement")
-    fi
-
-    # Check for test-first (Principle III)
-    if ! grep -q "test.*first\|TDD\|unit test" "$spec_file"; then
-        errors+=("Missing test-first development requirement")
-    fi
-
-    # Report errors
-    if [[ ${#errors[@]} -gt 0 ]]; then
-        echo "ERROR: Constitution compliance check failed:" >&2
-        for error in "${errors[@]}"; do
-            echo "  - $error" >&2
-        done
-        echo "Refer to .specify/memory/constitution.md for required principles." >&2
-        return 1
-    fi
-
-    echo "✓ Constitution compliance check passed"
-    return 0
-}
 
 # Validate required directories and files
 if [[ ! -d "$FEATURE_DIR" ]]; then
@@ -158,11 +123,6 @@ if [[ ! -f "$IMPL_PLAN" ]]; then
     echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
     echo "Run /speckit.plan first to create the implementation plan." >&2
     exit 1
-fi
-
-# Run constitution check if requested
-if $CONSTITUTION_CHECK; then
-    check_constitution "$FEATURE_SPEC" || exit 1
 fi
 
 # Check for tasks.md if required
@@ -194,14 +154,25 @@ fi
 # Output results
 if $JSON_MODE; then
     # Build JSON array of documents
-    if [[ ${#docs[@]} -eq 0 ]]; then
-        json_docs="[]"
+    if has_jq; then
+        if [[ ${#docs[@]} -eq 0 ]]; then
+            json_docs="[]"
+        else
+            json_docs=$(printf '%s\n' "${docs[@]}" | jq -R . | jq -s .)
+        fi
+        jq -cn \
+            --arg feature_dir "$FEATURE_DIR" \
+            --argjson docs "$json_docs" \
+            '{FEATURE_DIR:$feature_dir,AVAILABLE_DOCS:$docs}'
     else
-        json_docs=$(printf '"%s",' "${docs[@]}")
-        json_docs="[${json_docs%,}]"
+        if [[ ${#docs[@]} -eq 0 ]]; then
+            json_docs="[]"
+        else
+            json_docs=$(for d in "${docs[@]}"; do printf '"%s",' "$(json_escape "$d")"; done)
+            json_docs="[${json_docs%,}]"
+        fi
+        printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$(json_escape "$FEATURE_DIR")" "$json_docs"
     fi
-    
-    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$FEATURE_DIR" "$json_docs"
 else
     # Text output
     echo "FEATURE_DIR:$FEATURE_DIR"
