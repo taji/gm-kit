@@ -43,6 +43,8 @@ Recommended entrypoint: use the slash command in your agent:
 Under the hood, it invokes `gmkit pdf-convert` and may pause for agent steps. If paused, write `step-output.json` in the shown step folder and resume.
 
 #### Common Commands
+- Prep workspace: `gmkit analyze-and-prep-pdf <pdf-path> --output <output-dir> --yes`
+- Finalize reviewed prep guidance: `gmkit revise-prep-guidance <output-dir>`
 - Full pipeline: `gmkit pdf-convert <pdf-path> --output <output-dir> --yes`
 - Re-run a phase: `gmkit pdf-convert --phase <n> <output-dir>`
 - Re-run from a specific step: `gmkit pdf-convert <output-dir> --from-step <X.Y>`
@@ -66,11 +68,15 @@ Under the hood, it invokes `gmkit pdf-convert` and may pause for agent steps. If
 │   └── image-manifest.json
 ├── preprocessed/
 │   └── <filename>-no-images.pdf
+├── prep/
+│   ├── annotation-proposals.json
+│   ├── prep-guidance.resolved.json
+│   ├── prep-guidance.reviewed.json
+│   └── annotated-prep.pdf
 ├── <filename>-phase4.md
 ├── <filename>-phase5.md
 ├── <filename>-phase6.md
 ├── <filename>-final.md
-├── tables-manifest.json
 ├── agent_steps/
 │   └── step_X_Y/
 │       ├── step-input.json
@@ -84,6 +90,10 @@ Under the hood, it invokes `gmkit pdf-convert` and may pause for agent steps. If
 Notes:
 - `callout-rules.resolved.json` is the normalized rules artifact used by later phases.
 - `font-family-mapping.json` captures font signatures (family + size + weight + style) used for heading inference.
+- `prep/annotated-prep.pdf` is the user-facing review surface for annotation/table review.
+- `prep/annotation-proposals.json` captures raw proposal evidence; the JSON is for agents and code, not manual editing.
+- `prep/prep-guidance.resolved.json` is the authoritative resolved prep contract consumed by later phases.
+- `prep/prep-guidance.reviewed.json` is written after reviewing and finalizing prep annotations.
 - Final markdown is `<filename>-final.md` (produced in phase 10); `<filename>-phase8.md` is an intermediate.
 - During paused agent steps, the CLI prints the exact step directory and expected `step-output.json` path.
 - `diagnostic-bundle.zip` contains state, metadata, and phase outputs for troubleshooting.

@@ -53,6 +53,25 @@ At the end of every session, append a new entry recording what you did, any deci
 
 The journal is a living document during feature development. Once the feature is complete and merged, leave it in place as a historical record. It does not need to be pruned, compacted, or loaded in future sessions — it is self-contained to the feature.
 
+## Feature Workflow Artifacts
+
+This repository now uses **Superpowers** as the active workflow for new feature design, planning, and implementation work.
+
+- Feature folders under `specs/` should be named from the canonical `BACKLOG.md` feature ID plus a short kebab-case slug.
+- Preferred feature folder pattern is:
+  - `specs/e7-01-key-based-prep-registry/`
+  - `specs/e7-02-analyze-and-prep-command-skeleton/`
+- For Epic 7 and later work, prefer backlog-aligned folder names over older sequential numeric folder names.
+- `BACKLOG.md` remains the canonical epic/feature prompt source.
+- Each feature continues to use its existing `specs/<feature-name>/` folder as the canonical home for feature-specific artifacts.
+- Do **not** use Superpowers' default `docs/superpowers/specs/` or `docs/superpowers/plans/` output locations in this repository.
+- Store Superpowers-generated design and plan documents inside the feature folder using distinct filenames so they do not collide with older Spec-Kit files.
+- Preferred filenames for Superpowers workflow artifacts are:
+  - `specs/<feature-name>/superpowers-design.md`
+  - `specs/<feature-name>/superpowers-plan.md`
+- Keep `feature_journal.md` in the same feature folder and treat it as the canonical handoff/progress record regardless of workflow.
+- Existing Spec-Kit-generated files in feature folders are historical reference material unless the user explicitly instructs you to replace or remove them.
+
 <!-- GENERATED:SPEC_KIT_GUIDELINES_START -->
 
 - Merge each feature's `spec/<feature>/quickstart.md` into `docs/user/user-guide.md`; keep `user-guide.md` canonical. Reconcile overlaps and ensure new flows do not duplicate or conflict with existing behavior. Mark the feature's quickstart items as **SYNCED** in `BACKLOG.md` once merged.
@@ -322,6 +341,8 @@ A task is “complete” only when:
 - Local files in conversion workspace (JSON, markdown, prompt artifacts) (007-agent-pipeline)
 - Python 3.8+ (constitution mandate), running on 3.13.7 + typer, rich, PyMuPDF/fitz, jsonschema (contract validation) (007-agent-pipeline)
 - Local files in conversion workspace (JSON contracts, markdown artifacts, prompt templates as Python modules) (007-agent-pipeline)
+- Python 3.13.7 + standard library (`dataclasses`, `typing`, `importlib`), existing gm-kit modules under `src/gm_kit/pdf_convert/` (e7-01-key-based-prep-registry)
+- files (`.state.json` and local conversion workspace artifacts), no new database for E7-01 (e7-01-key-based-prep-registry)
 
 ## Recent Changes
 - 001-ci-walking-skeleton: Added Python 3.13.7 + typer, rich, uv, pytest, ruff, black, isort, mypy, bandit

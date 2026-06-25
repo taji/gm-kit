@@ -690,6 +690,28 @@ Next Steps:
 
 Recorded by: gpt-5-codex
 
+Session: 2026-03-31 - Handoff to E4-08a
+--------------------------------------------------------
+Branch: master
+Date: 2026-03-31
+
+Work Completed:
+1. Closed E4-07b lifecycle updates (docs/spec/backlog sync) and prepared handoff for the next feature.
+
+Key Decisions:
+- Next active feature on return will be E4-08a (`analyze-and-prep-pdf`) before continuing additional post-conversion UX/policy refinements.
+
+Current State:
+- E4-07b is merged and marked completed.
+- Remaining planned work is centered on E4-08a and E4-08b.
+
+Next Steps:
+1. Start spec work for E4-08a (analyze-and-prep workflow) on return.
+2. Implement E4-08a after spec/plan/tasks are finalized.
+3. Revisit E4-08b rubric/failure-policy tuning after E4-08a design lands.
+
+Recorded by: gpt-5-codex
+
 Session: 2026-03-31 - Post-Merge Doc + Lifecycle Sync
 --------------------------------------------------------
 Branch: 007-agent-pipeline-implementation
@@ -3212,3 +3234,34 @@ Next Steps:
 3. If stable, run one fresh end-to-end harness pass (codex + kimi models) and capture final evidence for merge.
 
 Recorded by: gpt-5-codex
+
+Session: 2026-04-01 - E4-08a Prep Notes + Session Reset Handoff
+--------------------------------------------------------
+Branch: master
+Date: 2026-04-01
+
+Work Completed:
+1. Reviewed current table-detection behavior in code to answer how detection and bbox assignment currently work (step 7.7 text pass + vision pass).
+2. Added E4-08 design-note details to `BACKLOG.md` for annotation visualization defaults:
+   - table overlays use blue-family color
+   - callout overlays use green-family color
+   - both with low opacity so source text remains readable
+   - defaults are configurable via prep guidance/config artifacts.
+3. Prepared handoff guidance for starting E4-08a in a fresh session via `/speckit.specify` to avoid large-session context pressure.
+
+Key Decisions:
+- Keep annotation labels minimal (`table`, `callout`) while using color + opacity for reviewer clarity.
+- Treat color/opacity defaults as configuration, not hard-coded constants.
+- Start E4-08a spec work in a fresh chat session rather than continuing in an oversized session.
+
+Current State:
+- E4-07b is merged.
+- Backlog E4-08 now includes visual annotation defaults and configurability notes.
+- No implementation code for E4-08a started yet; next action is spec creation.
+
+Next Steps:
+1. Start a fresh session and run `/speckit.specify` for E4-08a (`analyze-and-prep-pdf`).
+2. Create new E4-08a spec folder/journal and carry over agreed requirements from BACKLOG.md (TOC-first heading policy, guidance artifacts, annotation contracts, chapterization policy).
+3. After specify output is drafted, review for missing acceptance criteria around annotation rendering defaults (color/opacity and user override behavior).
+
+Recorded by: codex (gpt-5)

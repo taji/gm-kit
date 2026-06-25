@@ -784,37 +784,15 @@ Testing approach:
 
 Success looks like: User can invoke `/gmkit.pdf-to-markdown` with a PDF path, see a pre-flight complexity report, confirm to proceed, and have the pipeline execute with proper state tracking and resumability.
 
-### E4-08. PDF Analyze-and-Prep Workflow **[FEATURE, PLANNED]**
+### E4-08a. PDF Analyze-and-Prep Workflow **[FEATURE, PLANNED]**
+
+Status: superseded by Epic 7.
 
 Feature description:
+This feature established the initial prep-first direction for PDF conversion and is now decomposed into Epic 7 (`E7-01` through `E7-09`) for incremental specification and implementation.
 
-Add a pre-conversion command that performs PDF analysis and preparation before
-`pdf-convert` runs. The goal is to move structural detection and user-guided
-annotation review earlier so conversion phases operate on explicit intent
-instead of late-stage heuristics.
-
-Proposed command:
-- `gmkit analyze-and-prep-pdf <pdf-path> --output <dir>`
-
-Requirements:
-- Move current pre-conversion analysis responsibilities (currently Phases 0-3) into the prep workflow.
-- Extract and preserve prep metadata/artifacts for downstream conversion.
-- Support user review/edit of detected regions (headings, callouts, tables, skip areas) before conversion.
-- Support optional user-provided pre-analysis guidance (for example: table titles usually contain
-  "Table", callouts usually begin with "Guidance", etc.) so detection can be biased toward known
-  document conventions.
-- Generate and persist a prep guidance config artifact that `analyze-and-prep-pdf` consumes during
-  detection/annotation passes.
-- Make `gmkit pdf-convert` fail fast with actionable guidance when prep artifacts are missing.
-- Add large-PDF readiness (chunk/chapter prep metadata for long campaigns/adventures).
-
-TODOs:
-1. Define prep artifact contract consumed by `pdf-convert` (schema + versioning + compatibility rules).
-2. Define annotation model for table/callout/heading/skip overlays and user edits.
-3. Define pre-analysis guidance config format (user hints + agent-normalized rules) and how the
-   prep command applies those hints to table/callout boundary proposals.
-
-Success looks like: users can review and tune structural intent before conversion, and conversions complete with clearer issue triage instead of brittle hard-fail behavior for minor quality defects.
+Canonical source:
+- Use Epic 7 as the authoritative scope for analyze-and-prep behavior, artifact contracts, gating, harness updates, and key-based step identity migration.
 
 ### E4-08b. Post-Conversion Rubric Failure Policy Review **[FEATURE, PLANNED]**
 
@@ -837,7 +815,26 @@ TODOs:
 Success looks like: hard-fail behavior is reserved for true blockers, while recoverable quality defects
 are triaged with actionable warnings/checklists.
 
-### E4-08. Workspace-Level Active Conversion Tracking **[FEATURE]**
+### E4-08c. Optional Back-of-Book Index Extraction **[FEATURE, OPTIONAL, PLANNED]**
+
+Feature description:
+
+Optionally parse and export a markdown index from back-of-book index pages in large PDF modules/adventures.
+Unlike embedded TOC outlines, index content is typically plain page text and must be detected/parsed.
+
+Scope:
+- Detect probable index page ranges near the end of the PDF.
+- Parse index entries (term + referenced page numbers/ranges) from extracted text.
+- Emit a machine-readable artifact (for example `index-master.json`) plus optional user-facing markdown (`index-master.md`).
+- Map index references to chunk/chapter outputs when chapterized conversion is enabled.
+
+Out of scope (initial version):
+- Perfect semantic normalization of synonyms/aliases.
+- Automatic de-duplication across custom house-style index conventions.
+
+Success looks like: users can optionally generate a navigable index artifact for large books; conversion correctness does not depend on this feature.
+
+### E4-08d. Workspace-Level Active Conversion Tracking **[FEATURE]**
 
 Feature description:
 
@@ -890,7 +887,7 @@ Spec the authoritative schema for Synopsis, Background, Word to the GM, Pacing/T
 
 ### E5-02. Active Project Tracking for Artifact Generation **[FEATURE]**
 Feature description:
-Allow artifact-generation commands (campaign/scenario/encounter/npc/etc.) to infer the active project context so users don’t have to pass paths each time. This mirrors E4-08’s active conversion tracking but for scenario/campaign workflows.
+Allow artifact-generation commands (campaign/scenario/encounter/npc/etc.) to infer the active project context so users don’t have to pass paths each time. This mirrors E4-08d’s active conversion tracking but for scenario/campaign workflows.
 
 Requirements:
 - When a campaign/scenario is created or selected, write its root path to `.gmkit/active-project.json`
@@ -951,6 +948,392 @@ Feature description:
 Develop a prompt that guides AI through analyzing the clue-route diagram, recommending revisions, and updating the distilled document to reflect those changes using the Arcane Library schema.
 
 Success looks like: consistent transitions and dramatic questions across the entire adventure.
+
+---
+
+## Epic 7 — Analyze-and-Prep Refactor (Prep-First Pipeline)
+
+Epic intent:
+Split the former E4-08a scope into smaller, completable features that can be specified and implemented incrementally.
+
+Shared constraints for all Epic 7 features:
+- TOC-first heading policy remains canonical; heading annotations are out of scope.
+- `gmkit analyze-and-prep-pdf` must support both interactive and non-interactive operation.
+- `gmkit pdf-convert` must prefer prep artifacts when available and bootstrap baseline outputs when prep has not been run yet.
+- Pre-E4-08a conversion artifacts are unsupported in the prep-first flow.
+- Reuse/extract existing `pdf-convert` analysis logic before introducing new implementations.
+- Step identity should move toward stable keys (not hard-coded numeric IDs) starting with prep flow.
+- Keep feature-level journals per `AGENTS.md` (`specs/<feature>/feature_journal.md`) for each Epic 7 feature.
+- Use the E4-07a-i logging style and structure for prep pipeline execution output (phase headers + step status entries + consistent symbols/messages), with deterministic test assertions.
+
+Execution category map (Epic 7, v1):
+- **Code-first** (default): workspace init, metadata/preflight, TOC acquisition/fallback orchestration, image extraction, text-only artifact creation, TOC anchoring, chapter/chunk planning, guidance resolution, artifact manifest/finalization, convert gating, harness wiring.
+- **Agent-assisted** (targeted): visual/heuristic annotation proposal quality improvements where deterministic code confidence is low (for example complex table/callout region suggestions), implemented as optional/replaceable step handlers.
+- **User-interaction** (interactive mode): annotation review/revision and explicit skip page/range capture before prep finalization.
+- Non-interactive mode keeps all user-interaction steps in Code path via explicit bypass/auto-accept policy artifacts.
+
+Canonical prep-first workflow summary (prep then convert):
+1. Validate input paths and initialize prep workspace/state.
+2. Extract metadata/page count/complexity and write preflight artifacts.
+3. Acquire canonical TOC (embedded first, visual fallback second).
+4. Apply TOC quality warning policy for large PDFs when TOC is weak/missing.
+5. Extract images and write image manifest.
+6. Create text-only preprocessing artifact(s) (image-removed/text-focused PDF).
+7. Anchor/normalize TOC entries to pages/ranges (TOC-first; no heading-annotation workflow).
+8. Build chapter segmentation from canonical TOC (fallback heuristics only when TOC quality is insufficient).
+9. Build chunk plan by packing adjacent whole chapters to budget; split within chapter only when a single chapter exceeds budget.
+10. Create `prep-guidance.input.json` and support interactive edit or non-interactive defaults.
+11. Resolve guidance into `prep-guidance.resolved.json`.
+12. Generate annotation proposals for `table`, `callout`, and `skip` (bbox + label + confidence), including annotated PDF output.
+13. Prompt user (interactive mode) to review/revise annotations before finalization; non-interactive mode records bypass/auto-accept policy in artifacts.
+14. Finalize resolved annotation artifacts as conversion dependencies.
+15. Write prep completion manifest/marker listing required artifacts.
+16. Run `gmkit pdf-convert` with prep-aware validation of available prep artifacts and bootstrap fallback when prep is absent.
+17. Execute conversion using prep outputs as authoritative inputs.
+
+Implementation mapping guidance (track in spec/tasks):
+- Mark each Epic 7 component as one of: `Reuse Existing`, `Extract/Refactor Existing`, `New Implementation`.
+- Reused/extracted candidates from current code path:
+  - Phase 0 metadata/preflight logic
+  - Phase 1 image extraction + manifest logic
+  - Phase 2 image-removal/text-only PDF logic
+  - Phase 3 TOC acquisition/fallback utilities
+- New implementation areas expected:
+  - prep artifact contract + required-artifact manifest
+  - chapter/chunk planning artifacts
+  - prep guidance input/resolved flow
+  - annotation review workflow integration
+  - conversion hard-gate enforcement for prep dependencies
+
+Skip intent and annotation behavior:
+- Prompt user for explicit page/page-range skips (for example `2,5,12-14`) as part of prep review flow.
+- Persist skip instructions metadata that conversion consumes directly (page-level skips).
+- Generate `skip` overlays/annotations in prep artifacts and allow user revision of proposed skip regions.
+- `skip` semantics are label-based and authoritative in resolved artifacts; color/overlay style is visual aid only.
+- When overlap/conflict occurs, `skip` takes precedence for exclusion.
+
+### E7-01. Key-Based Prep Registry Foundation **[FEATURE, PLANNED]**
+Feature description:
+Introduce a code-first registry for analyze/prep phases and steps using stable step keys and explicit execution order values. Numeric step labels become display aliases, not hard-coded identifiers.
+
+Requirements:
+- Add prep phase/step registry with stable keys (e.g., `prep.toc.acquire`) and sortable `order`.
+- Keep registry in code (no separate config requirement for v1).
+- Support insertion of new prep steps without renumbering files/schemas/orchestrator wiring.
+- Preserve readable log output with generated display numbering.
+
+Success looks like: prep orchestration runs from key-based step definitions with no numeric-ID coupling in new prep code paths.
+
+Specify prompt seed (canonical):
+```text
+Feature: E7-01 Key-Based Prep Registry Foundation (Epic 7)
+
+Create the specification for a key-based phase/step registry foundation for the new prep-first pipeline command `gmkit analyze-and-prep-pdf`.
+
+Context:
+- This is part of Epic 7 (Analyze-and-Prep Refactor).
+- E4-08a is superseded by Epic 7 and should be treated as historical pointer only.
+- We must preserve phase + step concepts, but remove hard coupling to numeric IDs in orchestrator/file naming.
+- Registry is code-first (no separate config requirement in v1).
+
+Required outcomes:
+1) Define a typed registry model for phases and steps with:
+   - stable phase keys
+   - stable step keys
+   - explicit sortable execution order
+   - handler reference mechanism
+   - step metadata needed for orchestration/logging
+2) Define how display numbering is generated for logs/UI (alias only, not identity).
+3) Define orchestration behavior driven by key/order, not numeric filenames.
+4) Define insertion behavior (new steps can be added without renumbering existing IDs/files).
+5) Define acceptance criteria and tests for deterministic ordering, insertion safety, and readable logs.
+
+Canonical prep phase keys (must be used exactly):
+- prep.initialize-workspace
+- prep.analyze-document
+- prep.extract-assets
+- prep.derive-structure
+- prep.plan-chunks
+- prep.prepare-guidance
+- prep.propose-annotations
+- prep.review-annotations
+- prep.finalize-prep-artifacts
+
+Examples of step key style (use this naming pattern):
+- prep.derive-structure.acquire-canonical-toc
+- prep.plan-chunks.pack-chapters-to-budget
+- prep.review-annotations.capture-skip-page-ranges
+
+Constraints:
+- Keep TOC-first policy in mind (heading annotations out of scope).
+- Keep both interactive and non-interactive prep support in mind.
+- Do not require backward compatibility with pre-E4-08a artifacts.
+- Reuse/extract existing logic where possible in later features; this feature is foundation-only.
+
+Out of scope for E7-01:
+- Full analyze/prep command implementation
+- Full conversion gating integration
+- Full annotation/guidance/chunking implementation details beyond what’s needed to define registry interfaces
+
+Success looks like:
+- A clear, implementable registry spec with stable key conventions and phase/step boundaries.
+- Future Epic 7 features can plug into this registry without numeric renumbering churn.
+```
+
+### E7-02. Analyze-and-Prep Command Skeleton + Artifact Contract **[FEATURE, PLANNED]**
+Feature description:
+Create `gmkit analyze-and-prep-pdf` command skeleton, prep state tracking, and the required prep artifact contract consumed by conversion.
+
+Requirements:
+- Add CLI entrypoint + orchestrator skeleton for analyze/prep.
+- Define required artifact manifest schema and completion marker.
+- Add non-interactive flags required by harness/CI usage.
+- Define prep logging output contract aligned with E4-07a-i visual format rules (phase headers, step status blocks, warnings/errors, deterministic assertions in tests).
+
+Success looks like: analyze/prep can run as a command and emit a validated prep contract artifact set (even before full analysis logic migration).
+
+### E7-03. Rehost Existing Analysis Logic into Prep Flow **[FEATURE, PLANNED]**
+Feature description:
+Extract/reuse current conversion analysis logic (metadata/preflight, TOC acquisition, image extraction, text-only PDF creation) into analyze/prep orchestration.
+
+Requirements:
+- Reuse existing implementations where behavior is already correct.
+- Avoid functional regressions when moving logic from conversion-first flow.
+- Emit prep artifacts compatible with E7-02 contract.
+
+Success looks like: prep flow produces canonical TOC/image/text-preprocess artifacts using mostly existing code paths.
+
+### E7-04. Chapter Segmentation + Chunk Planning **[FEATURE, PLANNED]**
+Feature description:
+Implement TOC-anchored chapter segmentation and chunk planning artifacts for large-document conversion.
+
+Requirements:
+- Chapter boundaries derive from canonical TOC first.
+- Chunk plan packs adjacent whole chapters to budget, then starts next chunk.
+- Split inside a chapter only when a single chapter exceeds budget.
+
+Success looks like: prep outputs deterministic chapter and chunk plan artifacts used by downstream conversion.
+
+### E7-05. Guidance + Annotation Proposal System (`table`/`callout`/`skip`) **[FEATURE, PLANNED]**
+Feature description:
+Add prep guidance artifacts and annotation proposal generation with semantic labels and bbox metadata.
+
+Requirements:
+- Implement `prep-guidance.input.json` and `prep-guidance.resolved.json`.
+- Generate annotation proposals with label + bbox + confidence.
+- Use semantic label behavior as canonical; color is visual aid only.
+
+Success looks like: prep produces machine-readable annotation proposals and an annotated PDF suitable for review.
+
+### E7-06. Annotation Review UX + Skip Intent Capture **[FEATURE, PLANNED]**
+Feature description:
+Implement annotation review and explicit skip page/range capture as a separate review step between prep and conversion.
+
+Requirements:
+- Prep generates review artifacts and exits with review instructions.
+- Prompt for explicit skip pages/ranges (for example `2,5,12-14`) and persist skip instructions metadata.
+- A separate revise command reads the review edits and writes `prep-guidance.reviewed.json`.
+- Conversion consumes reviewed guidance when present; automation can skip the revise step and proceed from baseline resolved guidance.
+- Overlap rule: `skip` takes precedence for exclusion.
+
+Success looks like: prep produces review artifacts, review revisions are captured in a reviewed guidance artifact, and conversion consumes the reviewed output when available.
+
+### E7-06a. Table Detection Review Handoff **[FEATURE, PLANNED]**
+Feature description:
+Move table detection into prep as a reviewable handoff so conversion consumes finalized table decisions instead of discovering tables itself.
+
+Requirements:
+- Prep detects candidate tables and records them as reviewable proposal artifacts.
+- Prep renders annotated review output for table proposals.
+- A revise/update command persists finalized table decisions into a machine-readable prep artifact.
+- `pdf-convert` consumes the finalized table artifact and does not re-run table discovery.
+
+Success looks like: table detection becomes a prep-side review workflow and conversion uses the finalized table contract as input.
+
+### E7-06b. Callout Detection Review Handoff **[FEATURE, PLANNED]**
+Feature description:
+Move callout detection into prep as a reviewable handoff so conversion consumes finalized callout decisions instead of discovering callouts itself.
+
+Requirements:
+- Prep detects candidate callouts and records them as reviewable proposal artifacts.
+- Prep renders annotated review output for callout proposals.
+- A revise/update command persists finalized callout decisions into a machine-readable prep artifact.
+- `pdf-convert` consumes the finalized callout artifact and does not re-run callout discovery.
+- Defer removal of the legacy `gm_callout_config_file` Phase 7/8 input path to a later refactor story; that change affects callout discovery/formatting behavior and is out of scope here.
+
+Success looks like: callout detection becomes a prep-side review workflow and conversion uses the finalized callout contract as input.
+
+### E7-07. Convert Gating + Prep Artifact Consumption **[FEATURE, PLANNED]**
+Feature description:
+Update `gmkit pdf-convert` to consume prep outputs as authoritative inputs, prefer reviewed prep guidance when present, and bootstrap missing baseline prep artifacts so the legacy conversion command still works end-to-end.
+
+Requirements:
+- Consume chapter/chunk/guidance/annotation outputs from prep when present.
+- Prefer reviewed prep guidance when present; otherwise use baseline guidance.
+- Bootstrap missing baseline metadata/preflight outputs from the source PDF so `pdf-convert` can still run when prep has not been executed yet.
+- Keep prep-generation as the canonical source of reviewed artifacts; do not invent reviewed artifacts during conversion.
+
+Success looks like: conversion prefers prep artifacts, falls back to baseline prep outputs, and still produces deterministic chunk-based markdown outputs.
+
+### E7-08. Live Handoff Harness Split (Prep Run + Convert Run) **[FEATURE, PLANNED]**
+Feature description:
+Split live handoff harness workflows into explicit prep-only, convert-only, and prep-and-convert execution paths with a visible artifact handoff boundary.
+
+Requirements:
+- Update `devtools/scripts/live_handoff_harness.sh` and `devtools/scripts/live_handoff_harness.py` to support workflow modes for prep and conversion.
+- Preserve unattended non-interactive regression capability.
+- Ensure artifact handoff boundary between prep and convert is explicit/tested.
+
+Success looks like: harness can run prep-only, convert-only (from prep outputs), or end-to-end prep+convert with clear artifact contracts.
+
+### E7-09. Conversion Pipeline Key-Migration (Post-Prep) **[FEATURE, PLANNED]**
+Feature description:
+Migrate existing conversion pipeline orchestration from numeric step coupling to stable key-based step identity.
+
+Requirements:
+- Introduce key-based step identity for conversion phases/steps.
+- Keep user-facing logs readable with generated display numbering.
+- Remove hard dependencies on numeric file/schema/orchestrator naming conventions where feasible.
+
+Success looks like: conversion pipeline supports inserting/reordering steps without cascading numeric renumbering changes.
+
+### E7-10. Sig Marker Replacement Discovery **[FEATURE, PLANNED]**
+Feature description:
+Investigate whether the `sigXXX` font-marker mechanism should remain in the pipeline or be replaced with a structured intermediate representation after prep-first conversion is stable.
+
+Requirements:
+- Inventory every current `sigXXX` marker consumer and classify each as keep, migrate, or delete.
+- Evaluate whether the marker mechanism still provides value once TOC-first prep, table prep, and callout prep are authoritative.
+- Propose a replacement artifact shape only if the structured alternative has a clear end-to-end consumer story.
+- Avoid implementation churn until the prep and conversion handoff contract is stable.
+
+Success looks like: the repo has a clear keep/migrate/replace decision for font markers and a concrete next step if replacement is justified.
+
+### E7-11. Optional TOC Recovery Flow (`generate-pdf-toc`) **[FEATURE, PLANNED]**
+Feature description:
+Add an optional recovery workflow for PDFs that are missing a usable TOC, using a prep/review/update sequence to generate TOC artifacts and then write the TOC back into the original PDF.
+
+Requirements:
+- If `pdf-convert` detects a missing TOC, fail fast with a message that points to `gmkit generate-pdf-toc`.
+- `generate-pdf-toc` should analyze the PDF, infer heading candidates, and produce an annotated text-only review artifact.
+- The user should be able to revise the heading annotations as `H1`, `H2`, etc., then run an update command that writes the revised TOC JSON.
+- A follow-up command should generate the TOC into the original image-bearing PDF.
+- Keep the workflow optional; do not require it for PDFs that already have a usable TOC.
+
+Success looks like: missing-TOC PDFs can be repaired through a dedicated recovery command sequence, while normal conversion continues to require only an existing usable TOC.
+
+---
+
+## Epic 8 — Init Migration to Agent Skills (Prompt/Command Replacement)
+
+Epic intent:
+Replace `gmkit init` prompt/command installation behavior with skills-based installation for agents that support skills, while keeping developer workflows debuggable in local workspaces.
+
+Shared constraints for all Epic 8 features:
+- Migrate Codex, Claude, OpenCode, and Qwen from prompt/command installation to skills installation.
+- Preserve current `gmkit init` idempotency and safe re-run behavior.
+- Keep generated project artifacts deterministic for the same inputs.
+- Document and test local-development registration/debug workflows so skills can be loaded from a dev folder without publishing.
+- Keep Gemini support functional; if Gemini lacks equivalent skills behavior, define and document a compatibility path.
+
+### E8-01. Agent Skills Capability & Integration Research **[FEATURE, PLANNED]**
+Feature description:
+Research and document the exact skills format, discovery paths, registration behavior, and invocation model for Codex, Claude, OpenCode, and Qwen.
+
+Requirements:
+- Capture per-agent skill directory conventions and file contract requirements (for example `SKILL.md` and supporting assets).
+- Capture per-agent local-dev registration/loading workflow (including restart/reload requirements).
+- Capture how to verify that a skill is loaded and selected at runtime.
+- Capture known incompatibilities or feature gaps vs old prompt/command behavior.
+
+Success looks like: a single implementation-ready reference doc for skills integration decisions across all target agents.
+
+### E8-02. gmkit Init Skill Installer Architecture **[FEATURE, PLANNED]**
+Feature description:
+Define and implement the `gmkit init` architecture changes needed to install skills instead of prompt/command files for supported agents.
+
+Requirements:
+- Add skills asset layout in `src/gm_kit/assets/` for Codex/Claude/OpenCode/Qwen.
+- Update init pipeline to install per-agent skill bundles to expected project/user locations.
+- Preserve existing init options and add any required skills-specific options with clear defaults.
+- Keep backward-safe behavior for existing initialized projects (non-destructive updates).
+
+Success looks like: `gmkit init` installs valid skill bundles for selected agent/OS without manual copying.
+
+### E8-03. Dev Registration & Debugging Workflow **[FEATURE, PLANNED]**
+Feature description:
+Add explicit developer tooling and docs for loading gmkit skills from local development paths and debugging slash/skill invocation behavior.
+
+Requirements:
+- Document per-agent steps to register/load local skill folders from the current repo.
+- Add reproducible checks to confirm skill discovery and invocation path.
+- Add troubleshooting guide for common failures (skills not appearing, stale cache, restart requirements, path mismatches).
+
+Success looks like: contributors can validate gmkit skills end-to-end from local source without publishing artifacts.
+
+### E8-04. Command Surface Migration (hello-gmkit/pdf-to-markdown Skill Entry) **[FEATURE, PLANNED]**
+Feature description:
+Migrate gmkit agent entrypoints from prompt/command format to skills entrypoints while preserving expected user command ergonomics.
+
+Requirements:
+- Port current gmkit command intent into skills-compatible invocation instructions.
+- Validate that `/gmkit.*` workflows still execute expected CLI/script flows where supported.
+- Define agent-specific invocation differences and normalize user guidance in docs.
+
+Success looks like: users invoke gmkit workflows through installed skills with equivalent or improved reliability versus prompt/command setup.
+
+### E8-05. Gemini Compatibility Path **[FEATURE, PLANNED]**
+Feature description:
+Define the compatibility strategy for Gemini if skills are not feature-equivalent to target agent skills behavior.
+
+Requirements:
+- Determine whether Gemini supports a true skills model for this use case.
+- If not, keep or introduce a maintained command/prompt compatibility layer for Gemini only.
+- Document rationale and expected parity limits.
+
+Success looks like: Gemini remains supported with clearly documented behavior and no silent degradation.
+
+### E8-06. Validation Matrix & Regression Tests for Init Skill Installation **[FEATURE, PLANNED]**
+Feature description:
+Add test coverage and validation matrix for skills-based init outputs across supported agents.
+
+Requirements:
+- Add/update unit and integration tests for skills installation paths and expected files.
+- Validate idempotent re-run behavior with existing initialized projects.
+- Add smoke validation for per-agent invocation readiness checks (where automatable).
+- Update CI documentation/tasks to reflect skills-based verification steps.
+
+Success looks like: skills installation behavior is regression-tested and repeatable across supported agents.
+
+---
+
+## Epic 9 — Agentic UX System (MCP + Web UI + Local-First Collaboration)
+
+Epic intent:
+Implement the gmkit Agentic UX System as a local-first, event-driven, multi-client architecture that integrates MCP tools, a web UI, and gmkit engine operations.
+
+Canonical design reference:
+- `docs/team/gmkit_agentic_ux_system.md`
+
+Scope note:
+- This epic is intentionally high-level for now and will be decomposed into smaller implementation features later.
+- Until decomposition is complete, the design document above is the source of truth for architecture and normative constraints.
+
+### E9-01. Agentic UX System Implementation Program **[FEATURE, PLANNED]**
+Feature description:
+Create and execute a phased implementation program for the Agentic UX System, covering Node/TypeScript MCP server, Vue/TypeScript UI, SQLite local persistence, MCP app integration, and Python gmkit engine contracts.
+
+Requirements:
+- Preserve the design document’s normative principles: local-first, action-driven state, event propagation, single source of truth, and separation of concerns.
+- Define implementation boundaries between:
+  - MCP server runtime (Node/TypeScript/Express + WebSocket/event bus + SQLite mediation)
+  - UX client runtime (Vue/Pinia action-driven UI state)
+  - Agent interaction path (MCP client/app trigger rules)
+  - Python gmkit engine integration contracts
+- Define a practical local development topology for running and debugging all moving parts together.
+- Define phased rollout order and acceptance gates to reduce integration risk.
+
+Success looks like: the project has an executable, phased feature roadmap anchored to `docs/team/gmkit_agentic_ux_system.md`, ready for decomposition into discrete spec-kit features.
 
 ---
 
