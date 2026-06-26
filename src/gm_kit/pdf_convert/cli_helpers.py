@@ -12,6 +12,7 @@ from gm_kit.pdf_convert.active_conversion import (
     resolve_active_candidates,
     update_active_conversion,
 )
+from gm_kit.pdf_convert.agents.registry import get_registry
 from gm_kit.pdf_convert.constants import PHASE_MAX, PHASE_MIN
 from gm_kit.pdf_convert.errors import ErrorMessages, ExitCode, format_error
 
@@ -197,7 +198,12 @@ def _handle_from_step_command(  # noqa: PLR0913
     Raises:
         typer.Exit: If step format is invalid
     """
-    if not re.match(r"^\d+\.\d+$", from_step):
+    if re.match(r"^\d+\.\d+$", from_step):
+        step_valid = True
+    else:
+        step_valid = get_registry().get_by_key(from_step) is not None
+
+    if not step_valid:
         typer.echo(format_error(ErrorMessages.INVALID_STEP, from_step), err=True)
         raise typer.Exit(code=ExitCode.FILE_ERROR)
 

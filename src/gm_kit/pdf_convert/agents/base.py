@@ -36,6 +36,7 @@ class AgentStepDefinition:
     """Static definition for one agent step."""
 
     step_id: str
+    step_key: str
     phase: int
     description: str
     criticality: Criticality

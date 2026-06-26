@@ -5,6 +5,7 @@ in-process without spawning subprocesses.
 """
 
 import re
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
@@ -293,6 +294,28 @@ class TestValidFromStepValues:
             ])
         assert result.exit_code == 0
 
+    def test_from_step_flag__should_return_success__when_step_key_provided(self, tmp_path):
+        """--from-step accepts stable step keys."""
+        with patch("gm_kit.pdf_convert.orchestrator.Orchestrator") as mock_orch_cls:
+            mock_orch = MagicMock()
+            mock_orch.run_from_step.return_value = ExitCode.SUCCESS
+            mock_orch_cls.return_value = mock_orch
+
+            result = runner.invoke(app, [
+                "pdf-convert",
+                str(tmp_path),
+                "--from-step", "text-flow-readability-assessment",
+                "--yes",
+            ])
+
+        assert result.exit_code == 0
+        mock_orch.run_from_step.assert_called_once_with(
+            Path(str(tmp_path)),
+            "text-flow-readability-assessment",
+            auto_proceed=True,
+            agent_debug=False,
+        )
+
 
 class TestInvalidFromStepValues:
     """Tests for invalid --from-step values."""
@@ -333,6 +356,17 @@ class TestInvalidFromStepValues:
         ])
         expected = format_error(ErrorMessages.INVALID_STEP, "abc")
         # Expect: "ERROR: --from-step requires format N.N (e.g., 5.3) (abc)"
+        assert result.exit_code != 0
+        assert expected in (result.output or "")
+
+    def test_from_step_flag__should_reject__when_unknown_key(self, tmp_path):
+        """--from-step rejects unknown stable keys."""
+        result = runner.invoke(app, [
+            "pdf-convert",
+            str(tmp_path),
+            "--from-step", "not-a-real-step-key",
+        ])
+        expected = format_error(ErrorMessages.INVALID_STEP, "not-a-real-step-key")
         assert result.exit_code != 0
         assert expected in (result.output or "")
 
