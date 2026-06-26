@@ -9,10 +9,54 @@ from gm_kit.pdf_convert.agents.agent_step import (
     write_agent_inputs,
 )
 from gm_kit.pdf_convert.agents.errors import AgentStepError
+from gm_kit.pdf_convert.step_identity import StepIdentity
+
+
+def _step_identity(step_id: str) -> StepIdentity:
+    identities = {
+        "3.2": StepIdentity(
+            step_key="parse-visual-toc-page",
+            display_id="3.2",
+            display_name="Parse visual TOC page",
+            phase=3,
+        ),
+        "4.5": StepIdentity(
+            step_key="resolve-split-sentences-at-chunk-boundaries",
+            display_id="4.5",
+            display_name="Resolve split sentences at chunk boundaries",
+            phase=4,
+        ),
+    }
+    return identities[step_id]
 
 
 class TestWriteAgentInputs:
     """Test write_agent_inputs function."""
+
+    def test_uses_registry_step_key_for_workspace_path(self, tmp_path, monkeypatch):
+        """Should build workspace paths from the registry's stable step key."""
+
+        class _StepDef:
+            step_key = "stable-step-key"
+            description = "Human-friendly display text"
+            phase = 9
+
+        class _Registry:
+            def get(self, _step_id):
+                return _StepDef()
+
+        monkeypatch.setattr(
+            "gm_kit.pdf_convert.agents.agent_step.get_registry",
+            lambda: _Registry(),
+        )
+
+        step_dir = write_agent_inputs(
+            step_id="9.3",
+            workspace=str(tmp_path),
+            inputs={"test": "data"},
+        )
+
+        assert step_dir == tmp_path / "agent_steps" / "phase_9" / "stable-step-key"
 
     def test_creates_step_directory(self, tmp_path):
         """Should create step directory structure."""
@@ -23,8 +67,9 @@ class TestWriteAgentInputs:
         )
 
         assert step_dir.exists()
-        assert step_dir.name == "step_3_2"
-        assert (step_dir.parent.parent / "agent_steps").exists()
+        assert step_dir == _step_identity("3.2").workspace_path(tmp_path)
+        assert step_dir.parent.name == "phase_3"
+        assert step_dir.parent.parent == tmp_path / "agent_steps"
 
     def test_writes_input_json(self, tmp_path):
         """Should write step-input.json."""
@@ -34,7 +79,7 @@ class TestWriteAgentInputs:
             inputs={"toc_text": "sample"},
         )
 
-        input_file = tmp_path / "agent_steps" / "step_3_2" / "step-input.json"
+        input_file = _step_identity("3.2").workspace_path(tmp_path) / "step-input.json"
         assert input_file.exists()
 
         with open(input_file) as f:
@@ -51,7 +96,7 @@ class TestWriteAgentInputs:
             inputs={"context": "test"},
         )
 
-        instruction_file = tmp_path / "agent_steps" / "step_3_2" / "step-instructions.md"
+        instruction_file = _step_identity("3.2").workspace_path(tmp_path) / "step-instructions.md"
         assert instruction_file.exists()
 
         content = instruction_file.read_text()
@@ -61,7 +106,7 @@ class TestWriteAgentInputs:
 
     def test_clears_stale_output_file(self, tmp_path):
         """Should remove stale step-output.json when creating a new handoff."""
-        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir = _step_identity("3.2").workspace_path(tmp_path)
         step_dir.mkdir(parents=True)
         output_file = step_dir / "step-output.json"
         output_file.write_text('{"status":"success"}', encoding="utf-8")
@@ -93,7 +138,7 @@ class TestWriteAgentInputs:
             inputs={"context": "contract-check"},
         )
 
-        input_file = tmp_path / "agent_steps" / "step_4_5" / "step-input.json"
+        input_file = _step_identity("4.5").workspace_path(tmp_path) / "step-input.json"
         data = json.loads(input_file.read_text(encoding="utf-8"))
         assert data["output_contract"] == "schemas/step_4_5.schema.json"
 
@@ -114,7 +159,7 @@ class TestReadAgentOutput:
 
     def test_reads_output_envelope(self, tmp_path):
         """Should read and return output envelope."""
-        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir = _step_identity("3.2").workspace_path(tmp_path)
         step_dir.mkdir(parents=True)
 
         output_file = step_dir / "step-output.json"
@@ -140,7 +185,7 @@ class TestReadAgentOutput:
 
     def test_parses_rubric_scores(self, tmp_path):
         """Should parse rubric scores from output."""
-        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir = _step_identity("3.2").workspace_path(tmp_path)
         step_dir.mkdir(parents=True)
 
         output_file = step_dir / "step-output.json"

@@ -3,6 +3,7 @@
 import json
 import os
 import subprocess
+from pathlib import Path
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -24,6 +25,43 @@ from gm_kit.pdf_convert.agents.runtime import (
     AgentStepRuntime,
     run_agent_step,
 )
+from gm_kit.pdf_convert.step_identity import StepIdentity
+
+
+def _step_workspace(tmp_path, step_id: str) -> Path:
+    identities = {
+        "3.2": StepIdentity(
+            step_key="parse-visual-toc-page",
+            display_id="3.2",
+            display_name="Parse visual TOC page",
+            phase=3,
+        ),
+        "4.5": StepIdentity(
+            step_key="resolve-split-sentences-at-chunk-boundaries",
+            display_id="4.5",
+            display_name="Resolve split sentences at chunk boundaries",
+            phase=4,
+        ),
+        "7.7": StepIdentity(
+            step_key="detect-table-structures",
+            display_id="7.7",
+            display_name="Detect table structures",
+            phase=7,
+        ),
+        "9.3": StepIdentity(
+            step_key="text-flow-readability-assessment",
+            display_id="9.3",
+            display_name="Text flow / readability assessment",
+            phase=9,
+        ),
+        "9.4": StepIdentity(
+            step_key="table-integrity-check",
+            display_id="9.4",
+            display_name="Table integrity check",
+            phase=9,
+        ),
+    }
+    return identities[step_id].workspace_path(tmp_path)
 
 
 class TestGetAgentConfig:
@@ -247,7 +285,7 @@ class TestAgentStepRuntime:
         from gm_kit.pdf_convert.agents.errors import AgentStepPause
         from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
 
-        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir = _step_workspace(tmp_path, "3.2")
         step_dir.mkdir(parents=True)
         (step_dir / "step-instructions.md").write_text("# Instructions", encoding="utf-8")
 
@@ -293,7 +331,7 @@ class TestAgentStepRuntime:
         """Should persist AWAITING_AGENT state metadata on handoff."""
         from gm_kit.pdf_convert.agents.errors import AgentStepPause
 
-        step_dir = tmp_path / "agent_steps" / "step_3_2"
+        step_dir = _step_workspace(tmp_path, "3.2")
         step_dir.mkdir(parents=True)
         (step_dir / "step-instructions.md").write_text("# Instructions", encoding="utf-8")
         mock_write.return_value = step_dir
@@ -319,7 +357,7 @@ class TestAgentStepRuntime:
         """Should finalize existing step output even if state status is COMPLETED."""
         from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
 
-        step_dir = tmp_path / "agent_steps" / "step_9_3"
+        step_dir = _step_workspace(tmp_path, "9.3")
         step_dir.mkdir(parents=True)
         (step_dir / "step-output.json").write_text(
             json.dumps(
@@ -366,7 +404,7 @@ class TestAgentStepRuntime:
         self, mock_evaluate, tmp_path
     ):
         """Should normalize 7.7 no-table rubric scores before evaluation."""
-        step_dir = tmp_path / "agent_steps" / "step_7_7"
+        step_dir = _step_workspace(tmp_path, "7.7")
         step_dir.mkdir(parents=True)
         (step_dir / "step-output.json").write_text(
             json.dumps(
@@ -410,7 +448,7 @@ class TestAgentStepRuntime:
         self, mock_evaluate, tmp_path
     ):
         """Should preserve missing boundary score failure path for table detections."""
-        step_dir = tmp_path / "agent_steps" / "step_7_7"
+        step_dir = _step_workspace(tmp_path, "7.7")
         step_dir.mkdir(parents=True)
         (step_dir / "step-output.json").write_text(
             json.dumps(
@@ -462,7 +500,7 @@ class TestAgentStepRuntime:
         from gm_kit.pdf_convert.agents.errors import AgentStepPause
         from gm_kit.pdf_convert.agents.evaluator import EvaluationResult
 
-        step_dir = tmp_path / "agent_steps" / "step_7_7"
+        step_dir = _step_workspace(tmp_path, "7.7")
         step_dir.mkdir(parents=True)
         (step_dir / "step-input.json").write_text(
             json.dumps({"step_id": "7.7", "phase": "text_scan", "page_number_1based": 1}),
@@ -511,7 +549,7 @@ class TestAgentStepRuntime:
         phase8 = tmp_path / "phase8.md"
         phase8.write_text("# updated", encoding="utf-8")
 
-        step_dir = tmp_path / "agent_steps" / "step_9_4"
+        step_dir = _step_workspace(tmp_path, "9.4")
         step_dir.mkdir(parents=True)
         (step_dir / "step-input.json").write_text(
             json.dumps(
@@ -581,7 +619,7 @@ class TestAgentStepRuntime:
         phase4 = tmp_path / "phase4.md"
         phase4.write_text("updated", encoding="utf-8")
 
-        step_dir = tmp_path / "agent_steps" / "step_4_5"
+        step_dir = _step_workspace(tmp_path, "4.5")
         step_dir.mkdir(parents=True)
         (step_dir / "step-input.json").write_text(
             json.dumps(
@@ -664,7 +702,7 @@ class TestAgentStepRuntime:
         phase4 = tmp_path / "phase4.md"
         phase4.write_text("updated", encoding="utf-8")
 
-        step_dir = tmp_path / "agent_steps" / "step_4_5"
+        step_dir = _step_workspace(tmp_path, "4.5")
         step_dir.mkdir(parents=True)
         (step_dir / "step-input.json").write_text(
             json.dumps(

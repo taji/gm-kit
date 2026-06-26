@@ -23,7 +23,7 @@ from uuid import uuid4
 # Matches ANSI escape sequences (colour codes, cursor movement, etc.)
 _ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07]*\x07|\x1b[@-Z\\-_]")
 
-PAUSE_STEP_RE = re.compile(r"`([^`]*agent_steps/step_[^`]*)`")
+PAUSE_STEP_RE = re.compile(r"`([^`]*agent_steps/phase_\d+/[^`/]+)`")
 PHASE_RE = re.compile(r"Phase\s+(\d+)/10")
 
 
@@ -49,7 +49,10 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--model",
-        help="Model to use with the agent (e.g., gemini-2.5-flash, claude-sonnet-4, gpt-5.3-codex). Agent-specific.",
+        help=(
+            "Model to use with the agent (e.g., gemini-2.5-flash, "
+            "claude-sonnet-4, gpt-5.3-codex). Agent-specific."
+        ),
     )
     parser.add_argument(
         "--codex-sandbox",
@@ -245,28 +248,12 @@ def parse_pause_step_dir(combined_output: str) -> Path | None:
 
 
 def step_id_from_dir(step_dir: Path) -> str:
-    """Convert a step directory name to a step ID string.
+    """Convert a step directory name to the stable step key.
 
     Examples:
-        step_4_5      -> 4.5
-        step_6_4      -> 6.4
-        step_7_7_p1   -> 7.7_p1   (page/part suffixes preserve their underscore)
-        step_10_2     -> 10.2
+        parse-visual-toc-page -> parse-visual-toc-page
     """
-    name = step_dir.name
-    if not name.startswith("step_"):
-        return name
-    # Strip the leading "step_" prefix.
-    remainder = name[len("step_") :]
-    # The numeric portion is one or two digits, a separator underscore, and one
-    # or two digits (e.g. "4_5", "10_2", "7_7").  Everything after that is a
-    # non-numeric suffix (e.g. "_p1") that must be kept verbatim.
-    m = re.match(r"^(\d+)_(\d+)(_.+)?$", remainder)
-    if m:
-        major, minor, suffix = m.group(1), m.group(2), m.group(3) or ""
-        return f"{major}.{minor}{suffix}"
-    # Fallback: leave as-is (unknown format).
-    return remainder
+    return step_dir.name
 
 
 def parse_phase(combined_output: str) -> int | None:
@@ -305,7 +292,8 @@ def validate_step_output(
     except Exception as exc:
         return False, f"invalid JSON: {exc}"
     try:
-        validator.validate(step_id=step_id, output=output_data)
+        output_step_id = str(output_data.get("step_id", step_id))
+        validator.validate(step_id=output_step_id, output=output_data)
     except contract_violation_type as exc:
         return False, f"contract violation: {exc.validation_errors}"
     return True, "contract valid"
@@ -562,8 +550,8 @@ def main() -> int:
             ok &= assertion(
                 assertions,
                 "A-STATE-STEP",
-                str(state.get("current_step", "")) == step_id,
-                "state current_step matches paused step",
+                str(state.get("current_step_key", "")) == step_id,
+                "state current_step_key matches paused step",
             )
 
             write_trace(

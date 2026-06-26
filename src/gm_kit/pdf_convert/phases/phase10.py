@@ -555,7 +555,10 @@ class Phase10(Phase):
             Dictionary of assessment results by step
         """
         # Load Phase 9 results if available
-        assessment_results = {}
+        from gm_kit.pdf_convert.agents.registry import get_registry
+
+        assessment_results: dict[str, dict[str, object]] = {}
+        registry = get_registry()
 
         if hasattr(state, "phase_results") and state.phase_results:
             # phase_results is a list, find phase 9
@@ -564,7 +567,9 @@ class Phase10(Phase):
                     for step_result in phase_result.get("steps", []):
                         step_id = step_result.get("step_id", "")
                         if step_id.startswith("9."):
-                            assessment_results[step_id] = {
+                            step_def = registry.get(step_id)
+                            step_key = step_def.step_key if step_def else step_id
+                            assessment_results[step_key] = {
                                 "score": 5,
                                 "status": step_result.get("status", "unknown"),
                             }
@@ -573,12 +578,16 @@ class Phase10(Phase):
         # If no Phase 9 results, create placeholder
         if not assessment_results:
             assessment_results = {
-                "9.2": {"score": 5, "status": "success"},
-                "9.3": {"score": 5, "status": "success"},
-                "9.4": {"score": 5, "status": "success"},
-                "9.5": {"score": 5, "status": "success"},
-                "9.7": {"score": 4, "status": "warning", "gaps": []},
-                "9.8": {"score": 5, "status": "success"},
+                "structural-clarity-assessment": {"score": 5, "status": "success"},
+                "text-flow-readability-assessment": {"score": 5, "status": "success"},
+                "table-integrity-check": {"score": 5, "status": "success"},
+                "callout-formatting-check": {"score": 5, "status": "success"},
+                "review-toc-validation-issues-gaps-duplicates": {
+                    "score": 4,
+                    "status": "warning",
+                    "gaps": [],
+                },
+                "review-two-column-reading-order-issues": {"score": 5, "status": "success"},
             }
 
         return assessment_results

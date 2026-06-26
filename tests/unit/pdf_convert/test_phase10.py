@@ -159,6 +159,48 @@ class TestPhase10ReportGeneration:
         # Should still generate report with unknown values
         assert "Unknown" in report_content or "conversion-report" in report_content.lower()
 
+    def test__should_collect_assessment_results_by_step_key__when_phase9_results_exist(
+        self, setup_phase10_with_phases, tmp_path
+    ):
+        """Phase 10 should normalize Phase 9 results to stable step keys internally."""
+        phase, state = setup_phase10_with_phases
+        state.phase_results = [
+            {
+                "phase_num": 9,
+                "steps": [
+                    {"step_id": "9.2", "status": "success"},
+                    {"step_id": "9.3", "status": "warning"},
+                ],
+            }
+        ]
+
+        assessment_results = phase._collect_assessment_results(state, tmp_path)
+
+        assert assessment_results == {
+            "structural-clarity-assessment": {
+                "score": 5,
+                "status": "success",
+            },
+            "text-flow-readability-assessment": {
+                "score": 5,
+                "status": "warning",
+            },
+        }
+
+    def test__should_fallback_to_stable_step_keys__when_phase9_results_missing(
+        self, setup_phase10_with_phases, tmp_path
+    ):
+        """Phase 10 should use stable keys even for placeholder assessment data."""
+        phase, state = setup_phase10_with_phases
+        state.phase_results = []
+
+        assessment_results = phase._collect_assessment_results(state, tmp_path)
+
+        assert "structural-clarity-assessment" in assessment_results
+        assert "text-flow-readability-assessment" in assessment_results
+        assert "9.2" not in assessment_results
+        assert "9.3" not in assessment_results
+
 
 class TestPhase10FinalRename:
     """Test step 10.4a: rename *-phase8.md to *-final.md."""

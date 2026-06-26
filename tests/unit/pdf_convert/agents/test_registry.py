@@ -51,6 +51,16 @@ class TestStepRegistry:
 
         assert criticality == Criticality.HIGH
 
+    def test_step_metadata_includes_stable_key(self):
+        """Should expose a stable key separate from the numeric display id."""
+        registry = StepRegistry()
+        step = registry.get("9.3")
+
+        assert step is not None
+        assert step.step_id == "9.3"
+        assert step.step_key == "text-flow-readability-assessment"
+        assert step.description == "Text flow / readability assessment"
+
     def test_step_9_1_excluded(self):
         """Step 9.1 should not be in registry."""
         registry = StepRegistry()
@@ -78,6 +88,12 @@ class TestGlobalRegistry:
 
 class TestStepDefinitionsDict:
     """Test STEP_DEFINITIONS constant."""
+
+    def test_has_step_key(self):
+        """All steps should define a stable step_key."""
+        for _step_id, defn in STEP_DEFINITIONS.items():
+            assert "step_key" in defn
+            assert defn["step_key"]
 
     def test_has_criticality(self):
         """All steps should have criticality defined."""

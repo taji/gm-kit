@@ -8,10 +8,44 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from gm_kit.pdf_convert.step_identity import StepIdentity
+
 from .base import AgentStepOutputEnvelope
 from .errors import AgentStepError
+from .registry import get_registry
 
 logger = logging.getLogger(__name__)
+
+
+def _slugify_step_key(value: str) -> str:
+    """Convert a human-readable label into a stable workspace key."""
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+
+
+def _step_identity_for(step_id: str, inputs: dict[str, Any] | None = None) -> StepIdentity:
+    """Build the workspace identity for an agent step."""
+    base_step_id = re.sub(r"_p\d+(?:_t\d+)?$", "", step_id)
+    step_def = get_registry().get(base_step_id)
+    if step_def is None:
+        phase = int((inputs or {}).get("phase", 0) or 0)
+        return StepIdentity(
+            step_key=_slugify_step_key(step_id),
+            display_id=step_id,
+            display_name=step_id,
+            phase=phase,
+        )
+
+    step_key = step_def.step_key
+    suffix_match = re.search(r"(_p\d+(?:_t\d+)?)$", step_id)
+    if suffix_match:
+        step_key = f"{step_key}-{suffix_match.group(1).replace('_', '-').lstrip('-')}"
+
+    return StepIdentity(
+        step_key=step_key,
+        display_id=step_id,
+        display_name=step_def.description,
+        phase=step_def.phase,
+    )
 
 
 def write_agent_inputs(
@@ -35,7 +69,7 @@ def write_agent_inputs(
         MissingInputError: If required inputs are missing
     """
     workspace_path = Path(workspace)
-    step_dir = workspace_path / "agent_steps" / f"step_{step_id.replace('.', '_')}"
+    step_dir = _step_identity_for(step_id, inputs).workspace_path(workspace_path)
     step_dir.mkdir(parents=True, exist_ok=True)
 
     # Write step-input.json
@@ -120,7 +154,7 @@ def read_agent_output(
         ContractViolation: If validation fails and validate=True
     """
     workspace_path = Path(workspace)
-    step_dir = workspace_path / "agent_steps" / f"step_{step_id.replace('.', '_')}"
+    step_dir = _step_identity_for(step_id).workspace_path(workspace_path)
     output_file = step_dir / "step-output.json"
 
     if not output_file.exists():

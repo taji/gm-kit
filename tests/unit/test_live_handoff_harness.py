@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 # ---------------------------------------------------------------------------
@@ -140,3 +141,61 @@ class TestEmitOutput:
         log_text = log.read_text(encoding="utf-8")
         assert "[GMKIT] first" in log_text
         assert "[AGENT] second" in log_text
+
+
+# ---------------------------------------------------------------------------
+# pause parsing / step validation
+# ---------------------------------------------------------------------------
+
+
+class TestPauseStepParsing:
+    def test_parse_pause_step_dir__should_capture_key_based_workspace__when_present(self):
+        combined = (
+            "Paused for agent step 3.2 in "
+            "`/tmp/run/agent_steps/phase_9/text-flow-assessment`.\n"
+        )
+
+        assert harness.parse_pause_step_dir(combined) == Path(
+            "/tmp/run/agent_steps/phase_9/text-flow-assessment"
+        )
+
+    def test_step_id_from_dir__should_return_step_key__when_key_based_workspace(self):
+        step_dir = Path("/tmp/run/agent_steps/phase_9/text-flow-assessment")
+
+        assert harness.step_id_from_dir(step_dir) == "text-flow-assessment"
+
+
+class TestValidateStepOutput:
+    def test_validate_step_output__should_use_output_step_id__when_output_is_present(
+        self, tmp_path
+    ):
+        step_dir = tmp_path / "agent_steps" / "phase_9" / "text-flow-assessment"
+        step_dir.mkdir(parents=True)
+        (step_dir / "step-output.json").write_text(
+            json.dumps(
+                {
+                    "step_id": "9.3",
+                    "status": "success",
+                    "data": {"ok": True},
+                    "warnings": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        class Validator:
+            def __init__(self) -> None:
+                self.step_ids: list[str] = []
+
+            def validate(self, *, step_id: str, output: dict[str, object]) -> None:
+                self.step_ids.append(step_id)
+
+        validator = Validator()
+
+        valid, message = harness.validate_step_output(
+            step_dir, "text-flow-assessment", validator, ValueError
+        )
+
+        assert valid is True
+        assert message == "contract valid"
+        assert validator.step_ids == ["9.3"]

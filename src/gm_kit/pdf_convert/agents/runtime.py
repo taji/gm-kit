@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .agent_step import read_agent_output, write_agent_inputs
+from .agent_step import _step_identity_for, read_agent_output, write_agent_inputs
 from .base import AgentStepOutputEnvelope, Criticality, StepStatus
 from .contracts import ContractValidator
 from .errors import AgentStepError, AgentStepPause, ContractViolation, RetryExhaustedError
@@ -183,7 +183,7 @@ class AgentStepRuntime:
 
         if retryable and attempt < self.max_retries:
             # Write retry instructions
-            step_dir = Path(self.workspace) / "agent_steps" / f"step_{step_id.replace('.', '_')}"
+            step_dir = self._step_dir(step_id)
             step_dir.mkdir(parents=True, exist_ok=True)
             retry_file = step_dir / "retry-instructions.md"
 
@@ -233,6 +233,16 @@ class AgentStepRuntime:
             state = {}
 
         state["current_step"] = step_id
+        step_key = step_id
+        base_step_id = step_id.split("_p", 1)[0]
+        step_def = self.registry.get(base_step_id)
+        if step_def is not None:
+            step_key = step_def.step_key
+            if base_step_id != step_id:
+                suffix = step_id[len(base_step_id) :].replace("_", "-").lstrip("-")
+                if suffix:
+                    step_key = f"{step_key}-{suffix}"
+        state["current_step_key"] = step_key
         # Keep conversion lifecycle status (in_progress/completed/failed) intact.
         # Agent-step lifecycle is tracked separately to avoid corrupting ConversionStatus.
         state["agent_step_status"] = status.name
@@ -432,7 +442,7 @@ class AgentStepRuntime:
 
     def _step_dir(self, step_id: str) -> Path:
         """Return workspace step directory path."""
-        return Path(self.workspace) / "agent_steps" / f"step_{step_id.replace('.', '_')}"
+        return _step_identity_for(step_id).workspace_path(Path(self.workspace))
 
     def _finalize_step(
         self, step_id: str, envelope: AgentStepOutputEnvelope, attempt: int
