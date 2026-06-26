@@ -1175,7 +1175,7 @@ Requirements:
 
 Success looks like: conversion prefers prep artifacts, falls back to baseline prep outputs, and still produces deterministic chunk-based markdown outputs.
 
-### E7-08. Live Handoff Harness Split (Prep Run + Convert Run) **[FEATURE, PLANNED]**
+### ✅ E7-08. Live Handoff Harness Split (Prep Run + Convert Run) **[FEATURE, COMPLETED]**
 Feature description:
 Split live handoff harness workflows into explicit prep-only, convert-only, and prep-and-convert execution paths with a visible artifact handoff boundary.
 
@@ -1185,6 +1185,18 @@ Requirements:
 - Ensure artifact handoff boundary between prep and convert is explicit/tested.
 
 Success looks like: harness can run prep-only, convert-only (from prep outputs), or end-to-end prep+convert with clear artifact contracts.
+
+### ✅ E7-12. CI Fake-Agent CLI Drop-In Replacement **[FEATURE, COMPLETED]**
+Feature description:
+Add a deterministic fake-agent CLI that can be used by `live_handoff_harness.sh` in CI to exercise the pause/resume conversion flow without invoking a paid or authenticated external agent.
+
+Requirements:
+- The fake agent must accept the same CLI invocation style used by the real agent adapters.
+- The fake agent should inspect the step workspace artifacts and produce step-specific `step-output.json` content.
+- The fake agent should exit successfully after writing the expected output so the harness resumes normally.
+- Keep the feature CI-oriented; do not introduce a separate developer debug mode.
+
+Success looks like: CI can run the live handoff harness end-to-end without external agent authentication or model cost, while still validating the conversion handoff contract.
 
 ### E7-09. Conversion Pipeline Key-Migration (Post-Prep) **[FEATURE, PLANNED]**
 Feature description:

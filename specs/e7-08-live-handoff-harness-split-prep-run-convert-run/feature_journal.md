@@ -72,3 +72,28 @@ Next Steps:
 2. If approved, start implementing the harness mode split and its tests.
 
 Recorded by: codex (gpt-5)
+
+Session: 2026-06-26 - E7-08 Harness Validation Closure
+--------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-06-26
+
+Work Completed:
+1. Validated the split live handoff harness across prep-only, convert-only, and prep-and-convert modes.
+2. Fixed the prep-and-convert path so it starts conversion fresh instead of resuming from stale state.
+3. Confirmed the harness now works with the fake-agent CLI used for CI-style end-to-end validation.
+
+Key Decisions:
+- Prep-only, convert-only, and prep-and-convert remain explicit harness modes.
+- The harness continues to validate the prep handoff boundary before conversion.
+- The fake agent is a CI validation tool, not part of the end-user command surface.
+
+Current State:
+- E7-08 is complete and the harness split is validated.
+- The main repository backlog has been updated to reflect completion.
+
+Next Steps:
+1. Keep the journal as the canonical historical record for the harness split.
+2. Proceed to the next Epic 7 item when ready.
+
+Recorded by: codex (gpt-5)
