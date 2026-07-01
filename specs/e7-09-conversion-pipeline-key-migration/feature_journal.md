@@ -23,6 +23,30 @@ Next Steps:
 
 Recorded by: codex (gpt-5)
 
+Session: 2026-06-26 - E7-09 CLI sync and remaining lint note
+------------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-06-26
+
+Work Completed:
+1. Reconciled the journal and committed the remaining E7-09 design/plan artifacts into the main checkout.
+2. Synced the main checkout with the verified key-based conversion workflow changes from the E7-09 worktree.
+3. Verified the remaining E7-09 regression slices and confirmed the checkout is clean.
+
+Key Decisions:
+- Key-based step identity now applies end to end for conversion steps, state, resume, CLI `--from-step`, and the live handoff harness.
+- The live handoff harness still has pre-existing Ruff complexity warnings that should be revisited later rather than forcing a structure change during this slice.
+
+Current State:
+- E7-09 implementation and documentation are committed and the repo is clean.
+- The only known follow-up item is the harness complexity cleanup.
+
+Next Steps:
+1. Resume with the next E7-09 item or move to the next feature when ready.
+2. Fix the live handoff harness complexity warnings in a separate cleanup pass.
+
+Recorded by: codex (gpt-5)
+
 Session: 2026-06-26 - Key-based harness and docs update
 --------------------------------------------------------
 Branch: 010-key-based-prep-registry
