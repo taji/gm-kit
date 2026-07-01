@@ -1012,7 +1012,7 @@ Skip intent and annotation behavior:
 - `skip` semantics are label-based and authoritative in resolved artifacts; color/overlay style is visual aid only.
 - When overlap/conflict occurs, `skip` takes precedence for exclusion.
 
-### E7-01. Key-Based Prep Registry Foundation **[FEATURE, PLANNED]**
+### ✅ E7-01. Key-Based Prep Registry Foundation **[FEATURE, COMPLETED]**
 Feature description:
 Introduce a code-first registry for analyze/prep phases and steps using stable step keys and explicit execution order values. Numeric step labels become display aliases, not hard-coded identifiers.
 
@@ -1080,7 +1080,7 @@ Success looks like:
 - Future Epic 7 features can plug into this registry without numeric renumbering churn.
 ```
 
-### E7-02. Analyze-and-Prep Command Skeleton + Artifact Contract **[FEATURE, PLANNED]**
+### ✅ E7-02. Analyze-and-Prep Command Skeleton + Artifact Contract **[FEATURE, COMPLETED]**
 Feature description:
 Create `gmkit analyze-and-prep-pdf` command skeleton, prep state tracking, and the required prep artifact contract consumed by conversion.
 
@@ -1092,7 +1092,7 @@ Requirements:
 
 Success looks like: analyze/prep can run as a command and emit a validated prep contract artifact set (even before full analysis logic migration).
 
-### E7-03. Rehost Existing Analysis Logic into Prep Flow **[FEATURE, PLANNED]**
+### ✅ E7-03. Rehost Existing Analysis Logic into Prep Flow **[FEATURE, COMPLETED]**
 Feature description:
 Extract/reuse current conversion analysis logic (metadata/preflight, TOC acquisition, image extraction, text-only PDF creation) into analyze/prep orchestration.
 
@@ -1163,7 +1163,7 @@ Requirements:
 
 Success looks like: callout detection becomes a prep-side review workflow and conversion uses the finalized callout contract as input.
 
-### E7-07. Convert Gating + Prep Artifact Consumption **[FEATURE, PLANNED]**
+### ✅ E7-07. Convert Gating + Prep Artifact Consumption **[FEATURE, COMPLETED]**
 Feature description:
 Update `gmkit pdf-convert` to consume prep outputs as authoritative inputs, prefer reviewed prep guidance when present, and bootstrap missing baseline prep artifacts so the legacy conversion command still works end-to-end.
 
@@ -1198,7 +1198,7 @@ Requirements:
 
 Success looks like: CI can run the live handoff harness end-to-end without external agent authentication or model cost, while still validating the conversion handoff contract.
 
-### E7-09. Conversion Pipeline Key-Migration (Post-Prep) **[FEATURE, PLANNED]**
+### ✅ E7-09. Conversion Pipeline Key-Migration (Post-Prep) **[FEATURE, COMPLETED]**
 Feature description:
 Migrate existing conversion pipeline orchestration from numeric step coupling to stable key-based step identity.
 
