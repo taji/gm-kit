@@ -9,7 +9,7 @@ The architecture separates four concerns:
 - input guidance intent
 - raw proposal evidence
 - resolved authoritative guidance
-- optional visual review rendering
+- required visual review rendering
 
 This separation is intentional. Raw proposals are evidence for review and later revision workflows; they are not the direct authoritative input to downstream conversion. The authoritative prep output is `prep-guidance.resolved.json`.
 
@@ -18,12 +18,12 @@ E7-05 does not implement interactive review/revision UX. That belongs to E7-06. 
 ## Artifact Contract
 E7-05 introduces the following prep artifacts under `<workspace>/prep/`:
 
-- `prep-guidance.input.json`
+- `prep-guidance.defaults.json`
 - `annotation-proposals.json`
 - `prep-guidance.resolved.json`
-- `annotated-prep.pdf` (optional)
+- `annotated-prep.pdf`
 
-### `prep-guidance.input.json`
+### `prep-guidance.defaults.json`
 Purpose:
 - capture explicit user preferences and defaults that influence proposal generation and guidance normalization
 
@@ -94,15 +94,15 @@ It should normalize accepted/defaulted guidance into deterministic fields such a
 - `table_regions`
 - `callout_regions`
 
-It may also carry normalized policy information derived from `prep-guidance.input.json` where needed, but it should stay concise and downstream-oriented.
+It may also carry normalized policy information derived from `prep-guidance.defaults.json` where needed, but it should stay concise and downstream-oriented.
 
 The resolved artifact must not require downstream conversion to reinterpret raw proposal confidence, provenance, or review evidence.
 
 ### `annotated-prep.pdf`
 Purpose:
-- optional visual review companion
+- required visual review companion
 
-This artifact is helpful for human inspection, but it is not authoritative. Visual style, color, and overlay treatment are review aids only. Semantic label behavior remains canonical in JSON.
+This artifact must be generated during prep. It is helpful for human inspection, but it is not authoritative. Visual style, color, and overlay treatment are review aids only. Semantic label behavior remains canonical in JSON.
 
 ## Shared Proposal Schema
 All proposal labels use the same base record shape:
@@ -168,19 +168,19 @@ Rules:
 - if proposal generation fails entirely, prep fails with sanitized diagnostics
 - if one proposal type fails but others succeed, partial success is allowed only if the resolved contract can represent the incomplete state explicitly and truthfully
 - `prep-guidance.resolved.json` must never imply successful proposal acceptance when generation actually failed
-- failure to render `annotated-prep.pdf` should not invalidate a prep run if the JSON artifacts are complete and valid
+- failure to render `annotated-prep.pdf` is a prep failure because the visual review surface is required
 - proposal IDs must be stable and deterministic for the same input artifact set
 
-This keeps JSON artifacts as the durable machine contract while treating visual rendering as optional support output.
+This keeps JSON artifacts as the durable machine contract while treating visual rendering as required support output.
 
 ## Testing Strategy
 E7-05 tests must prove:
-- `prep-guidance.input.json` validates and round-trips
+- `prep-guidance.defaults.json` validates and round-trips
 - `annotation-proposals.json` uses the shared base schema across `table`, `callout`, and `skip`
 - `skip` supports both full-page and region proposals
 - resolved guidance normalizes accepted/defaulted proposals into deterministic downstream fields
 - proposal provenance/source metadata is preserved
-- optional annotated PDF rendering does not invalidate otherwise-complete prep output
+- required annotated PDF rendering must succeed for prep output to be complete
 - proposal IDs are deterministic for the same inputs
 - artifact content is deterministic for the same fixture inputs
 
@@ -191,7 +191,7 @@ E7-05 includes:
 - resolved guidance artifact definition
 - proposal generation behavior
 - normalization behavior
-- optional visual review artifact support
+- required visual review artifact support
 
 E7-05 does not include:
 - interactive review/revision UX

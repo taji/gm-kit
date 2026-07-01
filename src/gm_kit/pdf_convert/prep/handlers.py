@@ -300,15 +300,15 @@ def handle_plan_chunks(
     )
 
 
-def handle_write_guidance_input(
+def handle_write_guidance_defaults(
     *,
     analysis_paths: PrepAnalysisArtifactPaths,
     **_context: object,
 ) -> None:
-    """Write the default prep guidance input artifact."""
-    guidance_input = PrepGuidanceInput()
-    analysis_paths.guidance_input.write_text(
-        json.dumps(guidance_input.to_dict(), indent=2, sort_keys=True) + "\n",
+    """Write the default prep guidance artifact."""
+    guidance_defaults = PrepGuidanceInput()
+    analysis_paths.guidance_defaults.write_text(
+        json.dumps(guidance_defaults.to_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
@@ -319,7 +319,7 @@ def handle_generate_annotation_proposals(
     **_context: object,
 ) -> None:
     """Write raw annotation proposals."""
-    guidance_input = _load_guidance_input(analysis_paths.guidance_input)
+    guidance_input = _load_guidance_defaults(analysis_paths.guidance_defaults)
     page_count = _load_page_count(analysis_paths.metadata)
     images_total_count = _load_images_total_count(analysis_paths.image_manifest)
     chunk_plan = _load_optional_json_mapping(analysis_paths.chunk_plan)
@@ -360,7 +360,7 @@ def handle_seed_annotation_review(
     **_context: object,
 ) -> None:
     """Seed the annotation review edit artifact."""
-    guidance_input = _load_guidance_input(analysis_paths.guidance_input)
+    guidance_input = _load_guidance_defaults(analysis_paths.guidance_defaults)
     review_mode = (
         "auto_accept"
         if auto_proceed or guidance_input.auto_accept_annotations
@@ -758,10 +758,10 @@ def _detect_trailing_appendix_skip_pages(
     return sorted(trailing_pages)
 
 
-def _load_guidance_input(path: Path) -> PrepGuidanceInput:
+def _load_guidance_defaults(path: Path) -> PrepGuidanceInput:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("prep-guidance.input.json must contain a JSON object")
+        raise ValueError("prep-guidance.defaults.json must contain a JSON object")
     return PrepGuidanceInput.from_dict(payload)
 
 

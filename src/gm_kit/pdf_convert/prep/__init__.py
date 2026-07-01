@@ -20,6 +20,7 @@ from gm_kit.pdf_convert.prep.handlers import (
     handle_finalize_reviewed_guidance,
     handle_render_annotated_prep_pdf,
     handle_seed_annotation_review,
+    handle_write_guidance_defaults,
     load_effective_prep_guidance,
     render_annotated_prep_pdf,
 )
@@ -71,6 +72,7 @@ __all__ = [
     "handle_finalize_reviewed_guidance",
     "handle_render_annotated_prep_pdf",
     "handle_seed_annotation_review",
+    "handle_write_guidance_defaults",
     "load_effective_prep_guidance",
     "load_toc_sections",
     "render_annotated_prep_pdf",

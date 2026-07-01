@@ -70,6 +70,7 @@ Under the hood, it invokes `gmkit pdf-convert` and may pause for agent steps. If
 │   └── <filename>-no-images.pdf
 ├── prep/
 │   ├── annotation-proposals.json
+│   ├── prep-guidance.defaults.json
 │   ├── prep-guidance.resolved.json
 │   ├── prep-guidance.reviewed.json
 │   └── annotated-prep.pdf
@@ -91,6 +92,7 @@ Notes:
 - `callout-rules.resolved.json` is the normalized rules artifact used by later phases.
 - `font-family-mapping.json` captures font signatures (family + size + weight + style) used for heading inference.
 - `prep/annotated-prep.pdf` is the user-facing review surface for annotation/table review.
+- `prep/prep-guidance.defaults.json` captures prep defaults and workflow intent.
 - `prep/annotation-proposals.json` captures raw proposal evidence; the JSON is for agents and code, not manual editing.
 - `prep/prep-guidance.resolved.json` is the authoritative resolved prep contract consumed by later phases.
 - `prep/prep-guidance.reviewed.json` is written after reviewing and finalizing prep annotations.

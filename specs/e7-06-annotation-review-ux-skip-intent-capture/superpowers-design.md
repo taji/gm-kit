@@ -4,7 +4,7 @@
 
 ## Architecture
 E7-06 builds directly on the E7-05 artifact model:
-- `prep-guidance.input.json` = persisted intent/defaults
+- `prep-guidance.defaults.json` = persisted intent/defaults
 - `annotation-proposals.json` = raw proposal evidence
 - `prep-guidance.resolved.json` = baseline downstream contract
 - `annotated-prep.pdf` = visual review companion
@@ -37,7 +37,7 @@ This matches the repo’s existing “generate artifact, then apply edits” pat
 ## Artifact Contract
 E7-06 should continue using the E7-05 artifacts and add the review artifacts under `<workspace>/prep/`:
 
-- `prep-guidance.input.json`
+- `prep-guidance.defaults.json`
 - `annotation-proposals.json`
 - `annotation-review.edits.json`
 - `prep-guidance.resolved.json`
@@ -51,9 +51,9 @@ Purpose:
 Behavior:
 - render proposal bounding boxes and stable proposal IDs
 - label meaning remains canonical in JSON, not color
-- failure to render should not invalidate prep if JSON artifacts are otherwise valid
+- failure to render is a prep failure because the review surface is required
 
-This PDF is review support only. It is never authoritative machine input.
+This PDF is required review support only. It is never authoritative machine input.
 
 ### `annotation-review.edits.json`
 Purpose:
@@ -95,7 +95,7 @@ Example:
 
 This artifact is not itself authoritative downstream input. It is the persisted review state that drives reviewed guidance.
 
-### `prep-guidance.input.json`
+### `prep-guidance.defaults.json`
 E7-06 should extend this artifact rather than replace it.
 
 It should continue to hold generation/review intent such as:
@@ -243,7 +243,7 @@ E7-06 tests should prove:
 - the revise command writes `prep-guidance.reviewed.json` from edited review artifacts
 - edited proposals override raw proposals in final guidance
 - skip precedence removes overlapping table/callout regions
-- `annotated-prep.pdf` is optional support output, not the authoritative contract
+- `annotated-prep.pdf` is required support output, not the authoritative contract
 
 ## Scope Notes
 E7-06 includes:

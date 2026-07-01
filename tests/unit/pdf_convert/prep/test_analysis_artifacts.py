@@ -22,7 +22,10 @@ def test_build_analysis_artifact_paths__should_return_expected_subtree__when_wor
     assert paths.toc == tmp_path / "workspace" / "prep" / "toc-extracted.txt"
     assert paths.chapter_index == tmp_path / "workspace" / "prep" / "chapter-index.json"
     assert paths.chunk_plan == tmp_path / "workspace" / "prep" / "chunk-plan.json"
-    assert paths.guidance_input == tmp_path / "workspace" / "prep" / "prep-guidance.input.json"
+    assert (
+        paths.guidance_defaults
+        == tmp_path / "workspace" / "prep" / "prep-guidance.defaults.json"
+    )
     assert (
         paths.annotation_proposals
         == tmp_path / "workspace" / "prep" / "annotation-proposals.json"

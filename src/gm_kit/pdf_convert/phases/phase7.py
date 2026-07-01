@@ -13,8 +13,9 @@ import logging
 import re
 import traceback  # Import traceback for detailed error logging
 from collections import Counter
+from numbers import Real
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import fitz  # PyMuPDF
 
@@ -880,7 +881,7 @@ class Phase7(Phase):
                 continue
             if len(bbox) != BOUNDING_BOX_COORDINATE_COUNT or any(value is None for value in bbox):
                 continue
-            bbox_values = [float(value) for value in bbox]
+            bbox_values = self._normalize_bbox_values(bbox)
             table_region = {
                 "page": page_number,
                 "bbox": bbox_values,
@@ -902,6 +903,10 @@ class Phase7(Phase):
             json.dumps(guidance.to_dict(), indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+
+    def _normalize_bbox_values(self, bbox: list[object]) -> list[float]:
+        """Normalize a validated bbox list into float coordinates."""
+        return [float(cast(Real, value)) for value in bbox]
 
     def execute(self, state: ConversionState) -> PhaseResult:
         """Execute structural detection steps.

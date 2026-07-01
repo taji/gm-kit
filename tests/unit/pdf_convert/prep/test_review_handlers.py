@@ -294,13 +294,13 @@ def test_handle_finalize_reviewed_guidance__should_merge_skip_ranges_and_review_
     analysis_paths = build_analysis_artifact_paths(workspace_dir, pdf_stem="sample")
     for artifact_path in [
         analysis_paths.metadata,
-        analysis_paths.guidance_input,
+        analysis_paths.guidance_defaults,
         analysis_paths.annotation_proposals,
         analysis_paths.annotation_review_edits,
     ]:
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
     analysis_paths.metadata.write_text(json.dumps({"page_count": 12}) + "\n", encoding="utf-8")
-    analysis_paths.guidance_input.write_text(
+    analysis_paths.guidance_defaults.write_text(
         json.dumps(PrepGuidanceInput().to_dict(), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
@@ -424,8 +424,8 @@ def test_handle_seed_annotation_review__should_seed_auto_accept_state__when_auto
 ) -> None:
     workspace_dir = tmp_path / "workspace"
     analysis_paths = build_analysis_artifact_paths(workspace_dir, pdf_stem="sample")
-    analysis_paths.guidance_input.parent.mkdir(parents=True, exist_ok=True)
-    analysis_paths.guidance_input.write_text(
+    analysis_paths.guidance_defaults.parent.mkdir(parents=True, exist_ok=True)
+    analysis_paths.guidance_defaults.write_text(
         json.dumps(
             PrepGuidanceInput(auto_accept_annotations=False, review_requested=True).to_dict(),
             indent=2,

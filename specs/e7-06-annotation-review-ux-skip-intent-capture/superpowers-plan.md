@@ -48,7 +48,7 @@ def test_annotation_review_edits__should_roundtrip_review_state__when_payload_is
     assert restored == edits
 
 
-def test_prep_guidance_input__should_roundtrip_review_flags__when_review_fields_are_present() -> None:
+def test_prep_guidance_defaults__should_roundtrip_review_flags__when_review_fields_are_present() -> None:
     guidance = PrepGuidanceInput(
         prefer_detect_tables=True,
         prefer_detect_callouts=True,

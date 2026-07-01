@@ -90,7 +90,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         "prep.extract-assets.create-no-images-pdf",
         "prep.derive-structure.acquire-canonical-toc",
         "prep.plan-chunks.build-chunk-plan",
-        "prep.prepare-guidance.write-guidance-input",
+        "prep.prepare-guidance.write-guidance-defaults",
         "prep.propose-annotations.generate-annotation-proposals",
         "prep.review-annotations.seed-review-artifacts",
         "prep.review-annotations.render-annotated-pdf",
@@ -109,7 +109,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         {"name": "images/image-manifest.json", "status": "ready"},
         {"name": "preprocessed/sample-no-images.pdf", "status": "ready"},
         {"name": "toc-extracted.txt", "status": "ready"},
-        {"name": "prep-guidance.input.json", "status": "ready"},
+        {"name": "prep-guidance.defaults.json", "status": "ready"},
         {"name": "annotation-proposals.json", "status": "ready"},
         {"name": "annotation-review.edits.json", "status": "ready"},
         {"name": "prep-guidance.resolved.json", "status": "ready"},
@@ -122,7 +122,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     assert (prep_root / "images" / "image-manifest.json").exists()
     assert (prep_root / "preprocessed" / "sample-no-images.pdf").exists()
     assert (prep_root / "toc-extracted.txt").exists()
-    assert (prep_root / "prep-guidance.input.json").exists()
+    assert (prep_root / "prep-guidance.defaults.json").exists()
     assert (prep_root / "annotation-proposals.json").exists()
     assert (prep_root / "prep-guidance.resolved.json").exists()
 
@@ -148,7 +148,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     )
     assert "Step 500.100: Build Chunk Plan (prep.plan-chunks.build-chunk-plan) completed" in log_output
     assert (
-        "Step 600.100: Write Guidance Input (prep.prepare-guidance.write-guidance-input) completed"
+        "Step 600.100: Write Guidance Defaults (prep.prepare-guidance.write-guidance-defaults) completed"
         in log_output
     )
     assert (
@@ -167,8 +167,8 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         in log_output
     )
 
-    guidance_input_payload = json.loads(
-        (prep_root / "prep-guidance.input.json").read_text(encoding="utf-8")
+    guidance_defaults_payload = json.loads(
+        (prep_root / "prep-guidance.defaults.json").read_text(encoding="utf-8")
     )
     annotation_proposals_payload = json.loads(
         (prep_root / "annotation-proposals.json").read_text(encoding="utf-8")
@@ -177,7 +177,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         (prep_root / "prep-guidance.resolved.json").read_text(encoding="utf-8")
     )
 
-    assert guidance_input_payload == PrepGuidanceInput().to_dict()
+    assert guidance_defaults_payload == PrepGuidanceInput().to_dict()
     assert isinstance(annotation_proposals_payload, list)
     assert annotation_proposals_payload == []
     assert guidance_resolved_payload == PrepGuidanceResolved(
@@ -239,7 +239,7 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
     assert manifest_payload["artifacts"][-7:-4] == [
         {"name": "chapter-index.json", "status": "ready"},
         {"name": "chunk-plan.json", "status": "ready"},
-        {"name": "prep-guidance.input.json", "status": "ready"},
+        {"name": "prep-guidance.defaults.json", "status": "ready"},
     ]
     assert "Phase 500: Plan Chunks (prep.plan-chunks) started" in log_output
     assert (

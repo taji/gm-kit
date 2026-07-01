@@ -982,7 +982,7 @@ Canonical prep-first workflow summary (prep then convert):
 7. Anchor/normalize TOC entries to pages/ranges (TOC-first; no heading-annotation workflow).
 8. Build chapter segmentation from canonical TOC (fallback heuristics only when TOC quality is insufficient).
 9. Build chunk plan by packing adjacent whole chapters to budget; split within chapter only when a single chapter exceeds budget.
-10. Create `prep-guidance.input.json` and support interactive edit or non-interactive defaults.
+10. Create `prep-guidance.defaults.json` and support interactive edit or non-interactive defaults.
 11. Resolve guidance into `prep-guidance.resolved.json`.
 12. Generate annotation proposals for `table`, `callout`, and `skip` (bbox + label + confidence), including annotated PDF output.
 13. Prompt user (interactive mode) to review/revise annotations before finalization; non-interactive mode records bypass/auto-accept policy in artifacts.
@@ -1114,16 +1114,29 @@ Requirements:
 
 Success looks like: prep outputs deterministic chapter and chunk plan artifacts used by downstream conversion.
 
-### E7-05. Guidance + Annotation Proposal System (`table`/`callout`/`skip`) **[FEATURE, PLANNED]**
+### ✅ E7-05. Guidance + Annotation Proposal System (`table`/`callout`/`skip`) **[FEATURE, COMPLETED]**
 Feature description:
 Add prep guidance artifacts and annotation proposal generation with semantic labels and bbox metadata.
 
 Requirements:
-- Implement `prep-guidance.input.json` and `prep-guidance.resolved.json`.
+- Implement `prep-guidance.defaults.json` and `prep-guidance.resolved.json`.
 - Generate annotation proposals with label + bbox + confidence.
+- Generate `annotated-prep.pdf` as a required prep output so users always have a visual review surface.
 - Use semantic label behavior as canonical; color is visual aid only.
 
-Success looks like: prep produces machine-readable annotation proposals and an annotated PDF suitable for review.
+Success looks like: prep produces machine-readable annotation proposals, a required annotated PDF review surface, and a deterministic resolved guidance artifact.
+
+### ✅ E7-05a. Prep Defaults Naming Audit **[FEATURE, COMPLETED]**
+Feature description:
+Rename the prep defaults artifact to `prep-guidance.defaults.json` and audit the prep artifact names so their filenames match how each artifact is actually used.
+
+Requirements:
+- Rename the prep defaults artifact to `prep-guidance.defaults.json`.
+- Review the prep artifact set for inconsistent or misleading names, especially files that imply user-editable input when they are actually generated defaults or machine-facing contracts.
+- Update the prep handlers, artifact path builders, user guide, backlog references, tests, and feature journals to use the renamed artifact(s).
+- Keep the review/update flow clear: defaults seed prep behavior, reviewed artifacts capture user decisions, and resolved artifacts remain the downstream contract.
+
+Success looks like: prep artifact names are internally consistent, user-facing docs match the actual workflow, and the renamed defaults file no longer implies manual editing.
 
 ### E7-06. Annotation Review UX + Skip Intent Capture **[FEATURE, PLANNED]**
 Feature description:
