@@ -1103,7 +1103,7 @@ Requirements:
 
 Success looks like: prep flow produces canonical TOC/image/text-preprocess artifacts using mostly existing code paths.
 
-### E7-04. Chapter Segmentation + Chunk Planning **[FEATURE, PLANNED]**
+### ✅ E7-04. Chapter Segmentation + Chunk Planning **[FEATURE, COMPLETED]**
 Feature description:
 Implement TOC-anchored chapter segmentation and chunk planning artifacts for large-document conversion.
 
