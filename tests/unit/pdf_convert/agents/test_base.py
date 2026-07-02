@@ -27,6 +27,18 @@ class TestAgentStepDefinition:
         assert step.criticality == Criticality.MEDIUM
         assert step.rubric_id is None
 
+    def test_create_without_step_key(self):
+        """Should derive a stable step key when omitted."""
+        step = AgentStepDefinition(
+            step_id="3.2",
+            phase=3,
+            description="Parse visual TOC",
+            criticality=Criticality.MEDIUM,
+            instruction_template="instructions/step_3_2.md",
+            contract_schema="schemas/step_3_2.schema.json",
+        )
+        assert step.step_key == "3-2"
+
     def test_create_with_rubric(self):
         """Should create definition with optional rubric."""
         step = AgentStepDefinition(

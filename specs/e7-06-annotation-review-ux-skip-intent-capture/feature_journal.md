@@ -23,6 +23,127 @@ Next Steps:
 
 Recorded by: codex (gpt-5)
 
+Session: 2026-07-01 - Agent Step Regression Fixed
+--------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-07-01
+
+Work Completed:
+1. Restored backward-compatible `AgentStepDefinition` construction by allowing omitted `step_key` values to derive a stable slug from `step_id`.
+2. Added a regression test covering the legacy constructor shape in `tests/unit/pdf_convert/agents/test_base.py`.
+3. Updated the agent pipeline integration test to use the step directory returned by `write_agent_inputs()` instead of a hardcoded legacy path.
+4. Re-ran the focused agent test and the full repo gate successfully.
+
+Key Decisions:
+- Keep the constructor compatibility fix at the shared dataclass layer so older tests and callers keep working.
+- Update tests that hardcoded the old workspace layout rather than forcing the code to regress to that layout.
+
+Current State:
+- `just all_ci_actions` now passes.
+- The branch is clean from a verification standpoint after the regression fix.
+
+Next Steps:
+1. If no further changes are needed, move on to the next Epic 7 item.
+2. Otherwise continue with the next implementation task or cleanup pass.
+
+Recorded by: codex (gpt-5)
+
+Session: 2026-07-01 - E7-06 Verification Pass
+--------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-07-01
+
+Work Completed:
+1. Verified the E7-06 prep review tests: `tests/unit/pdf_convert/prep/test_review_contracts.py`, `tests/unit/pdf_convert/prep/test_review_parsing.py`, and `tests/unit/pdf_convert/prep/test_review_handlers.py`.
+2. Verified the full prep unit slice with `uv run --python "$(cat .python-version)" --extra dev --editable -- pytest tests/unit/pdf_convert/prep -q`.
+3. Ran `just all_ci_actions` and confirmed the branch still fails only on two unrelated `tests/unit/pdf_convert/agents/test_base.py` cases about `AgentStepDefinition`.
+
+Key Decisions:
+- Treat the E7-06 prep implementation as complete from a feature perspective; no additional E7-06 code changes were needed in this session.
+- Do not chase the unrelated agent-base failures as part of E7-06.
+
+Current State:
+- E7-06-specific prep tests are green.
+- The repo gate is blocked by pre-existing unrelated agent-base test failures.
+
+Next Steps:
+1. If the branch gate must be green, fix the unrelated `AgentStepDefinition` signature regression separately.
+2. Otherwise move on to the next Epic 7 item.
+
+Recorded by: codex (gpt-5)
+
+Session: 2026-07-01 - E7-06 Plan Wording Tightened
+--------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-07-01
+
+Work Completed:
+1. Tightened the E7-06 implementation plan wording to reduce repetition and make the artifact roles more explicit.
+2. Clarified that `annotation-review.edits.json` is extracted from the reviewed PDF, not hand-edited directly.
+3. Simplified the runtime and verification language so the prep/revise flow reads more directly.
+
+Key Decisions:
+- Keep the plan focused on artifact semantics and execution flow, not on explanatory repetition.
+- Preserve the existing task structure; only the wording changed.
+
+Current State:
+- The E7-06 plan now reads more compactly and matches the design terminology.
+- No tests or runtime code changed in this step.
+
+Next Steps:
+1. If needed, do one more pass on the contract/test wording.
+2. Otherwise proceed to the next Epic 7 item.
+
+Recorded by: codex (gpt-5)
+
+Session: 2026-07-01 - E7-06 Plan Language Tightened
+--------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-07-01
+
+Work Completed:
+1. Tightened the E7-06 implementation plan to explicitly distinguish the human review surface (`annotated-prep.pdf`) from the machine-extracted review artifact (`annotation-review.edits.json`).
+2. Clarified that `prep-guidance.defaults.json` carries review intent only, while review decisions are derived from annotated PDF annotations.
+3. Updated the revision step wording so it describes extracting edits from the reviewed PDF before writing `prep-guidance.reviewed.json`.
+
+Key Decisions:
+- The plan should describe `annotation-review.edits.json` as extracted state, not user-authored state.
+- The annotated PDF is the source of truth for review extraction during revise.
+
+Current State:
+- E7-06 design and plan now use the same artifact semantics.
+- No runtime code or tests changed in this step.
+
+Next Steps:
+1. If E7-06 implementation resumes, follow the plan as written.
+2. Otherwise move on to the next Epic 7 item.
+
+Recorded by: codex (gpt-5)
+
+Session: 2026-07-01 - E7-06 Artifact Flow Table Added
+--------------------------------------------------------
+Branch: 010-key-based-prep-registry
+Date: 2026-07-01
+
+Work Completed:
+1. Added an artifact-flow summary table to `specs/e7-06-annotation-review-ux-skip-intent-capture/superpowers-design.md`.
+2. Clarified the two similar-but-distinct artifact chains: proposal normalization into resolved guidance and PDF-annotation review extraction into reviewed guidance.
+3. Kept `annotation-review.edits.json` as the canonical review-state filename while tightening its role description.
+
+Key Decisions:
+- The artifact table belongs in the design doc, not in `BACKLOG.md`.
+- `annotation-review.edits.json` remains a good enough name once its extraction role is documented alongside the PDF review flow.
+
+Current State:
+- E7-06 design now includes a compact artifact lifecycle summary that should reduce ambiguity about file purpose and ownership.
+- No runtime code or tests changed in this step.
+
+Next Steps:
+1. Continue refining E7-06 design language if any other artifact names or roles still feel ambiguous.
+2. If design is settled, move on to implementation planning or the next Epic 7 item.
+
+Recorded by: codex (gpt-5)
+
 Session: 2026-06-18 - E7-07 Deferred Pending Prep Split
 --------------------------------------------------------
 Branch: 010-key-based-prep-registry

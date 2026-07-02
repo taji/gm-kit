@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add prep review artifacts, explicit skip page/range capture, a separate revision command, and reviewed-guidance regeneration on top of the E7-05 prep workflow.
+**Goal:** Add prep review artifacts, explicit skip page/range capture, a separate revision command, and reviewed-guidance regeneration on top of E7-05.
 
-**Architecture:** Extend the existing prep contract and orchestrator rather than introducing a separate review subsystem. Keep the implementation split into focused units: review/edit contracts, artifact-path expansion, parsing/revision helpers, annotated-PDF rendering, a revision command, and conversion consumption of the reviewed artifact. `annotation-proposals.json` remains immutable raw evidence; `prep-guidance.resolved.json` is the baseline downstream artifact written by prep, and `prep-guidance.reviewed.json` becomes authoritative when the revision command is run.
+**Architecture:** Extend the existing prep contract and orchestrator rather than introducing a separate review subsystem. Keep the implementation split into focused units: review/edit contracts, artifact-path expansion, parsing/revision helpers, annotated-PDF rendering, a revision command, and conversion consumption of the reviewed artifact. `annotation-proposals.json` is immutable proposal evidence; `annotated-prep.pdf` is the human review surface; `annotation-review.edits.json` is the extracted review record; `prep-guidance.resolved.json` is the baseline downstream contract; and `prep-guidance.reviewed.json` becomes authoritative after revision.
 
 **Tech Stack:** Python 3.13.7, stdlib `dataclasses`/`json`/`pathlib`/`re`, existing prep orchestrator/handler patterns, PyMuPDF (`fitz`) for annotated PDF rendering, pytest, ruff, mypy.
 
@@ -108,7 +108,7 @@ class AnnotationReviewEdits:
     notes: str = ""
 ```
 
-Extend `PrepGuidanceInput`:
+Extend `PrepGuidanceInput` to carry review intent only:
 
 ```python
 @dataclass(frozen=True)
@@ -128,6 +128,7 @@ Validation rules:
 - `updated_regions` entries must contain `page`, `bbox`, and `label`
 - edited `label` must be one of `table`, `callout`, `skip`
 - `skip_pages_explicit` uses the same page-list validation as resolved guidance
+- `AnnotationReviewEdits` is derived from PDF annotations and persists the review result for downstream use
 
 - [ ] **Step 4: Run the contract tests to confirm they pass**
 
@@ -385,6 +386,7 @@ Implement:
 - explicit skip pages merge into resolved skip pages
 - region/full-page `skip` proposals are applied before table/callout inclusion
 - overlapping table/callout regions are removed when they intersect a skip region on the same page
+- `annotation-review.edits.json` is populated from annotated PDF annotations, not hand-edited directly
 
 Add annotated PDF renderer:
 
@@ -519,10 +521,10 @@ Add runtime handlers in `handlers.py`:
 - `handle_revise_prep_guidance`
 
 Runtime behavior:
-- `auto_proceed=True` → write `annotation-review.edits.json`, baseline `prep-guidance.resolved.json`, and exit
-- interactive new prep → seed review artifact, render PDF, and exit with review instructions
-- `revise_prep_guidance()` → load the edited review artifact, parse skip input, and write `prep-guidance.reviewed.json`
-- conversion should prefer `prep-guidance.reviewed.json` when it exists, otherwise use `prep-guidance.resolved.json`
+- `auto_proceed=True` → write `annotation-review.edits.json`, write `prep-guidance.resolved.json`, and exit
+- interactive prep → seed the review artifact, render the PDF, and exit with review instructions
+- `revise_prep_guidance()` → extract review edits from the annotated PDF, parse skip input, and write `prep-guidance.reviewed.json`
+- conversion prefers `prep-guidance.reviewed.json` when present; otherwise it uses `prep-guidance.resolved.json`
 
 Also update:
 - `_build_artifacts()` to include `annotation-review.edits.json` and `annotated-prep.pdf` when present
@@ -577,8 +579,8 @@ Expected: PASS.
 Append a session entry describing:
 - review artifact and skip parser implementation
 - revision command and reviewed-guidance consumer design
-- interactive vs non-interactive behavior decisions
-- full verification outcome
+- interactive versus non-interactive behavior
+- verification outcome
 - next steps for E7-07
 
 - [ ] **Step 4: Commit**

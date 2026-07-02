@@ -47,7 +47,7 @@ class TestAgentPipelineIntegration:
         """Runtime resume fails without output, then succeeds when output exists."""
         runtime = AgentStepRuntime(str(workspace))
 
-        write_agent_inputs(
+        step_dir = write_agent_inputs(
             step_id="3.2",
             workspace=str(workspace),
             inputs={"source_pdf": "dummy.pdf", "toc_page_image": "toc.png"},
@@ -57,7 +57,7 @@ class TestAgentPipelineIntegration:
         with pytest.raises(AgentStepError, match="step-output.json"):
             runtime.resume_step("3.2")
 
-        output_file = workspace / "agent_steps" / "step_3_2" / "step-output.json"
+        output_file = step_dir / "step-output.json"
         output_file.write_text(
             json.dumps(
                 {

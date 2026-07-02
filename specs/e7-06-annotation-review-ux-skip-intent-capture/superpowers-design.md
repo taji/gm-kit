@@ -44,6 +44,22 @@ E7-06 should continue using the E7-05 artifacts and add the review artifacts und
 - `prep-guidance.reviewed.json`
 - `annotated-prep.pdf`
 
+### Artifact Flow Summary
+
+| Artifact | Produced By | Consumed By | Purpose |
+| --- | --- | --- | --- |
+| `prep-guidance.defaults.json` | prep | proposal generation, review seeding | stores seed intent and defaults |
+| `annotation-proposals.json` | prep | review PDF rendering, resolved guidance | captures raw machine-detected candidates |
+| `annotated-prep.pdf` | prep | human reviewer | visual review surface for PDF annotations |
+| `annotation-review.edits.json` | revise / extraction code | reviewed guidance generation | stores machine-extracted review decisions from the annotated PDF |
+| `prep-guidance.resolved.json` | prep | conversion, revise step | baseline downstream contract after prep |
+| `prep-guidance.reviewed.json` | revise | conversion | authoritative downstream contract after review |
+
+The two pairs are intentionally similar in shape but different in role:
+
+- `annotation-proposals.json` -> `prep-guidance.resolved.json` is detector evidence normalized into a baseline contract.
+- `annotated-prep.pdf` -> `annotation-review.edits.json` -> `prep-guidance.reviewed.json` is human review surface -> extracted review state -> finalized contract.
+
 ### `annotated-prep.pdf`
 Purpose:
 - provide a human-readable visual review companion

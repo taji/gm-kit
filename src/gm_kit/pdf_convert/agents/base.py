@@ -1,5 +1,6 @@
 """Base types and abstract classes for agent steps."""
 
+import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -36,13 +37,39 @@ class AgentStepDefinition:
     """Static definition for one agent step."""
 
     step_id: str
-    step_key: str
     phase: int
     description: str
     criticality: Criticality
     instruction_template: str
     contract_schema: str
+    step_key: str = ""
     rubric_id: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.step_id, str) or not self.step_id:
+            raise ValueError("AgentStepDefinition.step_id must be a non-empty string")
+        if not isinstance(self.step_key, str):
+            raise ValueError("AgentStepDefinition.step_key must be a string")
+        if not self.step_key:
+            self.step_key = _slugify_step_key(self.step_id)
+        if not isinstance(self.phase, int) or isinstance(self.phase, bool):
+            raise ValueError("AgentStepDefinition.phase must be an integer")
+        if not isinstance(self.description, str) or not self.description:
+            raise ValueError("AgentStepDefinition.description must be a non-empty string")
+        if not isinstance(self.instruction_template, str) or not self.instruction_template:
+            raise ValueError(
+                "AgentStepDefinition.instruction_template must be a non-empty string"
+            )
+        if not isinstance(self.contract_schema, str) or not self.contract_schema:
+            raise ValueError("AgentStepDefinition.contract_schema must be a non-empty string")
+        if self.rubric_id is not None and (
+            not isinstance(self.rubric_id, str) or not self.rubric_id
+        ):
+            raise ValueError("AgentStepDefinition.rubric_id must be a string or None")
+
+
+def _slugify_step_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
 
 
 @dataclass
