@@ -9,15 +9,16 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 import fitz  # type: ignore[import-untyped]
+import typer
+import yaml  # type: ignore[import-untyped]
 
 from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata
 from gm_kit.pdf_convert.preflight import PreflightReport, analyze_pdf
 from gm_kit.pdf_convert.prep.analysis_artifacts import PrepAnalysisArtifactPaths
-from gm_kit.pdf_convert.prep.chunking import (
-    CHUNK_PAGE_BUDGET,
-    build_chunk_plan,
-    load_toc_sections,
+from gm_kit.pdf_convert.prep.callout_detection import (
+    detect_callout_proposals_with_warnings,
 )
+from gm_kit.pdf_convert.prep.chunking import CHUNK_PAGE_BUDGET, build_chunk_plan, load_toc_sections
 from gm_kit.pdf_convert.prep.contracts import (
     ANNOTATION_REVIEW_MODES,
     ANNOTATION_REVIEW_STATUSES,
@@ -29,7 +30,6 @@ from gm_kit.pdf_convert.prep.contracts import (
 )
 
 TABLE_PLACEHOLDER_BBOX = [72.0, 240.0, 520.0, 610.0]
-CALLOUT_PLACEHOLDER_BBOX = [72.0, 80.0, 300.0, 220.0]
 FULL_PAGE_PLACEHOLDER_BBOX = [0.0, 0.0, 612.0, 792.0]
 DEFAULT_CALLOUT_REGION_LABEL = "callout_gm"
 TRAILING_APPENDIX_MIN_CHUNKS = 2
@@ -306,15 +306,21 @@ def handle_write_guidance_defaults(
     **_context: object,
 ) -> None:
     """Write the default prep guidance artifact."""
-    guidance_defaults = PrepGuidanceInput()
+    guidance_defaults = PrepGuidanceInput(prefer_detect_tables=False)
     analysis_paths.guidance_defaults.write_text(
-        json.dumps(guidance_defaults.to_dict(), indent=2, sort_keys=True) + "\n",
+        yaml.safe_dump(
+            guidance_defaults.to_dict(),
+            sort_keys=True,
+            default_flow_style=False,
+            allow_unicode=True,
+        ),
         encoding="utf-8",
     )
 
 
 def handle_generate_annotation_proposals(
     *,
+    pdf_path: Path,
     analysis_paths: PrepAnalysisArtifactPaths,
     **_context: object,
 ) -> None:
@@ -323,11 +329,16 @@ def handle_generate_annotation_proposals(
     page_count = _load_page_count(analysis_paths.metadata)
     images_total_count = _load_images_total_count(analysis_paths.image_manifest)
     chunk_plan = _load_optional_json_mapping(analysis_paths.chunk_plan)
+    callout_detection = detect_callout_proposals_with_warnings(pdf_path, guidance_input)
+    for warning in callout_detection.warnings:
+        typer.echo(f"WARNING: {warning}")
 
     proposals = build_annotation_proposals(
         page_count=page_count,
         images_total_count=images_total_count,
         chunk_plan=chunk_plan,
+        callout_proposals=callout_detection.proposals,
+        guidance_input=guidance_input,
     )
     filtered_proposals = _filter_annotation_proposals(
         proposals,
@@ -336,6 +347,15 @@ def handle_generate_annotation_proposals(
     analysis_paths.annotation_proposals.write_text(
         json.dumps(
             [proposal.to_dict() for proposal in proposals],
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    analysis_paths.annotation_refinement_hints.write_text(
+        json.dumps(
+            [hint.to_dict() for hint in callout_detection.refinement_hints],
             indent=2,
             sort_keys=True,
         )
@@ -387,7 +407,12 @@ def handle_render_annotated_prep_pdf(
     **_context: object,
 ) -> None:
     """Render the annotated prep PDF used for manual review."""
+    guidance_input = _load_guidance_defaults(analysis_paths.guidance_defaults)
     proposals = _load_annotation_proposals(analysis_paths.annotation_proposals)
+    proposals = _filter_annotation_proposals(
+        proposals,
+        guidance_input=guidance_input,
+    )
     render_annotated_prep_pdf(
         pdf_path=pdf_path,
         proposals=proposals,
@@ -427,38 +452,34 @@ def build_annotation_proposals(
     page_count: int,
     images_total_count: int,
     chunk_plan: Mapping[str, object] | None,
+    callout_proposals: list[AnnotationProposal] | None = None,
+    guidance_input: PrepGuidanceInput | None = None,
 ) -> list[AnnotationProposal]:
     """Build deterministic prep annotation proposals from cheap heuristics."""
     proposals: list[AnnotationProposal] = []
     chunk_entries = _normalize_chunk_entries(chunk_plan)
+    detect_tables = guidance_input.prefer_detect_tables if guidance_input is not None else True
 
-    for chunk_entry in chunk_entries:
-        metadata = {
-            "source": "code",
-            "source_section_id": chunk_entry["source_section_id"],
-            "chunk_kind": chunk_entry["chunk_kind"],
-            "ordinal": chunk_entry["ordinal"],
-        }
-        proposals.append(
-            _build_proposal(
-                label="table",
-                page=int(chunk_entry["start_page"]),
-                bbox=TABLE_PLACEHOLDER_BBOX,
-                confidence=0.5,
-                metadata=metadata,
+    if detect_tables:
+        for chunk_entry in chunk_entries:
+            metadata = {
+                "source": "code",
+                "source_section_id": chunk_entry["source_section_id"],
+                "chunk_kind": chunk_entry["chunk_kind"],
+                "ordinal": chunk_entry["ordinal"],
+            }
+            proposals.append(
+                _build_proposal(
+                    label="table",
+                    page=int(chunk_entry["start_page"]),
+                    bbox=TABLE_PLACEHOLDER_BBOX,
+                    confidence=0.5,
+                    metadata=metadata,
+                )
             )
-        )
 
-    for page in range(1, min(page_count, images_total_count) + 1):
-        proposals.append(
-            _build_proposal(
-                label="callout",
-                page=page,
-                bbox=CALLOUT_PLACEHOLDER_BBOX,
-                confidence=0.5,
-                metadata={"source": "code", "trigger": "image-heavy-page"},
-            )
-        )
+    if callout_proposals:
+        proposals.extend(callout_proposals)
 
     for page in _detect_trailing_appendix_skip_pages(chunk_entries):
         proposals.append(
@@ -636,13 +657,22 @@ def render_annotated_prep_pdf(
             continue
         page = doc[proposal.page - 1]
         rect = fitz.Rect(*proposal.bbox)
-        page.draw_rect(rect, color=(0, 0, 0), width=0.75)
-        page.insert_text(
-            (rect.x0 + 2, rect.y0 + 8),
+        annot = page.add_freetext_annot(
+            rect,
             f"{proposal.proposal_id} {proposal.label}",
             fontsize=6,
-            color=(0, 0, 0),
+            fontname="helv",
+            text_color=(0, 0, 0),
+            fill_color=(1, 1, 0),
+            border_width=1,
+            opacity=0.5,
+            align=2,
         )
+        annot.set_info(
+            title=proposal.proposal_id,
+            subject=proposal.label,
+        )
+        annot.update()
     try:
         doc.save(output_pdf_path, garbage=4, clean=True, deflate=True)
     except Exception:
@@ -759,9 +789,9 @@ def _detect_trailing_appendix_skip_pages(
 
 
 def _load_guidance_defaults(path: Path) -> PrepGuidanceInput:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = yaml.safe_load(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
-        raise ValueError("prep-guidance.defaults.json must contain a JSON object")
+        raise ValueError("prep-guidance.defaults.yml must contain a mapping")
     return PrepGuidanceInput.from_dict(payload)
 
 

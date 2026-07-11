@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from numbers import Real
 from pathlib import Path
 
@@ -239,6 +239,13 @@ class PrepGuidanceInput:
     review_requested: bool = True
     auto_accept_annotations: bool = False
     capture_skip_intent: bool = True
+    callout_anchor_phrases: list[str] = field(
+        default_factory=lambda: _default_callout_anchor_phrases()
+    )
+    callout_bbox_padding: dict[str, float] = field(
+        default_factory=lambda: _default_callout_bbox_padding()
+    )
+    callout_max_vertical_gap: float = 18.0
 
     def validate(self) -> None:
         for field_name, field_value in (
@@ -251,6 +258,22 @@ class PrepGuidanceInput:
         ):
             if not isinstance(field_value, bool):
                 raise ValueError(f"PrepGuidanceInput.{field_name} must be a boolean")
+        _validate_callout_anchor_phrases(
+            self.callout_anchor_phrases,
+            "PrepGuidanceInput.callout_anchor_phrases",
+        )
+        _validate_callout_bbox_padding(
+            self.callout_bbox_padding,
+            "PrepGuidanceInput.callout_bbox_padding",
+        )
+        if (
+            not isinstance(self.callout_max_vertical_gap, Real)
+            or isinstance(self.callout_max_vertical_gap, bool)
+            or self.callout_max_vertical_gap <= 0
+        ):
+            raise ValueError(
+                "PrepGuidanceInput.callout_max_vertical_gap must be a number greater than 0"
+            )
 
     def to_dict(self) -> dict[str, object]:
         self.validate()
@@ -294,6 +317,24 @@ class PrepGuidanceInput:
                 "capture_skip_intent",
                 "PrepGuidanceInput",
                 default=True,
+            ),
+            callout_anchor_phrases=_require_string_list_value(
+                data,
+                "callout_anchor_phrases",
+                "PrepGuidanceInput",
+                default=_default_callout_anchor_phrases(),
+            ),
+            callout_bbox_padding=_require_bbox_padding_value(
+                data,
+                "callout_bbox_padding",
+                "PrepGuidanceInput",
+                default=_default_callout_bbox_padding(),
+            ),
+            callout_max_vertical_gap=_require_real_value(
+                data,
+                "callout_max_vertical_gap",
+                "PrepGuidanceInput",
+                default=18.0,
             ),
         )
         guidance.validate()
@@ -531,6 +572,74 @@ def _require_bool_value(
     return value
 
 
+def _require_real_value(
+    data: dict[str, object],
+    key: str,
+    owner: str,
+    default: float | None = None,
+) -> float:
+    if key not in data:
+        if default is not None:
+            return float(default)
+        raise ValueError(f"{owner}.{key} is required")
+    value = data[key]
+    if not isinstance(value, Real) or isinstance(value, bool):
+        raise ValueError(f"{owner}.{key} must be a number")
+    return float(value)
+
+
+def _require_string_list_value(
+    data: dict[str, object],
+    key: str,
+    owner: str,
+    default: list[str] | None = None,
+) -> list[str]:
+    if key not in data:
+        return list(default or [])
+    value = data[key]
+    if not isinstance(value, list):
+        raise ValueError(f"{owner}.{key} must be a list")
+    validated: list[str] = []
+    for item in value:
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{owner}.{key} entries must be non-empty strings")
+        validated.append(item)
+    return validated
+
+
+def _require_bbox_padding_value(
+    data: dict[str, object],
+    key: str,
+    owner: str,
+    default: dict[str, float] | None = None,
+) -> dict[str, float]:
+    if key not in data:
+        return dict(default or {})
+    value = data[key]
+    if not isinstance(value, dict):
+        raise ValueError(f"{owner}.{key} must be a mapping")
+    padding: dict[str, float] = {}
+    for side in ("top", "right", "bottom", "left"):
+        if side not in value:
+            raise ValueError(f"{owner}.{key} must define {side}")
+        side_value = value[side]
+        if not isinstance(side_value, Real) or isinstance(side_value, bool) or side_value < 0:
+            raise ValueError(f"{owner}.{key}.{side} must be a number greater than or equal to 0")
+        padding[side] = float(side_value)
+    for extra_key, extra_value in value.items():
+        if extra_key not in padding:
+            if (
+                not isinstance(extra_value, Real)
+                or isinstance(extra_value, bool)
+                or extra_value < 0
+            ):
+                raise ValueError(
+                    f"{owner}.{key}.{extra_key} must be a number greater than or equal to 0"
+                )
+            padding[extra_key] = float(extra_value)
+    return padding
+
+
 def _require_str_value(
     data: dict[str, object],
     key: str,
@@ -545,6 +654,53 @@ def _require_str_value(
     if not isinstance(value, str):
         raise ValueError(f"{owner}.{key} must be a string")
     return value
+
+
+def _default_callout_anchor_phrases() -> list[str]:
+    return [
+        "GM Note",
+        "Gamemaster Note",
+        "Gamemaster's Note",
+        "DM Note",
+        "Dungeonmaster Note",
+        "Dungeonmaster's Note",
+        "Keeper's Note",
+    ]
+
+
+def _default_callout_bbox_padding() -> dict[str, float]:
+    return {
+        "top": 4.0,
+        "right": 6.0,
+        "bottom": 6.0,
+        "left": 6.0,
+    }
+
+
+def _validate_callout_anchor_phrases(values: Sequence[object], field_name: str) -> list[str]:
+    validated: list[str] = []
+    for value in values:
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"{field_name} entries must be non-empty strings")
+        validated.append(value)
+    return validated
+
+
+def _validate_callout_bbox_padding(
+    values: dict[str, float],
+    field_name: str,
+) -> dict[str, float]:
+    if not isinstance(values, dict):
+        raise ValueError(f"{field_name} must be a mapping")
+    for side in ("top", "right", "bottom", "left"):
+        if side not in values:
+            raise ValueError(f"{field_name} must define {side}")
+        side_value = values[side]
+        if not isinstance(side_value, Real) or isinstance(side_value, bool) or side_value < 0:
+            raise ValueError(
+                f"{field_name}.{side} must be a number greater than or equal to 0"
+            )
+    return {key: float(value) for key, value in values.items() if isinstance(value, Real)}
 
 
 def _require_positive_int(data: dict[str, object], key: str, owner: str) -> int:

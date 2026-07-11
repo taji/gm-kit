@@ -1,3 +1,4 @@
+from gm_kit.pdf_convert.prep.callout_detection import detect_callout_proposals
 from gm_kit.pdf_convert.prep.chunking import CHUNK_PAGE_BUDGET as _CHUNK_PAGE_BUDGET
 from gm_kit.pdf_convert.prep.chunking import (
     ChunkDefinition,
@@ -68,6 +69,7 @@ __all__ = [
     "build_final_resolved_guidance",
     "build_effective_prep_artifact_paths",
     "build_chunk_plan",
+    "detect_callout_proposals",
     "build_resolved_guidance",
     "handle_finalize_reviewed_guidance",
     "handle_render_annotated_prep_pdf",

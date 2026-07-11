@@ -1,14 +1,36 @@
 from __future__ import annotations
 
-from gm_kit.pdf_convert.prep.contracts import AnnotationProposal
+from gm_kit.pdf_convert.prep.contracts import AnnotationProposal, PrepGuidanceInput
 from gm_kit.pdf_convert.prep.handlers import (
     build_annotation_proposals,
     build_resolved_guidance,
 )
 
 TABLE_BBOX = [72.0, 240.0, 520.0, 610.0]
-CALLOUT_BBOX = [72.0, 80.0, 300.0, 220.0]
+CALLOUT_BBOX = [58.0, 452.0, 292.0, 620.0]
 FULL_PAGE_BBOX = [0.0, 0.0, 612.0, 792.0]
+
+
+def _build_callout_proposal(
+    *,
+    proposal_id: str,
+    page: int,
+    bbox: list[float],
+) -> AnnotationProposal:
+    return AnnotationProposal(
+        proposal_id=proposal_id,
+        label="callout",
+        page=page,
+        bbox=bbox,
+        confidence=0.88,
+        metadata={
+            "source": "code",
+            "trigger": "text-anchor",
+            "anchor_phrase": "gm note",
+            "anchor_text": "GM Note",
+            "callout_label": "callout_gm",
+        },
+    )
 
 
 def test_build_annotation_proposals__should_generate_deterministic_ids_and_skip_modes__when_inputs_are_valid() -> None:
@@ -53,7 +75,7 @@ def test_build_annotation_proposals__should_generate_deterministic_ids_and_skip_
     assert [proposal.proposal_id for proposal in first] == sorted(
         proposal.proposal_id for proposal in first
     )
-    assert {proposal.label for proposal in first} == {"callout", "skip", "table"}
+    assert {proposal.label for proposal in first} == {"skip", "table"}
 
     full_page_skips = [
         proposal
@@ -66,7 +88,32 @@ def test_build_annotation_proposals__should_generate_deterministic_ids_and_skip_
     ]
 
 
-def test_build_annotation_proposals__should_emit_stable_table_and_callout_content__when_chunk_plan_and_images_exist() -> None:
+def test_build_annotation_proposals__should_skip_table_generation__when_table_detection_is_disabled() -> None:
+    proposals = build_annotation_proposals(
+        page_count=10,
+        images_total_count=2,
+        chunk_plan={
+            "chunks": [
+                {
+                    "source_section_id": "chapter-1",
+                    "start_page": 1,
+                    "end_page": 8,
+                    "chunk_kind": "chapter",
+                    "ordinal": 1,
+                }
+            ]
+        },
+        guidance_input=PrepGuidanceInput(prefer_detect_tables=False),
+    )
+
+    assert all(proposal.label != "table" for proposal in proposals)
+
+
+def test_build_annotation_proposals__should_merge_stable_table_and_callout_content__when_chunk_plan_and_callout_proposals_exist() -> None:
+    callout_proposals = [
+        _build_callout_proposal(proposal_id="ap-callout-1", page=1, bbox=CALLOUT_BBOX),
+        _build_callout_proposal(proposal_id="ap-callout-2", page=2, bbox=CALLOUT_BBOX),
+    ]
     proposals = build_annotation_proposals(
         page_count=4,
         images_total_count=2,
@@ -88,6 +135,7 @@ def test_build_annotation_proposals__should_emit_stable_table_and_callout_conten
                 },
             ]
         },
+        callout_proposals=callout_proposals,
     )
 
     table_proposals = sorted(
@@ -121,7 +169,22 @@ def test_build_annotation_proposals__should_emit_stable_table_and_callout_conten
         (1, CALLOUT_BBOX),
         (2, CALLOUT_BBOX),
     ]
-    assert all(proposal.metadata == {"source": "code", "trigger": "image-heavy-page"} for proposal in callout_proposals)
+    assert [proposal.metadata for proposal in callout_proposals] == [
+        {
+            "source": "code",
+            "trigger": "text-anchor",
+            "anchor_phrase": "gm note",
+            "anchor_text": "GM Note",
+            "callout_label": "callout_gm",
+        },
+        {
+            "source": "code",
+            "trigger": "text-anchor",
+            "anchor_phrase": "gm note",
+            "anchor_text": "GM Note",
+            "callout_label": "callout_gm",
+        },
+    ]
 
 
 def test_build_annotation_proposals__should_generate_distinct_ids__when_stable_metadata_differs() -> None:
@@ -188,7 +251,6 @@ def test_build_annotation_proposals__should_not_emit_skip_proposals__when_traili
     assert all(proposal.label != "skip" for proposal in proposals)
 
 
-
 def test_build_resolved_guidance__should_normalize_skip_table_and_callout_targets__when_given_unsorted_proposals() -> None:
     proposals = build_annotation_proposals(
         page_count=10,
@@ -218,6 +280,10 @@ def test_build_resolved_guidance__should_normalize_skip_table_and_callout_target
                 },
             ]
         },
+        callout_proposals=[
+            _build_callout_proposal(proposal_id="ap-callout-1", page=1, bbox=CALLOUT_BBOX),
+            _build_callout_proposal(proposal_id="ap-callout-2", page=2, bbox=CALLOUT_BBOX),
+        ],
     )
 
     resolved = build_resolved_guidance(list(reversed(proposals)))
@@ -257,25 +323,16 @@ def test_build_resolved_guidance__should_normalize_skip_table_and_callout_target
         {
             "page": 1,
             "bbox": CALLOUT_BBOX,
-            "proposal_id": next(
-                proposal.proposal_id
-                for proposal in proposals
-                if proposal.label == "callout" and proposal.page == 1
-            ),
+            "proposal_id": "ap-callout-1",
             "label": "callout_gm",
         },
         {
             "page": 2,
             "bbox": CALLOUT_BBOX,
-            "proposal_id": next(
-                proposal.proposal_id
-                for proposal in proposals
-                if proposal.label == "callout" and proposal.page == 2
-            ),
+            "proposal_id": "ap-callout-2",
             "label": "callout_gm",
         },
     ]
-
 
 
 def test_build_resolved_guidance__should_split_full_page_and_region_skip_targets__when_skip_labels_mix_scopes() -> None:
@@ -283,6 +340,9 @@ def test_build_resolved_guidance__should_split_full_page_and_region_skip_targets
         page_count=2,
         images_total_count=0,
         chunk_plan=None,
+        callout_proposals=[
+            _build_callout_proposal(proposal_id="ap-callout-1", page=1, bbox=CALLOUT_BBOX),
+        ],
     )
     proposals.append(
         AnnotationProposal(

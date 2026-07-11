@@ -24,11 +24,15 @@ def test_build_analysis_artifact_paths__should_return_expected_subtree__when_wor
     assert paths.chunk_plan == tmp_path / "workspace" / "prep" / "chunk-plan.json"
     assert (
         paths.guidance_defaults
-        == tmp_path / "workspace" / "prep" / "prep-guidance.defaults.json"
+        == tmp_path / "workspace" / "prep" / "prep-guidance.defaults.yml"
     )
     assert (
         paths.annotation_proposals
         == tmp_path / "workspace" / "prep" / "annotation-proposals.json"
+    )
+    assert (
+        paths.annotation_refinement_hints
+        == tmp_path / "workspace" / "prep" / "annotation-refinement-hints.json"
     )
     assert (
         paths.annotation_review_edits

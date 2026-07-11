@@ -20,6 +20,7 @@ class PrepAnalysisArtifactPaths:
     chunk_plan: Path
     guidance_defaults: Path
     annotation_proposals: Path
+    annotation_refinement_hints: Path
     annotation_review_edits: Path
     guidance_resolved: Path
     reviewed_guidance: Path
@@ -44,8 +45,9 @@ def build_analysis_artifact_paths(
         toc=prep_root / "toc-extracted.txt",
         chapter_index=prep_root / "chapter-index.json",
         chunk_plan=prep_root / "chunk-plan.json",
-        guidance_defaults=prep_root / "prep-guidance.defaults.json",
+        guidance_defaults=prep_root / "prep-guidance.defaults.yml",
         annotation_proposals=prep_root / "annotation-proposals.json",
+        annotation_refinement_hints=prep_root / "annotation-refinement-hints.json",
         annotation_review_edits=prep_root / "annotation-review.edits.json",
         guidance_resolved=prep_root / "prep-guidance.resolved.json",
         reviewed_guidance=prep_root / "prep-guidance.reviewed.json",

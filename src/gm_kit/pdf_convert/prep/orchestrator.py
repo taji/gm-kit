@@ -475,6 +475,7 @@ def _build_artifacts(
         analysis_paths.chunk_plan,
         analysis_paths.guidance_defaults,
         analysis_paths.annotation_proposals,
+        analysis_paths.annotation_refinement_hints,
         analysis_paths.annotation_review_edits,
         analysis_paths.guidance_resolved,
         analysis_paths.reviewed_guidance,

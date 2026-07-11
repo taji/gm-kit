@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import fitz  # type: ignore[import-untyped]
+import yaml
 
 from gm_kit.pdf_convert.errors import ExitCode
 from gm_kit.pdf_convert.prep import (
@@ -25,11 +26,21 @@ from gm_kit.pdf_convert.prep.registry_types import PrepPhaseDefinition
 from gm_kit.pdf_convert.prep.state import PrepRunState, PrepStatus, load_prep_state
 
 
-def _write_sample_pdf(path: Path, *, page_count: int = 1, toc: list[list[object]] | None = None) -> None:
+def _write_sample_pdf(
+    path: Path,
+    *,
+    page_count: int = 1,
+    toc: list[list[object]] | None = None,
+    callout_pages: set[int] | None = None,
+) -> None:
     document = fitz.open()
     for page_index in range(page_count):
         page = document.new_page()
         page.insert_text((72, 72), f"Prep sample {page_index + 1}")
+        if callout_pages and (page_index + 1) in callout_pages:
+            page.insert_text((72, 120), "GM Note")
+            page.insert_text((72, 140), "Callout content for review.")
+            page.insert_text((72, 155), "Additional lines to expand the bbox.")
     if toc is None:
         toc = [[1, "Introduction", 1], [2, "Details", 1]]
     document.set_toc(toc)
@@ -109,8 +120,9 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         {"name": "images/image-manifest.json", "status": "ready"},
         {"name": "preprocessed/sample-no-images.pdf", "status": "ready"},
         {"name": "toc-extracted.txt", "status": "ready"},
-        {"name": "prep-guidance.defaults.json", "status": "ready"},
+        {"name": "prep-guidance.defaults.yml", "status": "ready"},
         {"name": "annotation-proposals.json", "status": "ready"},
+        {"name": "annotation-refinement-hints.json", "status": "ready"},
         {"name": "annotation-review.edits.json", "status": "ready"},
         {"name": "prep-guidance.resolved.json", "status": "ready"},
         {"name": "annotated-prep.pdf", "status": "ready"},
@@ -122,8 +134,9 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     assert (prep_root / "images" / "image-manifest.json").exists()
     assert (prep_root / "preprocessed" / "sample-no-images.pdf").exists()
     assert (prep_root / "toc-extracted.txt").exists()
-    assert (prep_root / "prep-guidance.defaults.json").exists()
+    assert (prep_root / "prep-guidance.defaults.yml").exists()
     assert (prep_root / "annotation-proposals.json").exists()
+    assert (prep_root / "annotation-refinement-hints.json").exists()
     assert (prep_root / "prep-guidance.resolved.json").exists()
 
     state = load_prep_state(prep_root / "prep-state.json")
@@ -167,8 +180,8 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         in log_output
     )
 
-    guidance_defaults_payload = json.loads(
-        (prep_root / "prep-guidance.defaults.json").read_text(encoding="utf-8")
+    guidance_defaults_payload = yaml.safe_load(
+        (prep_root / "prep-guidance.defaults.yml").read_text(encoding="utf-8")
     )
     annotation_proposals_payload = json.loads(
         (prep_root / "annotation-proposals.json").read_text(encoding="utf-8")
@@ -177,7 +190,9 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         (prep_root / "prep-guidance.resolved.json").read_text(encoding="utf-8")
     )
 
-    assert guidance_defaults_payload == PrepGuidanceInput().to_dict()
+    assert guidance_defaults_payload == PrepGuidanceInput(
+        prefer_detect_tables=False,
+    ).to_dict()
     assert isinstance(annotation_proposals_payload, list)
     assert annotation_proposals_payload == []
     assert guidance_resolved_payload == PrepGuidanceResolved(
@@ -231,15 +246,18 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
         "chapter",
     ]
     assert manifest_payload["artifacts"][-4:] == [
-        {"name": "annotation-proposals.json", "status": "ready"},
+        {"name": "annotation-refinement-hints.json", "status": "ready"},
         {"name": "annotation-review.edits.json", "status": "ready"},
         {"name": "prep-guidance.resolved.json", "status": "ready"},
         {"name": "annotated-prep.pdf", "status": "ready"},
     ]
-    assert manifest_payload["artifacts"][-7:-4] == [
+    assert manifest_payload["artifacts"][8:14] == [
+        {"name": "toc-extracted.txt", "status": "ready"},
         {"name": "chapter-index.json", "status": "ready"},
         {"name": "chunk-plan.json", "status": "ready"},
-        {"name": "prep-guidance.defaults.json", "status": "ready"},
+        {"name": "prep-guidance.defaults.yml", "status": "ready"},
+        {"name": "annotation-proposals.json", "status": "ready"},
+        {"name": "annotation-refinement-hints.json", "status": "ready"},
     ]
     assert "Phase 500: Plan Chunks (prep.plan-chunks) started" in log_output
     assert (
@@ -276,11 +294,10 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
             page_count=12,
             images_total_count=0,
             chunk_plan=chunk_plan_payload,
+            guidance_input=PrepGuidanceInput(prefer_detect_tables=False),
         )
     ]
-    expected_resolved = build_resolved_guidance(
-        [AnnotationProposal.from_dict(proposal) for proposal in annotation_proposals_payload]
-    ).to_dict()
+    expected_resolved = build_resolved_guidance([]).to_dict()
 
     assert annotation_proposals_payload == expected_proposals
     assert guidance_resolved_payload == expected_resolved
@@ -394,7 +411,7 @@ def test_revise_prep_guidance__should_finalize_callout_reviews_into_shared_prep_
     from gm_kit.pdf_convert.prep import handlers as prep_handlers
 
     pdf_path = tmp_path / "sample.pdf"
-    _write_sample_pdf(pdf_path, page_count=3)
+    _write_sample_pdf(pdf_path, page_count=3, callout_pages={1, 2})
     workspace_path = tmp_path / "workspace"
 
     def fake_extract_images(

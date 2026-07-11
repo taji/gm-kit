@@ -4,6 +4,9 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import fitz  # type: ignore[import-untyped]
+import yaml
+
 from gm_kit.pdf_convert.prep.analysis_artifacts import build_analysis_artifact_paths
 from gm_kit.pdf_convert.prep.contracts import (
     AnnotationProposal,
@@ -177,57 +180,45 @@ def test_build_final_resolved_guidance__should_apply_skip_precedence_and_merge_e
             "label": "callout_gm",
         }
     ]
-def test_render_annotated_prep_pdf__should_draw_rectangles_and_stamp_labels__when_pdf_is_renderable(
+def test_render_annotated_prep_pdf__should_create_editable_freetext_annotation__when_pdf_is_renderable(
     tmp_path: Path,
 ) -> None:
     pdf_path = tmp_path / "source.pdf"
-    pdf_path.write_text("%PDF-1.7\n", encoding="utf-8")
+    source_document = fitz.open()
+    source_document.new_page()
+    source_document.save(pdf_path)
+    source_document.close()
     output_pdf_path = tmp_path / "annotated.pdf"
     proposals = [
         AnnotationProposal(
-            proposal_id="ap-002",
+            proposal_id="ap-001",
             label="callout",
-            page=2,
+            page=1,
             bbox=[10.0, 20.0, 50.0, 60.0],
             confidence=0.5,
-            metadata={"source": "code", "trigger": "image-heavy-page"},
-        ),
-        AnnotationProposal(
-            proposal_id="ap-001",
-            label="table",
-            page=1,
-            bbox=[72.0, 240.0, 520.0, 610.0],
-            confidence=0.5,
-            metadata={
-                "source": "code",
-                "source_section_id": "s1",
-                "chunk_kind": "chapter",
-                "ordinal": 1,
-            },
+            metadata={"source": "code", "trigger": "text-anchor"},
         ),
     ]
 
-    with patch("fitz.open") as mock_open:
-        mock_doc = MagicMock()
-        mock_doc.__len__ = MagicMock(return_value=2)
-        first_page = MagicMock()
-        second_page = MagicMock()
-        mock_doc.__getitem__ = MagicMock(side_effect=[first_page, second_page])
-        mock_open.return_value = mock_doc
+    render_annotated_prep_pdf(
+        pdf_path=pdf_path,
+        proposals=proposals,
+        output_pdf_path=output_pdf_path,
+    )
 
-        render_annotated_prep_pdf(
-            pdf_path=pdf_path,
-            proposals=proposals,
-            output_pdf_path=output_pdf_path,
-        )
-
-    first_page.draw_rect.assert_called_once()
-    first_page.insert_text.assert_called_once()
-    second_page.draw_rect.assert_called_once()
-    second_page.insert_text.assert_called_once()
-    assert first_page.insert_text.call_args.args[1] == "ap-001 table"
-    assert second_page.insert_text.call_args.args[1] == "ap-002 callout"
-    mock_doc.save.assert_called_once()
+    rendered_document = fitz.open(output_pdf_path)
+    try:
+        page = rendered_document[0]
+        annotation = page.first_annot
+        assert annotation is not None
+        assert annotation.type[1] == "FreeText"
+        assert annotation.rect.x0 <= 10.0
+        assert annotation.rect.y0 <= 20.0
+        assert annotation.rect.x1 >= 50.0
+        assert annotation.rect.y1 >= 60.0
+        assert annotation.opacity == 0.5
+    finally:
+        rendered_document.close()
 
 
 def test_render_annotated_prep_pdf__should_not_raise__when_pdf_cannot_be_opened(
@@ -271,6 +262,8 @@ def test_render_annotated_prep_pdf__should_not_raise__when_pdf_cannot_be_saved(
         mock_doc = MagicMock()
         mock_doc.__len__ = MagicMock(return_value=1)
         first_page = MagicMock()
+        annot = MagicMock()
+        first_page.add_freetext_annot.return_value = annot
         mock_doc.__getitem__ = MagicMock(return_value=first_page)
         mock_doc.save.side_effect = RuntimeError("boom")
         mock_open.return_value = mock_doc
@@ -281,8 +274,9 @@ def test_render_annotated_prep_pdf__should_not_raise__when_pdf_cannot_be_saved(
             output_pdf_path=output_pdf_path,
         )
 
-    first_page.draw_rect.assert_called_once()
-    first_page.insert_text.assert_called_once()
+    first_page.add_freetext_annot.assert_called_once()
+    annot.set_info.assert_called_once()
+    annot.update.assert_called_once()
     mock_doc.save.assert_called_once()
     assert not output_pdf_path.exists()
 
@@ -301,7 +295,12 @@ def test_handle_finalize_reviewed_guidance__should_merge_skip_ranges_and_review_
         artifact_path.parent.mkdir(parents=True, exist_ok=True)
     analysis_paths.metadata.write_text(json.dumps({"page_count": 12}) + "\n", encoding="utf-8")
     analysis_paths.guidance_defaults.write_text(
-        json.dumps(PrepGuidanceInput().to_dict(), indent=2, sort_keys=True) + "\n",
+        yaml.safe_dump(
+            PrepGuidanceInput().to_dict(),
+            sort_keys=True,
+            default_flow_style=False,
+            allow_unicode=True,
+        ),
         encoding="utf-8",
     )
     analysis_paths.annotation_proposals.write_text(
@@ -426,12 +425,15 @@ def test_handle_seed_annotation_review__should_seed_auto_accept_state__when_auto
     analysis_paths = build_analysis_artifact_paths(workspace_dir, pdf_stem="sample")
     analysis_paths.guidance_defaults.parent.mkdir(parents=True, exist_ok=True)
     analysis_paths.guidance_defaults.write_text(
-        json.dumps(
-            PrepGuidanceInput(auto_accept_annotations=False, review_requested=True).to_dict(),
-            indent=2,
+        yaml.safe_dump(
+            PrepGuidanceInput(
+                auto_accept_annotations=False,
+                review_requested=True,
+            ).to_dict(),
             sort_keys=True,
-        )
-        + "\n",
+            default_flow_style=False,
+            allow_unicode=True,
+        ),
         encoding="utf-8",
     )
 
