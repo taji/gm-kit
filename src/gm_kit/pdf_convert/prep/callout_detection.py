@@ -168,7 +168,8 @@ def _detect_page_callout_proposals(
             )
             warnings.append(
                 "Callout detector expanded a proposal across "
-                f"{len(matched_block_indices)} text blocks on page {page_number}."
+                f"{len(matched_block_indices)} text blocks on page {page_number}. "
+                "This may need manual adjustment in the PDF review copy."
             )
 
     fallback_proposals = _build_phrase_only_fallback_proposals(

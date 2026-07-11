@@ -8,7 +8,7 @@ from gm_kit.pdf_convert.prep.callout_detection import detect_callout_proposals
 from gm_kit.pdf_convert.prep.contracts import PrepGuidanceInput
 
 FIXTURE_PDF = Path(__file__).parent.parent.parent.parent / (
-    "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit-updated.pdf"
+    "tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf"
 )
 PLACEHOLDER_BBOX = [72.0, 80.0, 300.0, 220.0]
 

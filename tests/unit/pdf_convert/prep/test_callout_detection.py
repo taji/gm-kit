@@ -116,7 +116,7 @@ def test_detect_callout_proposals_with_warnings__should_record_refinement_hint__
     assert hint.issue == "expanded_across_multiple_text_blocks"
     assert hint.anchor_text == "GM Note"
     assert hint.collected_block_count == 2
-    assert "expanded a proposal across 2 text blocks" in result.warnings[0]
+    assert "manual adjustment in the PDF review copy" in result.warnings[0]
 
 
 def test_detect_callout_proposals__should_keep_separate_note_blocks_distinct__when_multiple_note_blocks_share_a_page() -> None:

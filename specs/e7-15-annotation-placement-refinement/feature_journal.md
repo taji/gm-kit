@@ -24,6 +24,54 @@ Next Steps:
 
 Recorded by: Codex
 
+Session: 2026-07-11 - Homebrewery Temp Fixtures Removed
+--------------------------------------------------------
+Branch: e7-15-annotation-placement-refinement
+Date: 2026-07-11
+
+Work Completed:
+1. Switched the Homebrewery callout bbox integration test to the canonical `The Homebrewery - NaturalCrit.pdf` fixture.
+2. Removed the temporary `The Homebrewery - NaturalCrit-updated.pdf` and `The Homebrewery - NaturalCrit-callout-reference.pdf` files from the worktree.
+3. Re-ran the focused integration test to confirm the canonical fixture still exercises the callout bbox refinement path.
+
+Key Decisions:
+- The canonical Homebrewery fixture should be the single source of truth for the callout bbox regression test.
+- Temporary fixture variants are no longer needed once the canonical PDF carries the updated content and TOC.
+
+Current State:
+- The integration test now points at `The Homebrewery - NaturalCrit.pdf`.
+- The temporary PDFs are deleted from the worktree and the focused integration test passes.
+
+Next Steps:
+1. Keep using the canonical Homebrewery fixture for future callout bbox checks.
+2. Commit the fixture cleanup with the rest of the worktree changes when ready.
+
+Recorded by: Codex
+
+Session: 2026-07-11 - Homebrewery Fixtures Reconciled
+--------------------------------------------------------
+Branch: e7-15-annotation-placement-refinement
+Date: 2026-07-11
+
+Work Completed:
+1. Replaced `The Homebrewery - NaturalCrit - Without TOC.pdf` with the updated Homebrewery render.
+2. Rebuilt `The Homebrewery - NaturalCrit.pdf` from the updated render while preserving the original embedded TOC.
+3. Verified the with-TOC fixture still has an embedded outline while the without-TOC fixture does not.
+
+Key Decisions:
+- Both Homebrewery fixture PDFs must remain content-equivalent except for the embedded TOC outline.
+- The updated render becomes the canonical source content for both fixture variants.
+
+Current State:
+- The Homebrewery fixtures in the worktree now reflect the updated PDF content.
+- The with-TOC fixture retains 23 TOC entries; the without-TOC fixture has none.
+
+Next Steps:
+1. Re-run any fixture-sensitive tests if you want to validate the Homebrewery updates end-to-end.
+2. Commit the fixture regeneration with the rest of the worktree changes when ready.
+
+Recorded by: Codex
+
 Session: 2026-07-11 - Refinement Hint Artifact Added
 --------------------------------------------------------
 Branch: e7-15-annotation-placement-refinement
