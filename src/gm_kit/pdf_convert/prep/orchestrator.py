@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from gm_kit.pdf_convert.prep.contracts import (
     PrepPaths,
     build_prep_paths,
 )
+from gm_kit.pdf_convert.prep.refinement import PrepRefinementPause
 from gm_kit.pdf_convert.prep.registry import PREP_PHASE_KEYS, PrepRegistry
 from gm_kit.pdf_convert.prep.registry_errors import sanitize_for_log
 from gm_kit.pdf_convert.prep.registry_types import (
@@ -77,6 +79,7 @@ class PrepOrchestrator:
         pdf_path: Path,
         output_dir: Path | None = None,
         auto_proceed: bool = False,
+        skip_callout_refinement: bool = False,
     ) -> ExitCode:
         resolved_pdf_path = Path(pdf_path).resolve()
         if not _is_readable_pdf_path(resolved_pdf_path):
@@ -133,6 +136,8 @@ class PrepOrchestrator:
                 analysis_paths=analysis_paths,
                 log_lines=log_lines,
                 auto_proceed=auto_proceed,
+                skip_callout_refinement=skip_callout_refinement,
+                callout_refinement_mode=os.environ.get("GMKIT_CALL_OUT_REFINEMENT_MODE"),
             )
         except _PrepStepFailure as error:
             log_lines.append(f"ERROR: {sanitize_for_log(str(error))}")
@@ -202,6 +207,29 @@ class PrepOrchestrator:
                     None,
                 )
             )
+        except PrepRefinementPause as pause:
+            log_lines.append(f"PAUSED: {sanitize_for_log(str(pause))}")
+            prep_paths.log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+            save_prep_state(
+                prep_paths.state,
+                PrepRunState(
+                    status=PrepStatus.RUNNING,
+                    current_phase_key=_get_completed_phase_key(
+                        registry=self._registry,
+                        completed_steps=completed_steps,
+                    ),
+                    completed_steps=completed_steps,
+                ),
+            )
+            _write_json(
+                prep_paths.manifest,
+                _finalize_manifest_payload(
+                    manifest,
+                    prep_paths=prep_paths,
+                    analysis_paths=analysis_paths,
+                ),
+            )
+            return ExitCode.SUCCESS
 
         log_lines.append("Prep completed")
         prep_paths.log.write_text("\n".join(log_lines) + "\n", encoding="utf-8")
@@ -238,13 +266,59 @@ class PrepOrchestrator:
         return ExitCode.SUCCESS
 
     def resume_prep(self, workspace: Path, auto_proceed: bool = False) -> ExitCode:
-        del auto_proceed
         prep_paths = build_prep_paths(Path(workspace))
         if load_prep_state(prep_paths.state) is None:
             return ExitCode.STATE_ERROR
         if prep_paths.complete.exists():
             return ExitCode.SUCCESS
-        return ExitCode.STATE_ERROR
+        analysis_paths = build_analysis_artifact_paths(Path(workspace))
+        if not analysis_paths.annotation_refinement_request.exists():
+            return ExitCode.STATE_ERROR
+        if not analysis_paths.annotation_refined_proposals.exists():
+            return ExitCode.STATE_ERROR
+        try:
+            from gm_kit.pdf_convert.prep.handlers import (
+                handle_finalize_reviewed_guidance,
+                handle_render_annotated_prep_pdf,
+                handle_seed_annotation_review,
+            )
+
+            handle_seed_annotation_review(analysis_paths=analysis_paths, auto_proceed=auto_proceed)
+            manifest_payload = json.loads(prep_paths.manifest.read_text(encoding="utf-8"))
+            manifest = PrepManifest.from_dict(manifest_payload)
+            pdf_path = Path(manifest.pdf_path)
+            handle_render_annotated_prep_pdf(
+                pdf_path=pdf_path,
+                analysis_paths=analysis_paths,
+            )
+            handle_finalize_reviewed_guidance(analysis_paths=analysis_paths)
+        except Exception:
+            return ExitCode.FILE_ERROR
+
+        _write_json(
+            prep_paths.manifest,
+            _finalize_manifest_payload(
+                manifest,
+                prep_paths=prep_paths,
+                analysis_paths=analysis_paths,
+            ),
+        )
+        _write_json(
+            prep_paths.complete,
+            {
+                "status": PrepStatus.COMPLETED.value,
+                "manifest_path": str(prep_paths.manifest),
+            },
+        )
+        save_prep_state(
+            prep_paths.state,
+            PrepRunState(
+                status=PrepStatus.COMPLETED,
+                current_phase_key=None,
+                completed_steps=load_prep_state(prep_paths.state).completed_steps,
+            ),
+        )
+        return ExitCode.SUCCESS
 
     def revise_prep_guidance(self, workspace: Path) -> ExitCode:
         prep_paths = build_prep_paths(Path(workspace))
@@ -288,6 +362,8 @@ class PrepOrchestrator:
         analysis_paths: PrepAnalysisArtifactPaths,
         log_lines: list[str],
         auto_proceed: bool,
+        skip_callout_refinement: bool,
+        callout_refinement_mode: str | None,
     ) -> list[str]:
         completed_steps: list[str] = []
         current_phase_key: str | None = None
@@ -322,6 +398,8 @@ class PrepOrchestrator:
                         prep_paths=prep_paths,
                         analysis_paths=analysis_paths,
                         auto_proceed=auto_proceed,
+                        skip_callout_refinement=skip_callout_refinement,
+                        callout_refinement_mode=callout_refinement_mode,
                     )
                 except Exception as error:
                     raise _PrepStepFailure(
@@ -476,11 +554,17 @@ def _build_artifacts(
         analysis_paths.guidance_defaults,
         analysis_paths.annotation_proposals,
         analysis_paths.annotation_refinement_hints,
+        analysis_paths.annotation_refinement_request,
+        analysis_paths.annotation_refinement_manifest,
+        analysis_paths.annotation_refined_proposals,
         analysis_paths.annotation_review_edits,
         analysis_paths.guidance_resolved,
         analysis_paths.reviewed_guidance,
         analysis_paths.annotated_pdf,
     ]
+    if analysis_paths.annotation_refinement_crops_dir.exists():
+        for crop_path in sorted(analysis_paths.annotation_refinement_crops_dir.glob("*.png")):
+            optional_paths.append(crop_path)
     for path in optional_paths:
         if path.exists():
             artifacts.append(

@@ -21,6 +21,11 @@ class PrepAnalysisArtifactPaths:
     guidance_defaults: Path
     annotation_proposals: Path
     annotation_refinement_hints: Path
+    annotation_refinement_dir: Path
+    annotation_refinement_request: Path
+    annotation_refinement_manifest: Path
+    annotation_refinement_crops_dir: Path
+    annotation_refined_proposals: Path
     annotation_review_edits: Path
     guidance_resolved: Path
     reviewed_guidance: Path
@@ -48,6 +53,15 @@ def build_analysis_artifact_paths(
         guidance_defaults=prep_root / "prep-guidance.defaults.yml",
         annotation_proposals=prep_root / "annotation-proposals.json",
         annotation_refinement_hints=prep_root / "annotation-refinement-hints.json",
+        annotation_refinement_dir=prep_root / "annotation-refinement",
+        annotation_refinement_request=(
+            prep_root / "annotation-refinement" / "annotation-refinement-request.json"
+        ),
+        annotation_refinement_manifest=(
+            prep_root / "annotation-refinement" / "annotation-refinement-inputs.json"
+        ),
+        annotation_refinement_crops_dir=prep_root / "annotation-refinement" / "crops",
+        annotation_refined_proposals=prep_root / "annotation-refined-proposals.json",
         annotation_review_edits=prep_root / "annotation-review.edits.json",
         guidance_resolved=prep_root / "prep-guidance.resolved.json",
         reviewed_guidance=prep_root / "prep-guidance.reviewed.json",

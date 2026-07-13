@@ -26,6 +26,7 @@ from gm_kit.pdf_convert.prep.handlers import (
     render_annotated_prep_pdf,
 )
 from gm_kit.pdf_convert.prep.orchestrator import PrepOrchestrator as _PrepOrchestrator
+from gm_kit.pdf_convert.prep.refinement import build_callout_refinement_inputs
 from gm_kit.pdf_convert.prep.registry import PREP_PHASE_KEYS as _PREP_PHASE_KEYS
 from gm_kit.pdf_convert.prep.registry import PrepRegistry as _PrepRegistry
 from gm_kit.pdf_convert.prep.registry_types import (
@@ -67,6 +68,7 @@ __all__ = [
     "build_annotation_proposals",
     "build_annotation_review_edits",
     "build_final_resolved_guidance",
+    "build_callout_refinement_inputs",
     "build_effective_prep_artifact_paths",
     "build_chunk_plan",
     "detect_callout_proposals",

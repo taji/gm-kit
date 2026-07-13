@@ -23,12 +23,13 @@ def _resolve_prep_target_path(pdf_path: str | None, output: str | None) -> Path:
     return Path(resolved)
 
 
-def run_analyze_and_prep_command(
+def run_analyze_and_prep_command(  # noqa: PLR0913
     pdf_path: str | None,
     output: str | None,
     resume: bool,
     status: bool,
     yes: bool,
+    skip_callout_refinement: bool,
 ) -> None:
     operation_flags = [resume, status]
     if sum(bool(flag) for flag in operation_flags) > 1:
@@ -60,6 +61,7 @@ def run_analyze_and_prep_command(
             Path(pdf_path),
             output_dir=Path(output) if output else None,
             auto_proceed=yes,
+            skip_callout_refinement=skip_callout_refinement,
         )
     )
 

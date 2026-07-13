@@ -209,7 +209,7 @@ def pdf_convert(  # noqa: PLR0913
 
 
 @app.command("analyze-and-prep-pdf")
-def analyze_and_prep_pdf(
+def analyze_and_prep_pdf(  # noqa: PLR0913
     pdf_path: str = typer.Argument(
         None,
         help="Path to the PDF file to analyze and prep",
@@ -234,6 +234,11 @@ def analyze_and_prep_pdf(
         "--yes",
         help="Non-interactive mode (accept defaults)",
     ),
+    skip_callout_refinement: bool = typer.Option(
+        False,
+        "--skip-callout-refinement",
+        help="Skip the optional callout refinement pass",
+    ),
 ) -> None:
     """Analyze a PDF and prepare workspace artifacts."""
     from gm_kit.pdf_convert.prep.cli_helpers import run_analyze_and_prep_command
@@ -244,6 +249,7 @@ def analyze_and_prep_pdf(
         resume=resume,
         status=status,
         yes=yes,
+        skip_callout_refinement=skip_callout_refinement,
     )
 
 

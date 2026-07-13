@@ -123,6 +123,8 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         {"name": "prep-guidance.defaults.yml", "status": "ready"},
         {"name": "annotation-proposals.json", "status": "ready"},
         {"name": "annotation-refinement-hints.json", "status": "ready"},
+        {"name": "annotation-refinement/annotation-refinement-request.json", "status": "ready"},
+        {"name": "annotation-refinement/annotation-refinement-inputs.json", "status": "ready"},
         {"name": "annotation-review.edits.json", "status": "ready"},
         {"name": "prep-guidance.resolved.json", "status": "ready"},
         {"name": "annotated-prep.pdf", "status": "ready"},
@@ -137,6 +139,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     assert (prep_root / "prep-guidance.defaults.yml").exists()
     assert (prep_root / "annotation-proposals.json").exists()
     assert (prep_root / "annotation-refinement-hints.json").exists()
+    assert (prep_root / "annotation-refinement" / "annotation-refinement-inputs.json").exists()
     assert (prep_root / "prep-guidance.resolved.json").exists()
 
     state = load_prep_state(prep_root / "prep-state.json")
@@ -245,19 +248,22 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
         "chapter",
         "chapter",
     ]
-    assert manifest_payload["artifacts"][-4:] == [
+    assert manifest_payload["artifacts"][-6:] == [
         {"name": "annotation-refinement-hints.json", "status": "ready"},
+        {"name": "annotation-refinement/annotation-refinement-request.json", "status": "ready"},
+        {"name": "annotation-refinement/annotation-refinement-inputs.json", "status": "ready"},
         {"name": "annotation-review.edits.json", "status": "ready"},
         {"name": "prep-guidance.resolved.json", "status": "ready"},
         {"name": "annotated-prep.pdf", "status": "ready"},
     ]
-    assert manifest_payload["artifacts"][8:14] == [
+    assert manifest_payload["artifacts"][8:15] == [
         {"name": "toc-extracted.txt", "status": "ready"},
         {"name": "chapter-index.json", "status": "ready"},
         {"name": "chunk-plan.json", "status": "ready"},
         {"name": "prep-guidance.defaults.yml", "status": "ready"},
         {"name": "annotation-proposals.json", "status": "ready"},
         {"name": "annotation-refinement-hints.json", "status": "ready"},
+        {"name": "annotation-refinement/annotation-refinement-request.json", "status": "ready"},
     ]
     assert "Phase 500: Plan Chunks (prep.plan-chunks) started" in log_output
     assert (
@@ -476,22 +482,48 @@ def test_revise_prep_guidance__should_finalize_callout_reviews_into_shared_prep_
     reviewed_payload = json.loads(
         (prep_root / "prep-guidance.reviewed.json").read_text(encoding="utf-8")
     )
+    refined_proposals_payload = json.loads(
+        (prep_root / "annotation-refined-proposals.json").read_text(encoding="utf-8")
+    )
     manifest_payload = json.loads((prep_root / "prep-manifest.json").read_text(encoding="utf-8"))
 
     assert setup_exit_code == ExitCode.SUCCESS
     assert (prep_root / "annotated-prep.pdf").exists()
     assert revise_exit_code == ExitCode.SUCCESS
+    refined_accepted_callout_proposal = next(
+        proposal
+        for proposal in refined_proposals_payload
+        if proposal["proposal_id"] == accepted_callout_proposal["proposal_id"]
+    )
     assert reviewed_payload["callout_regions"] == [
         {
-            "page": accepted_callout_proposal["page"],
-            "bbox": accepted_callout_proposal["bbox"],
-            "proposal_id": accepted_callout_proposal["proposal_id"],
+            "page": refined_accepted_callout_proposal["page"],
+            "bbox": refined_accepted_callout_proposal["bbox"],
+            "proposal_id": refined_accepted_callout_proposal["proposal_id"],
             "label": "callout_gm",
         }
     ]
     assert reviewed_payload["table_regions"] == []
+    assert len(refined_proposals_payload) == len(annotation_proposals_payload)
+    assert any(
+        proposal["bbox"] != raw_proposal["bbox"]
+        for proposal, raw_proposal in zip(
+            refined_proposals_payload,
+            annotation_proposals_payload,
+            strict=True,
+        )
+        if proposal["label"] == "callout"
+    )
     assert any(
         artifact["name"] == "annotation-proposals.json"
+        for artifact in manifest_payload["artifacts"]
+    )
+    assert any(
+        artifact["name"] == "annotation-refined-proposals.json"
+        for artifact in manifest_payload["artifacts"]
+    )
+    assert any(
+        artifact["name"] == "annotation-refinement/annotation-refinement-request.json"
         for artifact in manifest_payload["artifacts"]
     )
     assert any(
@@ -502,6 +534,47 @@ def test_revise_prep_guidance__should_finalize_callout_reviews_into_shared_prep_
         for artifact in manifest_payload["artifacts"]
     )
     assert not (prep_root / "callout-manifest.json").exists()
+
+
+def test_run_new_prep__should_pause_for_refinement_handoff__when_mode_requests_external_input(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    pdf_path = tmp_path / "sample.pdf"
+    _write_sample_pdf(pdf_path, page_count=3, callout_pages={1})
+    workspace_path = tmp_path / "workspace"
+    monkeypatch.setenv("GMKIT_CALL_OUT_REFINEMENT_MODE", "handoff")
+
+    orchestrator = PrepOrchestrator()
+    exit_code = orchestrator.run_new_prep(
+        pdf_path=pdf_path,
+        output_dir=workspace_path,
+    )
+
+    prep_root = workspace_path / "prep"
+    request_payload = json.loads(
+        (prep_root / "annotation-refinement" / "annotation-refinement-request.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    refined_payload = json.loads((prep_root / "annotation-proposals.json").read_text(encoding="utf-8"))
+
+    assert exit_code == ExitCode.SUCCESS
+    assert request_payload["request_status"] == "ready_for_outer_agent"
+    assert request_payload["refinement_mode"] == "handoff"
+    assert not (prep_root / "prep-complete.json").exists()
+    assert not (prep_root / "annotated-prep.pdf").exists()
+
+    (prep_root / "annotation-refined-proposals.json").write_text(
+        json.dumps(refined_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    resume_exit_code = orchestrator.resume_prep(workspace_path)
+
+    assert resume_exit_code == ExitCode.SUCCESS
+    assert (prep_root / "prep-complete.json").exists()
+    assert (prep_root / "annotated-prep.pdf").exists()
 
 
 def test_run_new_prep__should_return_file_error_without_contract_files__when_pdf_missing(

@@ -1222,6 +1222,21 @@ Requirements:
 
 Success looks like: conversion pipeline supports inserting/reordering steps without cascading numeric renumbering changes.
 
+### E7-16. Optional Callout Refinement Pass **[FEATURE, PLANNED]**
+Feature description:
+Add an optional second pass that uses an image-capable agent to refine only the callout proposals flagged by multi-block traversal hints.
+
+Requirements:
+- Keep code-based callout detection as the first pass.
+- Add a skip flag so the refinement pass can be disabled explicitly.
+- Skip refinement automatically when the active agent cannot analyze images.
+- Use a mock agent in automated tests so the full analyze workflow can run without paid agent usage.
+- Preserve `prep-guidance.reviewed.json` as the final user-reviewed contract.
+- Use the same pause/resume handoff shape as the conversion pipeline: the orchestrator should request vision help, exit cleanly, and resume from a returned refinement artifact instead of calling into a backend directly.
+- Track a follow-up TODO to propagate that same pause/resume handoff pattern into the conversion flow so both pipelines stay aligned.
+
+Success looks like: prep can optionally refine only ambiguous callouts with a capability-gated agent step, while CI can exercise the orchestration path without real agent calls.
+
 ### E7-10. Sig Marker Replacement Discovery **[FEATURE, PLANNED]**
 Feature description:
 Investigate whether the `sigXXX` font-marker mechanism should remain in the pipeline or be replaced with a structured intermediate representation after prep-first conversion is stable.

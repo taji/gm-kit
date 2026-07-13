@@ -28,6 +28,13 @@ from gm_kit.pdf_convert.prep.contracts import (
     PrepGuidanceInput,
     PrepGuidanceResolved,
 )
+from gm_kit.pdf_convert.prep.refinement import (
+    CalloutRefinementCropEntry,
+    PrepRefinementPause,
+    build_callout_refinement_agent,
+    build_callout_refinement_inputs,
+    refine_callout_proposals,
+)
 
 TABLE_PLACEHOLDER_BBOX = [72.0, 240.0, 520.0, 610.0]
 FULL_PAGE_PLACEHOLDER_BBOX = [0.0, 0.0, 612.0, 792.0]
@@ -362,9 +369,65 @@ def handle_generate_annotation_proposals(
         + "\n",
         encoding="utf-8",
     )
+    skip_callout_refinement = bool(_context.get("skip_callout_refinement", False))
+    refinement_entries = build_callout_refinement_inputs(
+        pdf_path=pdf_path,
+        proposals=[proposal for proposal in proposals if proposal.label == "callout"],
+        refinement_hints=callout_detection.refinement_hints,
+        guidance_input=guidance_input,
+        manifest_path=analysis_paths.annotation_refinement_manifest,
+        crops_dir=analysis_paths.annotation_refinement_crops_dir,
+    )
+    refinement_mode = str(_context.get("callout_refinement_mode") or "").strip().lower()
+    analysis_paths.annotation_refinement_request.write_text(
+        json.dumps(
+            {
+                "source_pdf_path": str(pdf_path),
+                "proposal_count": len(refinement_entries),
+                "crops_dir": str(analysis_paths.annotation_refinement_crops_dir),
+                "request_status": (
+                    "ready_for_outer_agent"
+                    if refinement_entries and not skip_callout_refinement
+                    else "not_requested"
+                ),
+                "refinement_mode": refinement_mode or "mock",
+                "items": [entry.to_dict() for entry in refinement_entries],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    if refinement_mode == "handoff" and refinement_entries and not skip_callout_refinement:
+        raise PrepRefinementPause(
+            str(analysis_paths.annotation_refinement_request),
+            "Write `annotation-refined-proposals.json` and resume prep after the handoff.",
+        )
+    refined_proposals = _maybe_refine_callout_proposals(
+        analysis_paths=analysis_paths,
+        proposals=proposals,
+        refinement_entries=refinement_entries,
+        skip_callout_refinement=skip_callout_refinement,
+    )
+    if refined_proposals is not None:
+        analysis_paths.annotation_refined_proposals.write_text(
+            json.dumps(
+                [proposal.to_dict() for proposal in refined_proposals],
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
     analysis_paths.guidance_resolved.write_text(
         json.dumps(
-            build_resolved_guidance(filtered_proposals).to_dict(),
+            build_resolved_guidance(
+                _filter_annotation_proposals(
+                    refined_proposals if refined_proposals is not None else filtered_proposals,
+                    guidance_input=guidance_input,
+                )
+            ).to_dict(),
             indent=2,
             sort_keys=True,
         )
@@ -408,7 +471,7 @@ def handle_render_annotated_prep_pdf(
 ) -> None:
     """Render the annotated prep PDF used for manual review."""
     guidance_input = _load_guidance_defaults(analysis_paths.guidance_defaults)
-    proposals = _load_annotation_proposals(analysis_paths.annotation_proposals)
+    proposals = _load_effective_annotation_proposals(analysis_paths)
     proposals = _filter_annotation_proposals(
         proposals,
         guidance_input=guidance_input,
@@ -426,7 +489,7 @@ def handle_finalize_reviewed_guidance(
     **_context: object,
 ) -> None:
     """Regenerate reviewed guidance from the review artifact."""
-    proposals = _load_annotation_proposals(analysis_paths.annotation_proposals)
+    proposals = _load_effective_annotation_proposals(analysis_paths)
     review_edits = _load_annotation_review_edits(analysis_paths.annotation_review_edits)
     page_count = _load_page_count(analysis_paths.metadata)
     explicit_skip_pages = list(review_edits.skip_pages_explicit)
@@ -836,6 +899,15 @@ def _load_annotation_proposals(path: Path) -> list[AnnotationProposal]:
     return proposals
 
 
+def _load_effective_annotation_proposals(
+    analysis_paths: PrepAnalysisArtifactPaths,
+) -> list[AnnotationProposal]:
+    refined_path = analysis_paths.annotation_refined_proposals
+    if refined_path.exists():
+        return _load_annotation_proposals(refined_path)
+    return _load_annotation_proposals(analysis_paths.annotation_proposals)
+
+
 def _load_annotation_review_edits(path: Path) -> AnnotationReviewEdits:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -888,6 +960,54 @@ def _filter_annotation_proposals(
             continue
         filtered.append(proposal)
     return filtered
+
+
+def _maybe_refine_callout_proposals(
+    *,
+    analysis_paths: PrepAnalysisArtifactPaths,
+    proposals: list[AnnotationProposal],
+    refinement_entries: list[CalloutRefinementCropEntry],
+    skip_callout_refinement: bool,
+) -> list[AnnotationProposal] | None:
+    if skip_callout_refinement:
+        typer.echo("INFO: Callout refinement skipped by explicit flag")
+        _remove_file_if_exists(analysis_paths.annotation_refined_proposals)
+        return None
+
+    selected_agent = build_callout_refinement_agent()
+    if selected_agent is None:
+        typer.echo(
+            "INFO: Callout refinement skipped because the active agent "
+            "cannot inspect images"
+        )
+        _remove_file_if_exists(analysis_paths.annotation_refined_proposals)
+        return None
+    if not refinement_entries:
+        _remove_file_if_exists(analysis_paths.annotation_refined_proposals)
+        return None
+
+    refined_proposals, decisions = refine_callout_proposals(
+        proposals=proposals,
+        crop_entries=refinement_entries,
+        agent=selected_agent,
+        skip_refinement=False,
+    )
+    if decisions:
+        analysis_paths.annotation_refined_proposals.write_text(
+            json.dumps(
+                [proposal.to_dict() for proposal in refined_proposals],
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    return refined_proposals
+
+
+def _remove_file_if_exists(path: Path) -> None:
+    if path.exists():
+        path.unlink()
 
 
 def _review_status_for_mode(review_mode: str) -> str:

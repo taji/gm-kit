@@ -465,18 +465,20 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
     runner = CliRunner()
     captured: dict[str, Any] = {}
 
-    def _fake_run_analyze_and_prep_command(
+    def _fake_run_analyze_and_prep_command(  # noqa: PLR0913
         pdf_path: str | None,
         output: str | None,
         resume: bool,
         status: bool,
         yes: bool,
+        skip_callout_refinement: bool,
     ) -> None:
         captured["pdf_path"] = pdf_path
         captured["output"] = output
         captured["resume"] = resume
         captured["status"] = status
         captured["yes"] = yes
+        captured["skip_callout_refinement"] = skip_callout_refinement
 
     monkeypatch.setattr(
         "gm_kit.pdf_convert.prep.cli_helpers.run_analyze_and_prep_command",
@@ -493,6 +495,7 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
             "--resume",
             "--status",
             "--yes",
+            "--skip-callout-refinement",
         ],
     )
 
@@ -503,4 +506,5 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
         "resume": True,
         "status": True,
         "yes": True,
+        "skip_callout_refinement": True,
     }
