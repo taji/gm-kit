@@ -12,8 +12,9 @@ Included:
 - code-first callout detection remains the primary pass
 - refinement only runs for proposals flagged by multi-block traversal hints
 - the pass is explicitly skippable with a CLI flag
-- the orchestrator exits cleanly when vision refinement is requested but not yet supplied
-- a mock handoff path is available for automated tests and CI
+- the workflow supports two explicit modes:
+  - `mock`: refine inline with a deterministic local proxy and complete in one CLI run
+  - `handoff`: write a request artifact, pause, and resume after an external response artifact is supplied
 - refinement happens before the user review step
 - reviewed guidance remains the final user-authored contract
 
@@ -28,13 +29,14 @@ Excluded:
 
 E7-15 established the first-pass callout detector and the hint artifact that records multi-block boundary warnings.
 
-E7-16 adds a follow-up refinement handoff:
+E7-16 adds a follow-up refinement step with two execution modes:
+
 1. code detects callout proposals and emits refinement hints
-2. the orchestrator decides whether refinement is enabled
-3. if refinement is requested, the orchestrator writes a request artifact and exits cleanly
-4. the outer agent or test harness performs the vision-aware refinement
-5. the outer agent writes a response artifact and re-invokes the command
-6. the orchestrator reads the refinement response and applies the geometry update
+2. the orchestrator selects the refinement mode
+3. in `mock` mode, the orchestrator uses the deterministic local proxy and completes prep in one run
+4. in `handoff` mode, the orchestrator writes a request artifact and exits cleanly
+5. the outer agent or test harness supplies the response artifact
+6. the orchestrator resumes from the response artifact and applies the geometry update
 7. the user still reviews the resulting annotated PDF
 8. the user may still revise guidance into `prep-guidance.reviewed.json`
 
@@ -44,12 +46,14 @@ The second pass is not a replacement for human review. It is a targeted geometry
 
 The refinement flow should preserve three separate responsibilities:
 - code detects anchors and initial bounding boxes
-- the outer agent performs the vision-aware refinement when requested
+- the mock proxy can complete inline for CLI convenience and CI coverage
+- the outer agent performs the vision-aware refinement when `handoff` mode is selected
 - the orchestrator resumes from a returned refinement artifact and continues prep
 
 The pipeline needs a clear handoff gate:
 - explicit CLI skip flag disables refinement
-- if no vision-capable path is available, the orchestrator writes the request and pauses instead of guessing
+- `mock` mode runs inline and does not pause
+- `handoff` mode writes the request artifact and pauses instead of guessing
 - failed refinement must not block the rest of prep unless the user explicitly asks for strict behavior later
 
 The refinement pass should operate on a narrow subset of proposals:
@@ -80,6 +84,8 @@ The response artifact must include enough information to:
 - record the revised rectangle
 - record the reason for the change
 - record when the refinement left a proposal unchanged
+
+The inline `mock` mode still uses the same geometry contract, but it writes the response artifact immediately instead of pausing.
 
 ## Handoff Contract
 
@@ -120,7 +126,8 @@ Refinement must be skipped when any of the following are true:
 - no proposals are flagged for refinement
 
 Default behavior should be opportunistic:
-- request refinement when supported and not explicitly skipped
+- run the inline mock proxy when `mock` mode is selected
+- request refinement when `handoff` mode is selected and not explicitly skipped
 - otherwise continue with the raw proposals and log why refinement was bypassed
 
 The log output should be explicit enough for debugging but not noisy enough to drown out the normal prep flow.
@@ -129,15 +136,16 @@ The log output should be explicit enough for debugging but not noisy enough to d
 
 Automated tests must not depend on paid or remote agent usage.
 
-E7-16 therefore needs a mock handoff implementation that:
+E7-16 therefore needs a mock refinement implementation that:
 - accepts the same request shape as the real agent-facing workflow
 - returns deterministic refinement output for test fixtures
-- can be swapped into the harness without changing orchestration code
+- can be used inline by the orchestrator in `mock` mode
+- can also be used by tests or harnesses to synthesize the response artifact for `handoff` mode
 - can emulate both successful refinement and skip/no-op behavior
 - is intentionally low-fidelity and only meant to keep the analyze flow moving
 - should not be treated as a substitute for a real image-capable refinement model
 
-The mock should be step-specific rather than generic. The test fixture should be able to verify that the pipeline reaches the refinement handoff and that the resulting geometry is applied consistently.
+The mock should be step-specific rather than generic. The test fixture should be able to verify that the pipeline reaches the refinement handoff in `handoff` mode and that the resulting geometry is applied consistently.
 
 ## User Experience
 
@@ -152,17 +160,22 @@ The user should not need to interact with the refinement handoff directly unless
 ## Testing Strategy
 
 E7-16 must prove:
+- `mock` mode completes in one CLI run without pausing
 - refinement is requested only when hints are present and the pass is enabled
 - the explicit skip flag bypasses refinement
-- the mock handoff can drive the orchestration path in CI
+- `handoff` mode writes a request artifact and resumes cleanly from a response artifact
+- the mock refinement object can drive both the inline and synthesized-response paths
 - valid refinement responses update proposal geometry
 - invalid or missing refinement responses fall back to raw proposal geometry
 - the review contract remains intact
 
 ## Acceptance Outcome
 
-E7-16 is complete when the prep pipeline can optionally refine ambiguous callout geometry through an external vision handoff, while:
+E7-16 is complete when the prep pipeline can optionally refine ambiguous callout geometry through either:
+- an inline deterministic mock pass, or
+- an external vision handoff,
+while:
 - preserving raw detection evidence
 - keeping the manual review flow intact
-- supporting a deterministic mock-handoff path for CI
+- supporting a deterministic mock path for CI
 - avoiding unnecessary agent calls when refinement is skipped or unsupported

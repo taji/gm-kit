@@ -2,11 +2,14 @@
 
 > **For agentic workers:** Use the smallest possible implementation slices, keep the worktree as the source of truth, and do not run refinement against the root repo by accident.
 
-**Goal:** Add an optional image-capable refinement pass for ambiguous callout proposals, with a mock-agent path for tests and a clean bypass when refinement is skipped or unsupported.
+**Goal:** Add an optional image-capable refinement pass for ambiguous callout proposals, with two supported execution modes:
 
-**Architecture:** Keep the current code-first callout detection intact. Insert a narrow refinement step that consumes only the proposals flagged by multi-block traversal hints, asks an image-capable agent to adjust geometry, and then renders the review PDF from the refined geometry. Preserve raw evidence and keep the user review contract unchanged.
+- `mock`: inline deterministic refinement for CLI convenience and CI
+- `handoff`: request/response pause-resume flow for outer-agent driven refinement
 
-The refinement images must be rendered from the original source PDF, not from `annotated-prep.pdf`. Each crop should include padding so the agent can see the callout background, border, and nearby context before it decides whether the box needs to expand or contract.
+**Architecture:** Keep the current code-first callout detection intact. Insert a narrow refinement step that consumes only the proposals flagged by multi-block traversal hints and then routes through either the inline mock proxy or the explicit pause/resume handoff flow. Preserve raw evidence and keep the user review contract unchanged.
+
+The refinement images must be rendered from the original source PDF, not from `annotated-prep.pdf`. Each crop should include padding so the refinement step can see the callout background, border, and nearby context before it decides whether the box needs to expand or contract.
 
 **Tech Stack:** Python 3.13.7, existing prep pipeline modules under `src/gm_kit/pdf_convert/prep/`, PyMuPDF for page imagery, pytest for unit/integration coverage, `just` for repo checks.
 
@@ -20,7 +23,6 @@ The refinement images must be rendered from the original source PDF, not from `a
 - `src/gm_kit/pdf_convert/prep/orchestrator.py`
 - `src/gm_kit/pdf_convert/prep/callout_detection.py`
 - `src/gm_kit/pdf_convert/prep/refinement.py` or equivalent helper module
-- `src/gm_kit/pdf_convert/prep/refinement_images.py` or equivalent helper module
 - `tests/unit/pdf_convert/prep/test_callout_detection.py`
 - `tests/unit/pdf_convert/prep/test_handlers.py`
 - `tests/unit/pdf_convert/prep/test_orchestrator.py`
@@ -43,6 +45,8 @@ The exact module split can stay small if the helper logic is straightforward, bu
 Write tests that prove:
 - a proposal with a multi-block traversal hint is eligible for refinement
 - a proposal without a hint is not sent to the refinement pass
+- inline `mock` mode refines and completes in one run
+- `handoff` mode writes a request artifact and waits for a response artifact
 - a refinement response can replace the original bbox
 - a missing refinement response leaves the original bbox unchanged
 
@@ -69,7 +73,7 @@ Add a small refinement helper that:
 - [ ] **Step 3: Run the focused unit tests**
 
 Run:
-`uv run --python "3.13.7" --extra dev -- pytest tests/unit/pdf_convert/prep/test_callout_detection.py -q`
+`uv run --python "3.13.7" --extra dev -- pytest tests/unit/pdf_convert/prep/test_refinement.py -q`
 
 Expected: the new refinement-related tests fail first, then pass once the helper exists.
 
@@ -87,9 +91,9 @@ Expected: the new refinement-related tests fail first, then pass once the helper
 - [ ] **Step 1: Add tests for the orchestration branches**
 
 Cover these cases:
-- refinement runs when enabled and supported
+- inline `mock` mode runs to completion without pausing
+- `handoff` mode writes a request artifact and pauses cleanly
 - refinement is skipped when the CLI flag is set
-- refinement is skipped when the active agent lacks image capability
 - the pipeline logs a clear reason for bypass
 
 - [ ] **Step 2: Implement the orchestration step**
@@ -97,8 +101,9 @@ Cover these cases:
 Update the prep handler/orchestrator so it:
 - loads the raw proposals and refinement hints
 - checks the explicit skip flag first
-- checks image capability second
-- invokes refinement only for eligible proposals
+- runs inline mock refinement when `mock` mode is selected
+- writes a request artifact and pauses when `handoff` mode is selected
+- applies the response artifact on resume
 - writes the refined proposal artifact used to render the review PDF
 
 Keep the raw evidence artifact separate so debugging remains possible after a failed or partial refinement.
@@ -126,6 +131,7 @@ The mock agent should:
 - return deterministic refined geometry for known fixtures
 - support a no-op or skip response for negative-path coverage
 - operate on crops rendered from the source PDF so the test path matches the production input contract
+- be usable both inline and as a response generator for `handoff` mode tests
 
 - [ ] **Step 2: Add an end-to-end integration test**
 
@@ -133,6 +139,7 @@ Verify the analyze-prep workflow can run with the mock agent and produce:
 - a refined annotation artifact
 - a rendered annotated PDF
 - the same reviewed contract path as the real workflow
+- a clean pause/resume handoff when `handoff` mode is selected
 
 Suggested test name:
 
@@ -144,7 +151,7 @@ def test_analyze_and_prep_pdf__should_refine_flagged_callouts__when_mock_agent_i
 - [ ] **Step 3: Run the integration slice**
 
 Run:
-`uv run --python "3.13.7" --extra dev -- pytest tests/integration/pdf_convert/test_callout_refinement_pass.py -q`
+`uv run --python "3.13.7" --extra dev -- pytest tests/integration/pdf_convert/test_callout_bbox_refinement.py -q`
 
 Expected: PASS without calling a real agent.
 

@@ -24,6 +24,31 @@ Next Steps:
 
 Recorded by: Codex
 
+Session: 2026-07-14 - Two-Mode Refinement Contract Finalized
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-14
+
+Work Completed:
+1. Reframed the refinement design around two explicit modes: `mock` and `handoff`.
+2. Updated the implementation plan so `mock` completes inline while `handoff` writes a request artifact and pauses for an external response.
+3. Kept the integration coverage aligned with the actual Homebrewery handoff test file.
+
+Key Decisions:
+- `mock` is the CLI convenience / CI mode and should not require a resume cycle.
+- `handoff` is the outer-agent mode and should use the request/response pause-resume flow.
+- The mock object remains useful both inline and as the response generator for handoff tests.
+
+Current State:
+- The design and plan now reflect the final two-mode contract.
+- Existing code and tests already largely match this shape; only documentation needed to be realigned.
+
+Next Steps:
+1. Let the user review the updated design/plan wording.
+2. If approved, continue with any final cleanup or commit steps that remain.
+
+Recorded by: Codex
+
 Session: 2026-07-13 - Handoff Harness Regression Completed
 --------------------------------------------------------
 Branch: e7-16-callout-refinement-pass
