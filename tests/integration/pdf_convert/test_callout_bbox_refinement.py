@@ -70,6 +70,7 @@ def test_analyze_and_prep_pdf__should_pause_and_resume_handoff__when_refinement_
     assert analyze_exit_code == ExitCode.SUCCESS
     assert request_path.exists()
     assert not refined_path.exists()
+    assert (prep_root / "annotated-prep.pdf").exists()
 
     request_payload = json.loads(request_path.read_text(encoding="utf-8"))
     proposals_payload = json.loads((prep_root / "annotation-proposals.json").read_text(encoding="utf-8"))
@@ -79,6 +80,9 @@ def test_analyze_and_prep_pdf__should_pause_and_resume_handoff__when_refinement_
     )
     assert request_payload["request_status"] == "ready_for_outer_agent"
     assert request_payload["refinement_mode"] == "handoff"
+    assert request_payload["response_artifact"] == "annotation-refined-proposals.json"
+    assert request_payload["resume_command"] == "gmkit analyze-and-prep-pdf --resume <workspace>"
+    assert request_payload["instructions"]
 
     resume_exit_code = PrepOrchestrator().resume_prep(workspace)
     assert resume_exit_code == ExitCode.SUCCESS

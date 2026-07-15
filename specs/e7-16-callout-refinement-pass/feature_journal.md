@@ -353,3 +353,30 @@ Next Steps:
 3. Add unit and integration coverage for skip, capability-gate, and mock-agent behavior.
 
 Recorded by: Codex
+
+Session: 2026-07-14 - Handoff renders annotated PDF before pause
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-14
+
+Work Completed:
+1. Moved annotated PDF rendering before the handoff pause in prep callout refinement.
+2. Updated unit and integration tests to require `annotated-prep.pdf` in handoff mode.
+3. Reran the Homebrewery prep flow in handoff mode, wrote a refined bbox proposal, and resumed successfully.
+4. Verified the regenerated FreeText annotation directly in the PDF and confirmed it is yellow, semi-transparent, and properly sized.
+
+Key Decisions:
+- The handoff flow must leave a reviewable `annotated-prep.pdf` on disk before pausing.
+- Manual outer-agent refinement continues to use `annotation-refined-proposals.json` as the response artifact.
+
+Current State:
+- The handoff run completes the prep-side PDF render before pausing.
+- The Homebrewery fixture now produces a usable annotated PDF for manual review.
+- The refined callout bbox is stable and the resume path completes successfully.
+
+Next Steps:
+1. Decide whether to commit the updated handoff behavior now.
+2. If continuing, run any broader repo checks needed for final confidence.
+3. Then hand off for manual review or move to the next E7 item.
+
+Recorded by: Codex

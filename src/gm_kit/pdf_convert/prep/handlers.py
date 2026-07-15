@@ -391,6 +391,21 @@ def handle_generate_annotation_proposals(
                     else "not_requested"
                 ),
                 "refinement_mode": refinement_mode or "mock",
+                "instructions": [
+                    "Review the crop images for each listed callout proposal.",
+                    "Adjust only the proposals whose geometry is clearly too loose or too tight.",
+                    (
+                        "Write the updated proposal list to "
+                        "annotation-refined-proposals.json in the prep root."
+                    ),
+                    "Leave proposals unchanged when the current geometry is already correct.",
+                    (
+                        "After writing the response artifact, resume prep with "
+                        "gmkit analyze-and-prep-pdf --resume <workspace>."
+                    ),
+                ],
+                "response_artifact": "annotation-refined-proposals.json",
+                "resume_command": "gmkit analyze-and-prep-pdf --resume <workspace>",
                 "items": [entry.to_dict() for entry in refinement_entries],
             },
             indent=2,
@@ -400,6 +415,11 @@ def handle_generate_annotation_proposals(
         encoding="utf-8",
     )
     if refinement_mode == "handoff" and refinement_entries and not skip_callout_refinement:
+        render_annotated_prep_pdf(
+            pdf_path=pdf_path,
+            proposals=filtered_proposals,
+            output_pdf_path=analysis_paths.annotated_pdf,
+        )
         raise PrepRefinementPause(
             str(analysis_paths.annotation_refinement_request),
             "Write `annotation-refined-proposals.json` and resume prep after the handoff.",

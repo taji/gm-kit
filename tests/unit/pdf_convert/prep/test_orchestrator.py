@@ -562,8 +562,12 @@ def test_run_new_prep__should_pause_for_refinement_handoff__when_mode_requests_e
     assert exit_code == ExitCode.SUCCESS
     assert request_payload["request_status"] == "ready_for_outer_agent"
     assert request_payload["refinement_mode"] == "handoff"
+    assert request_payload["response_artifact"] == "annotation-refined-proposals.json"
+    assert request_payload["resume_command"] == "gmkit analyze-and-prep-pdf --resume <workspace>"
+    assert request_payload["instructions"]
+    assert "annotation-refined-proposals.json" in " ".join(request_payload["instructions"])
     assert not (prep_root / "prep-complete.json").exists()
-    assert not (prep_root / "annotated-prep.pdf").exists()
+    assert (prep_root / "annotated-prep.pdf").exists()
 
     (prep_root / "annotation-refined-proposals.json").write_text(
         json.dumps(refined_payload, indent=2, sort_keys=True) + "\n",
