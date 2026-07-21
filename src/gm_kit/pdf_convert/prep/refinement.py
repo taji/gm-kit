@@ -9,7 +9,7 @@ from typing import Any, Protocol
 import fitz  # type: ignore[import-untyped]
 from PIL import Image
 
-from gm_kit.pdf_convert.prep.callout_detection import CalloutRefinementHint
+from gm_kit.pdf_convert.prep.callout_detection import CalloutRefinementHint, _same_text_column
 from gm_kit.pdf_convert.prep.contracts import AnnotationProposal, PrepGuidanceInput
 
 _DEFAULT_REFINEMENT_DPI = 150
@@ -40,6 +40,30 @@ class CalloutRefinementCropEntry:
             "anchor_text": self.anchor_text,
             "issue": self.issue,
             "collected_block_count": self.collected_block_count,
+            "image_path": self.image_path,
+            "source_pdf_path": self.source_pdf_path,
+            "crop_rect": [float(value) for value in self.crop_rect],
+        }
+
+
+@dataclass(frozen=True)
+class TableRefinementCropEntry:
+    proposal_id: str
+    page: int
+    bbox: list[float]
+    table_title: str
+    table_text: str
+    image_path: str
+    source_pdf_path: str
+    crop_rect: list[float]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "proposal_id": self.proposal_id,
+            "page": self.page,
+            "bbox": [float(value) for value in self.bbox],
+            "table_title": self.table_title,
+            "table_text": self.table_text,
             "image_path": self.image_path,
             "source_pdf_path": self.source_pdf_path,
             "crop_rect": [float(value) for value in self.crop_rect],
@@ -171,12 +195,13 @@ def build_callout_refinement_inputs(  # noqa: PLR0913
                 continue
 
             page = doc[proposal.page - 1]
-            crop_rect = _expanded_crop_rect(
-                proposal.bbox,
-                page.rect,
-                guidance_input.callout_bbox_padding,
+            crop_rect = _expanded_callout_crop_rect(
+                page=page,
+                bbox=proposal.bbox,
+                padding=guidance_input.callout_bbox_padding,
+                max_vertical_gap=guidance_input.callout_max_vertical_gap,
             )
-            crop_path = crops_dir / f"{proposal.proposal_id}_p{proposal.page:03d}.png"
+            crop_path = crops_dir / f"callout-{proposal.proposal_id}_p{proposal.page:03d}.png"
             pixmap = page.get_pixmap(
                 matrix=fitz.Matrix(dpi / 72.0, dpi / 72.0),
                 clip=crop_rect,
@@ -193,6 +218,76 @@ def build_callout_refinement_inputs(  # noqa: PLR0913
                     anchor_text=hint.anchor_text,
                     issue=hint.issue,
                     collected_block_count=hint.collected_block_count,
+                    image_path=str(crop_path),
+                    source_pdf_path=str(pdf_path),
+                    crop_rect=[
+                        float(crop_rect.x0),
+                        float(crop_rect.y0),
+                        float(crop_rect.x1),
+                        float(crop_rect.y1),
+                    ],
+                )
+            )
+    finally:
+        doc.close()
+
+    manifest_payload: dict[str, Any] = {
+        "source_pdf_path": str(pdf_path),
+        "candidate_count": len(entries),
+        "crops_dir": str(crops_dir),
+        "items": [entry.to_dict() for entry in entries],
+    }
+    manifest_path.write_text(
+        json.dumps(manifest_payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return entries
+
+
+def build_table_refinement_inputs(  # noqa: PLR0913
+    *,
+    pdf_path: Path,
+    proposals: list[AnnotationProposal],
+    guidance_input: PrepGuidanceInput,
+    manifest_path: Path,
+    crops_dir: Path,
+    dpi: int = _DEFAULT_REFINEMENT_DPI,
+) -> list[TableRefinementCropEntry]:
+    """Render source-PDF crops for table proposals."""
+    guidance_input.validate()
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    crops_dir.mkdir(parents=True, exist_ok=True)
+
+    entries: list[TableRefinementCropEntry] = []
+    doc = fitz.open(pdf_path)
+    try:
+        for proposal in proposals:
+            if proposal.label != "table":
+                continue
+            if proposal.page < 1 or proposal.page > len(doc):
+                continue
+            page = doc[proposal.page - 1]
+            table_padding = _table_crop_padding(guidance_input.callout_bbox_padding)
+            crop_rect = _expanded_crop_rect(
+                proposal.bbox,
+                page.rect,
+                table_padding,
+            )
+            crop_path = crops_dir / f"table-{proposal.proposal_id}_p{proposal.page:03d}.png"
+            pixmap = page.get_pixmap(
+                matrix=fitz.Matrix(dpi / 72.0, dpi / 72.0),
+                clip=crop_rect,
+                alpha=False,
+            )
+            pixmap.save(crop_path)
+            metadata = proposal.metadata
+            entries.append(
+                TableRefinementCropEntry(
+                    proposal_id=proposal.proposal_id,
+                    page=proposal.page,
+                    bbox=[float(value) for value in proposal.bbox],
+                    table_title=str(metadata.get("table_title", "")),
+                    table_text=str(metadata.get("table_text", "")),
                     image_path=str(crop_path),
                     source_pdf_path=str(pdf_path),
                     crop_rect=[
@@ -382,6 +477,46 @@ def _expanded_crop_rect(
         rect.x1 + padding["right"],
         rect.y1 + padding["bottom"],
     )
+    return fitz.Rect(
+        max(page_rect.x0, expanded.x0),
+        max(page_rect.y0, expanded.y0),
+        min(page_rect.x1, expanded.x1),
+        min(page_rect.y1, expanded.y1),
+    )
+
+
+def _table_crop_padding(base_padding: dict[str, float]) -> dict[str, float]:
+    return {
+        "left": max(base_padding["left"], 8.0),
+        "top": max(base_padding["top"], 12.0),
+        "right": max(base_padding["right"], 8.0),
+        "bottom": max(base_padding["bottom"], 36.0),
+    }
+
+
+def _expanded_callout_crop_rect(
+    *,
+    page: fitz.Page,
+    bbox: list[float],
+    padding: dict[str, float],
+    max_vertical_gap: float,
+) -> fitz.Rect:
+    page_rect = page.rect
+    expanded = _expanded_crop_rect(bbox, page_rect, padding)
+    blocks = [
+        block
+        for block in page.get_text("dict").get("blocks", [])
+        if isinstance(block, dict) and block.get("type") == 0
+    ]
+    for block in sorted(blocks, key=lambda item: float(item.get("bbox", (0.0, 0.0, 0.0, 0.0))[1])):
+        block_rect = fitz.Rect(*block.get("bbox", (0.0, 0.0, 0.0, 0.0)))
+        if block_rect.y1 < expanded.y0:
+            continue
+        if block_rect.y0 - expanded.y1 > max_vertical_gap:
+            break
+        if not _same_text_column(expanded, block_rect):
+            continue
+        expanded = expanded | block_rect
     return fitz.Rect(
         max(page_rect.x0, expanded.x0),
         max(page_rect.y0, expanded.y0),

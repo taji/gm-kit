@@ -30,6 +30,7 @@ def run_analyze_and_prep_command(  # noqa: PLR0913
     status: bool,
     yes: bool,
     skip_callout_refinement: bool,
+    log_output: bool,
 ) -> None:
     operation_flags = [resume, status]
     if sum(bool(flag) for flag in operation_flags) > 1:
@@ -48,6 +49,7 @@ def run_analyze_and_prep_command(  # noqa: PLR0913
             code=orchestrator.resume_prep(
                 target_path,
                 auto_proceed=yes,
+                log_output=log_output,
             )
         )
 
@@ -62,6 +64,7 @@ def run_analyze_and_prep_command(  # noqa: PLR0913
             output_dir=Path(output) if output else None,
             auto_proceed=yes,
             skip_callout_refinement=skip_callout_refinement,
+            log_output=log_output,
         )
     )
 

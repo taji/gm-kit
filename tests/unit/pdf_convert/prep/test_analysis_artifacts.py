@@ -56,6 +56,22 @@ def test_build_analysis_artifact_paths__should_return_expected_subtree__when_wor
         == tmp_path / "workspace" / "prep" / "annotation-refinement" / "crops"
     )
     assert (
+        paths.annotation_table_refinement_request
+        == tmp_path
+        / "workspace"
+        / "prep"
+        / "annotation-refinement"
+        / "annotation-table-refinement-request.json"
+    )
+    assert (
+        paths.annotation_table_refinement_manifest
+        == tmp_path
+        / "workspace"
+        / "prep"
+        / "annotation-refinement"
+        / "annotation-table-refinement-inputs.json"
+    )
+    assert (
         paths.annotation_refined_proposals
         == tmp_path / "workspace" / "prep" / "annotation-refined-proposals.json"
     )

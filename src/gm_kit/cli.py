@@ -234,6 +234,12 @@ def analyze_and_prep_pdf(  # noqa: PLR0913
         "--yes",
         help="Non-interactive mode (accept defaults)",
     ),
+    log_output: bool = typer.Option(
+        False,
+        "--log-output",
+        "--agent-debug",
+        help="Show prep progress on the console and record it in prep.log",
+    ),
     skip_callout_refinement: bool = typer.Option(
         False,
         "--skip-callout-refinement",
@@ -250,6 +256,7 @@ def analyze_and_prep_pdf(  # noqa: PLR0913
         status=status,
         yes=yes,
         skip_callout_refinement=skip_callout_refinement,
+        log_output=log_output,
     )
 
 

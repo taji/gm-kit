@@ -22,20 +22,20 @@ sys.modules.setdefault("tests.unit.pdf_convert.prep.support", prep_support)
 
 CANONICAL_PHASES = [
     PrepPhaseDefinition("prep.initialize-workspace", 100, "Initialize Workspace"),
-    PrepPhaseDefinition("prep.analyze-document", 200, "Analyze Document"),
+    PrepPhaseDefinition("prep.analyze-document", 200, "Analyze PDF Document"),
     PrepPhaseDefinition("prep.extract-assets", 300, "Extract Assets"),
 ]
 
 FULL_CANONICAL_PHASES = [
     PrepPhaseDefinition("prep.initialize-workspace", 100, "Initialize Workspace"),
-    PrepPhaseDefinition("prep.analyze-document", 200, "Analyze Document"),
+    PrepPhaseDefinition("prep.analyze-document", 200, "Analyze PDF Document"),
     PrepPhaseDefinition("prep.extract-assets", 300, "Extract Assets"),
     PrepPhaseDefinition("prep.derive-structure", 400, "Derive Structure"),
     PrepPhaseDefinition("prep.plan-chunks", 500, "Plan Chunks"),
-    PrepPhaseDefinition("prep.prepare-guidance", 600, "Prepare Guidance"),
-    PrepPhaseDefinition("prep.propose-annotations", 700, "Propose Annotations"),
-    PrepPhaseDefinition("prep.review-annotations", 800, "Review Annotations"),
-    PrepPhaseDefinition("prep.finalize-prep-artifacts", 900, "Finalize Prep Artifacts"),
+    PrepPhaseDefinition("prep.prepare-guidance", 600, "Prepare Guidance For Convert Command"),
+    PrepPhaseDefinition("prep.propose-annotations", 700, "Create Annotation Candidates"),
+    PrepPhaseDefinition("prep.review-annotations", 800, "Prepare Review Artifacts"),
+    PrepPhaseDefinition("prep.finalize-prep-artifacts", 900, "Finalize Review Artifacts"),
 ]
 
 
@@ -111,7 +111,7 @@ def test_prep_registry__should_fail_validation__when_duplicate_phase_order_exist
         PrepRegistry(
             phases=[
                 PrepPhaseDefinition("prep.initialize-workspace", 100, "Initialize Workspace"),
-                PrepPhaseDefinition("prep.analyze-document", 100, "Analyze Document"),
+                PrepPhaseDefinition("prep.analyze-document", 100, "Analyze PDF Document"),
             ],
             steps=[],
         )

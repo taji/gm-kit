@@ -439,6 +439,8 @@ def test_cli_analyze_and_prep_pdf__should_expose_long_options_only__when_help_re
     assert "--resume" in result.output
     assert "--status" in result.output
     assert "--yes" in result.output
+    assert "--log-output" in result.output
+    assert "--skip-callout-refinement" in result.output
     assert "  -o" not in result.output
     assert "  -r" not in result.output
     assert "  -s" not in result.output
@@ -472,6 +474,7 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
         status: bool,
         yes: bool,
         skip_callout_refinement: bool,
+        log_output: bool,
     ) -> None:
         captured["pdf_path"] = pdf_path
         captured["output"] = output
@@ -479,6 +482,7 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
         captured["status"] = status
         captured["yes"] = yes
         captured["skip_callout_refinement"] = skip_callout_refinement
+        captured["log_output"] = log_output
 
     monkeypatch.setattr(
         "gm_kit.pdf_convert.prep.cli_helpers.run_analyze_and_prep_command",
@@ -496,6 +500,7 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
             "--status",
             "--yes",
             "--skip-callout-refinement",
+            "--log-output",
         ],
     )
 
@@ -507,4 +512,5 @@ def test_cli_analyze_and_prep_pdf__should_route_to_prep_helper__when_invoked(
         "status": True,
         "yes": True,
         "skip_callout_refinement": True,
+        "log_output": True,
     }

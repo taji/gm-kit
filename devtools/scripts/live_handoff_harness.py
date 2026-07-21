@@ -440,7 +440,11 @@ def main() -> int:
         print("ERROR: Provide --pdf for fresh run, or use --resume.", file=sys.stderr)
         return 2
 
-    root = Path(__file__).resolve().parents[2]
+    script_path = Path(__file__).resolve()
+    if ".worktrees" in script_path.parts:
+        root = script_path.parents[4]
+    else:
+        root = script_path.parents[2]
     output_dir = Path(args.output_dir).resolve()
     if args.pdf:
         pdf_path = Path(args.pdf).resolve()

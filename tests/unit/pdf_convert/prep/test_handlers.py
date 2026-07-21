@@ -10,6 +10,7 @@ from gm_kit.pdf_convert.prep.handlers import (
     create_no_images_pdf,
     extract_images_to_artifacts,
     extract_toc_to_artifact,
+    render_annotated_prep_pdf,
     write_metadata_and_preflight_artifacts,
 )
 
@@ -105,10 +106,10 @@ def test_create_no_images_pdf__should_save_expected_output__when_pdf_is_processe
         images_removed = create_no_images_pdf(
             pdf_path=pdf_path,
             output_pdf_path=output_pdf_path,
-        )
+    )
 
     assert images_removed == 0
-    mock_doc.save.assert_called_once_with(output_pdf_path)
+    mock_doc.save.assert_called_once_with(output_pdf_path, garbage=4, clean=True, deflate=True)
 
 
 def test_create_no_images_pdf__should_return_removed_instance_count__when_images_have_rects(
@@ -181,3 +182,47 @@ def test_write_metadata_and_preflight_artifacts__should_persist_json_outputs__wh
 
     assert (tmp_path / "metadata.json").exists()
     assert (tmp_path / "preflight-report.json").exists()
+
+
+def test_render_annotated_prep_pdf__should_use_distinct_colors__when_tables_and_callouts_are_present(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "sample.pdf"
+    pdf_path.write_text("%PDF-1.7\n", encoding="utf-8")
+    output_path = tmp_path / "annotated-prep.pdf"
+
+    with patch("fitz.open") as mock_open:
+        mock_doc = MagicMock()
+        mock_doc.__len__ = MagicMock(return_value=1)
+        mock_page = MagicMock()
+        mock_doc.__getitem__ = MagicMock(return_value=mock_page)
+
+        callout_annot = MagicMock()
+        table_annot = MagicMock()
+        mock_page.add_freetext_annot.side_effect = [table_annot, callout_annot]
+        mock_open.return_value = mock_doc
+
+        render_annotated_prep_pdf(
+            pdf_path=pdf_path,
+            proposals=[
+                MagicMock(
+                    page=1,
+                    label="table",
+                    proposal_id="ap-table",
+                    bbox=[1.0, 2.0, 3.0, 4.0],
+                ),
+                MagicMock(
+                    page=1,
+                    label="callout",
+                    proposal_id="ap-callout",
+                    bbox=[5.0, 6.0, 7.0, 8.0],
+                ),
+            ],
+            output_pdf_path=output_path,
+        )
+
+    assert mock_page.add_freetext_annot.call_count == 2
+    fill_colors = [call.kwargs["fill_color"] for call in mock_page.add_freetext_annot.call_args_list]
+    assert (0.6000000238418579, 0.7568627595901489, 0.9450980424880981) in fill_colors
+    assert (1, 1, 0) in fill_colors
+    mock_doc.save.assert_called_once_with(output_path, garbage=4, clean=True, deflate=True)

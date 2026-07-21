@@ -24,6 +24,59 @@ Next Steps:
 
 Recorded by: Codex
 
+Session: 2026-07-20 - Prep-specific mock handoff
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-20
+
+Work Completed:
+1. Replaced the generic conversion handoff path with a prep-specific mock-agent script for `analyze-and-prep-pdf`.
+2. Wired `just analyze-homebrewery-with-mock-agent-handoff` to run the prep-specific mock refinement flow directly.
+3. Added focused unit tests for the new prep handoff helper and validated the end-to-end Homebrewery run.
+
+Key Decisions:
+- The prep mock handoff should call `refine_callout_proposals(...)` directly rather than reuse the conversion live-handoff harness.
+- The just target should stay prep-specific so it does not imply a generic conversion-style agent loop.
+- Worktree execution should remain the default; the script now resolves `.python-version` by walking upward until it finds the repo root.
+
+Current State:
+- `just analyze-homebrewery-with-mock-agent-handoff` now runs the prep flow, pauses for refinement, applies the mock refinement adapter, writes `annotation-refined-proposals.json`, and resumes successfully.
+- Focused tests for the new script and existing prep refinement/orchestrator helpers are passing.
+- Broader repo cleanup, lingering worktree diffs, and table-refinement follow-up items remain open.
+
+Next Steps:
+1. Review the generated prep artifacts from the new handoff flow if needed.
+2. Decide whether the prep mock handoff should also cover table refinement in a later pass.
+3. Continue the broader repo cleanup and selective commit/review work.
+
+Recorded by: Codex
+
+Session: 2026-07-21 - Prep handoff verified, next work queued
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-21
+
+Work Completed:
+1. Confirmed the prep-specific mock-agent handoff flow is working from the just target.
+2. Added a backlog item for slash-command/prompt/script coverage plus skills-based agent integration.
+3. Recorded the next follow-up work as skip-page validation, slash-command testing, and skills integration discussion.
+
+Key Decisions:
+- The next analyze-command validation should focus on skip-page behavior before widening scope further.
+- Slash-command artifacts and the skills-vs-command agent integration topic should be tracked as a separate backlog item rather than folded into the current prep refinement work.
+
+Current State:
+- `just analyze-homebrewery-with-mock-agent-handoff` now runs the prep-specific mock refinement loop successfully.
+- The backlog now includes a dedicated item for analyze slash-command artifacts and skills-based agent integration.
+- Skip-page behavior, slash-command generation, and skills integration remain unimplemented.
+
+Next Steps:
+1. Review and test the skip-page feature.
+2. Create and test the analyze slash-command/prompt artifacts.
+3. Discuss and design the skills-based agent integration follow-up.
+
+Recorded by: Codex
+
 Session: 2026-07-14 - Two-Mode Refinement Contract Finalized
 --------------------------------------------------------
 Branch: e7-16-callout-refinement-pass
@@ -378,5 +431,128 @@ Next Steps:
 1. Decide whether to commit the updated handoff behavior now.
 2. If continuing, run any broader repo checks needed for final confidence.
 3. Then hand off for manual review or move to the next E7 item.
+
+Recorded by: Codex
+
+Session: 2026-07-14 - Added table refinement follow-up story
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-14
+
+Work Completed:
+1. Added a new Epic 7 backlog story for an optional table refinement pass that mirrors the callout pause/revise/resume workflow.
+2. Scoped the story to compare table prep against callout prep and reuse the same reviewable PDF + revise/update + resume pattern.
+
+Key Decisions:
+- Table refinement should follow the same prep-side handoff contract as callouts rather than inventing a separate workflow.
+- The new story is intentionally comparison-driven so the implementation can reuse existing prep artifacts and only close the gaps.
+
+Current State:
+- `BACKLOG.md` now includes `E7-17. Optional Table Refinement Pass`.
+- No implementation work has started for the new table story yet.
+
+Next Steps:
+1. If desired, create the feature folder and Superpowers design/plan for E7-17.
+2. Otherwise, continue with the current E7-16 handoff work or move to the next Epic 7 item.
+
+Recorded by: Codex
+
+Session: 2026-07-14 - Deferred E7-17 design work
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-14
+
+Work Completed:
+1. Added `E7-17. Optional Table Refinement Pass` to `BACKLOG.md`.
+2. Sketched the intended scope as a comparison-driven follow-up to the callout refinement workflow.
+
+Key Decisions:
+- Table refinement will be deferred until tomorrow.
+- The new table story should be developed later as a separate design/plan pass rather than immediately in this session.
+
+Current State:
+- The backlog now tracks the table refinement follow-up, but no E7-17 design or plan files have been created yet.
+- E7-16 remains committed and complete.
+
+Next Steps:
+1. Tomorrow, create the E7-17 feature folder and draft the Superpowers design.
+2. Then write the corresponding implementation plan.
+3. Compare the current table workflow against the callout handoff flow before making code changes.
+
+Recorded by: Codex
+
+Session: 2026-07-17 - Analyze command completion todos
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-17
+
+Work Completed:
+1. Captured the remaining analyze-command work items requested by the user as a structured todo list.
+2. Grouped the remaining work around the agent review handoff, page-skip behavior, chunking behavior, and reviewed-artifact resume flow.
+
+Key Decisions:
+- The remaining analyze work should stay focused on finishing the current first pass before widening scope further.
+- Chunking should be revisited with the goal of simplifying analyze so the same chunk-oriented flow can be used consistently, even for one-page inputs.
+
+Current State:
+- The first-pass analyze/prep pipeline is in a good stopping point, but the agent-driven crop review and resume path still need to be completed and verified.
+- Page skipping, chunking behavior, and reviewed JSON artifact handoff remain open follow-up items.
+
+Next Steps:
+1. Review the current PR/code as it stands now.
+2. Implement agent review of cropped images plus resume handling.
+3. Test page-skip behavior and confirm chunking still works, including the one-page chunk simplification idea.
+4. Add the reviewed JSON artifact flow so convert can consume user-revised prep output.
+
+Recorded by: Codex
+
+Session: 2026-07-17 - Reconciled backlog and journal
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-17
+
+Work Completed:
+1. Reconciled the journal with the new E7-16 backlog todo list.
+2. Kept the remaining analyze work focused on the current first pass: code review, agent crop review/resume, page skipping, chunking, and reviewed artifact handoff.
+
+Key Decisions:
+- The journal and backlog should stay in sync so the remaining work is easy to pick up without re-deriving scope.
+- The analyze follow-up work remains an implementation/validation pass rather than a design rewrite.
+
+Current State:
+- `BACKLOG.md` and the feature journal now describe the same remaining analyze-command work.
+- No additional implementation changes were made in this reconciliation step.
+
+Next Steps:
+1. Review the current PR/code as it stands now.
+2. Implement agent review of cropped images plus resume handling.
+3. Verify page-skip behavior and chunking behavior.
+4. Add the reviewed JSON artifact flow for convert.
+
+Recorded by: Codex
+
+Session: 2026-07-17 - Added analyze run modes
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-17
+
+Work Completed:
+1. Added separate `just` targets for analyze mock-inline mode and harness-driven handoff mode.
+2. Recorded the remaining work item to test both command paths when time allows.
+
+Key Decisions:
+- The mock-inline and handoff flows should be exposed as distinct commands so their behavior is obvious at the terminal.
+- Testing for both flows is still pending and should be tracked explicitly rather than assumed complete.
+
+Current State:
+- `just analyze-homebrewery-with-cli-mock` explains and runs the inline mock-review flow.
+- `just analyze-homebrewery-with-mock-agent-handoff` explains and runs the harness-driven pause/resume flow.
+- Both flows still need manual verification.
+
+Next Steps:
+1. Review the current PR/code as it stands now.
+2. Implement agent review of cropped images plus resume handling.
+3. Verify page-skip behavior and chunking behavior.
+4. Test both new analyze entry points.
 
 Recorded by: Codex

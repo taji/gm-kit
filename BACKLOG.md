@@ -1234,8 +1234,44 @@ Requirements:
 - Preserve `prep-guidance.reviewed.json` as the final user-reviewed contract.
 - Use the same pause/resume handoff shape as the conversion pipeline: the orchestrator should request vision help, exit cleanly, and resume from a returned refinement artifact instead of calling into a backend directly.
 - Track a follow-up TODO to propagate that same pause/resume handoff pattern into the conversion flow so both pipelines stay aligned.
+- Remaining analyze-command todos:
+  - Review the current PR/code as it stands now.
+  - Implement the agent review of cropped images and the resume path end to end.
+- Verify the agent prompt/instruction shape is followed consistently during refinement.
+- Test page-skip behavior.
+- Confirm chunking still works and evaluate whether analyze should always chunk, even for single-page inputs, by treating the first chunk as the unit of work.
+- Exercise chunking with a large fixture to validate the revised flow.
+- Add and validate the reviewed JSON artifact path so user-revised prep output is available to convert.
+- Add and test both `just` entry points for analyze: the mock-inline flow and the harness-driven handoff flow.
 
 Success looks like: prep can optionally refine only ambiguous callouts with a capability-gated agent step, while CI can exercise the orchestration path without real agent calls.
+
+### E7-17. Optional Table Refinement Pass **[FEATURE, PLANNED]**
+Feature description:
+Apply the same pause/revise/resume refinement pattern used for callouts to table detection so ambiguous table proposals can be reviewed before conversion consumes them.
+
+Requirements:
+- Compare the table prep workflow against the callout refinement flow and identify the gaps.
+- Preserve the current table detection first pass as the source of candidate proposals.
+- Render a reviewable annotated PDF for table proposals before any handoff pause.
+- Add a revise/update command that writes finalized table geometry decisions into the machine-readable prep artifact.
+- Resume prep from the refined table artifact so conversion can consume the finalized table contract.
+- Keep the scope limited to aligning the table workflow with the existing callout pattern; do not redesign table detection itself unless the comparison surfaces a concrete mismatch.
+
+Success looks like: table refinement uses the same prep-side review contract as callouts, with reviewable artifacts, a revise step, and a resume path that feeds finalized table decisions into conversion.
+
+### E7-18. Analyze Slash Commands + Skills Integration **[FEATURE, PLANNED]**
+Feature description:
+Create the slash-command, prompt, and script artifacts needed to invoke the analyze/prep workflows through an agent, then update the agent integration model so skills can be supported in addition to plain commands.
+
+Requirements:
+- Add the slash command and prompt artifacts needed to exercise the analyze/prep workflows end to end.
+- Add just targets or helper scripts that make the slash-command flow easy to run in local development.
+- Test the analyze/prep invocation path end to end once the new command artifacts exist.
+- Document and prototype the agent integration changes needed to support skills-based invocation rather than command-only invocation.
+- Keep the developer workflow debuggable from the local workspace while the skills path is being introduced.
+
+Success looks like: the analyze/prep workflow can be invoked through the expected command artifacts, and the repo has a documented path toward skills-based agent integration.
 
 ### E7-10. Sig Marker Replacement Discovery **[FEATURE, PLANNED]**
 Feature description:

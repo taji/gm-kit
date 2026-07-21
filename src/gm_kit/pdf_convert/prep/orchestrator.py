@@ -80,6 +80,7 @@ class PrepOrchestrator:
         output_dir: Path | None = None,
         auto_proceed: bool = False,
         skip_callout_refinement: bool = False,
+        log_output: bool = False,
     ) -> ExitCode:
         resolved_pdf_path = Path(pdf_path).resolve()
         if not _is_readable_pdf_path(resolved_pdf_path):
@@ -138,6 +139,7 @@ class PrepOrchestrator:
                 auto_proceed=auto_proceed,
                 skip_callout_refinement=skip_callout_refinement,
                 callout_refinement_mode=os.environ.get("GMKIT_CALL_OUT_REFINEMENT_MODE"),
+                log_output=log_output,
             )
         except _PrepStepFailure as error:
             log_lines.append(f"ERROR: {sanitize_for_log(str(error))}")
@@ -265,7 +267,13 @@ class PrepOrchestrator:
             return ExitCode.STATE_ERROR
         return ExitCode.SUCCESS
 
-    def resume_prep(self, workspace: Path, auto_proceed: bool = False) -> ExitCode:
+    def resume_prep(
+        self,
+        workspace: Path,
+        auto_proceed: bool = False,
+        log_output: bool = False,
+    ) -> ExitCode:
+        del log_output
         prep_paths = build_prep_paths(Path(workspace))
         if load_prep_state(prep_paths.state) is None:
             return ExitCode.STATE_ERROR
@@ -364,33 +372,39 @@ class PrepOrchestrator:
         auto_proceed: bool,
         skip_callout_refinement: bool,
         callout_refinement_mode: str | None,
+        log_output: bool,
     ) -> list[str]:
         completed_steps: list[str] = []
         current_phase_key: str | None = None
 
         for phase in self._registry.get_ordered_phases():
             current_phase_key = phase.phase_key
-            log_lines.append(_format_phase_started(phase))
+            phase_message = _format_phase_started(phase)
+            log_lines.append(phase_message)
+            if log_output:
+                print(phase_message)
 
             for step in self._registry.get_ordered_steps(phase.phase_key):
                 handler = self._registry.get_handler(step.step_key)
                 if handler is None:
-                    log_lines.append(
-                        _format_step_skipped(
-                            self._registry,
-                            phase.phase_key,
-                            step.step_key,
-                        )
-                    )
-                    continue
-
-                log_lines.append(
-                    _format_step_started(
+                    step_message = _format_step_skipped(
                         self._registry,
                         phase.phase_key,
                         step.step_key,
                     )
+                    log_lines.append(step_message)
+                    if log_output:
+                        print(step_message)
+                    continue
+
+                step_started_message = _format_step_started(
+                    self._registry,
+                    phase.phase_key,
+                    step.step_key,
                 )
+                log_lines.append(step_started_message)
+                if log_output:
+                    print(step_started_message)
                 try:
                     handler(
                         pdf_path=pdf_path,
@@ -417,13 +431,14 @@ class PrepOrchestrator:
                         completed_steps=completed_steps.copy(),
                     ),
                 )
-                log_lines.append(
-                    _format_step_completed(
-                        self._registry,
-                        phase.phase_key,
-                        step.step_key,
-                    )
+                step_completed_message = _format_step_completed(
+                    self._registry,
+                    phase.phase_key,
+                    step.step_key,
                 )
+                log_lines.append(step_completed_message)
+                if log_output:
+                    print(step_completed_message)
 
         return completed_steps
 
@@ -448,7 +463,7 @@ def _build_default_registry() -> PrepRegistry:
                     "handle_extract_metadata_and_preflight"
                 ),
                 handler_policy=HandlerPolicy.REQUIRED,
-                display_name="Extract Metadata And Preflight",
+                display_name="Extract PDF Metadata And Preflight",
             ),
             PrepStepDefinition(
                 step_key="prep.extract-assets.extract-images",
@@ -488,7 +503,7 @@ def _build_default_registry() -> PrepRegistry:
                 order=100,
                 handler_ref="gm_kit.pdf_convert.prep.handlers:handle_write_guidance_defaults",
                 handler_policy=HandlerPolicy.REQUIRED,
-                display_name="Write Guidance Defaults",
+                display_name="Write Guidance Defaults For Convert Command",
             ),
             PrepStepDefinition(
                 step_key="prep.propose-annotations.generate-annotation-proposals",
@@ -499,7 +514,7 @@ def _build_default_registry() -> PrepRegistry:
                     "handle_generate_annotation_proposals"
                 ),
                 handler_policy=HandlerPolicy.REQUIRED,
-                display_name="Generate Annotation Proposals",
+                display_name="Create Annotation Candidates",
             ),
             PrepStepDefinition(
                 step_key="prep.review-annotations.seed-review-artifacts",
@@ -510,7 +525,7 @@ def _build_default_registry() -> PrepRegistry:
                     "handle_seed_annotation_review"
                 ),
                 handler_policy=HandlerPolicy.REQUIRED,
-                display_name="Seed Annotation Review",
+                display_name="Seed Review Artifacts",
             ),
             PrepStepDefinition(
                 step_key="prep.review-annotations.render-annotated-pdf",
@@ -521,7 +536,7 @@ def _build_default_registry() -> PrepRegistry:
                     "handle_render_annotated_prep_pdf"
                 ),
                 handler_policy=HandlerPolicy.REQUIRED,
-                display_name="Render Annotated Prep PDF",
+                display_name="Render Reviewable Annotation PDF",
             ),
         ],
     )
@@ -556,6 +571,8 @@ def _build_artifacts(
         analysis_paths.annotation_refinement_hints,
         analysis_paths.annotation_refinement_request,
         analysis_paths.annotation_refinement_manifest,
+        analysis_paths.annotation_table_refinement_request,
+        analysis_paths.annotation_table_refinement_manifest,
         analysis_paths.annotation_refined_proposals,
         analysis_paths.annotation_review_edits,
         analysis_paths.guidance_resolved,
@@ -610,7 +627,18 @@ def _write_json(path: Path, payload: dict[str, object]) -> None:
 
 
 def _display_name_for_phase_key(phase_key: str) -> str:
-    return phase_key.removeprefix("prep.").replace("-", " ").title()
+    display_name = phase_key.removeprefix("prep.").replace("-", " ").title()
+    if phase_key == "prep.analyze-document":
+        return "Analyze PDF Document"
+    if phase_key == "prep.prepare-guidance":
+        return "Prepare Guidance For Convert Command"
+    if phase_key == "prep.propose-annotations":
+        return "Create Annotation Candidates"
+    if phase_key == "prep.review-annotations":
+        return "Prepare Review Artifacts"
+    if phase_key == "prep.finalize-prep-artifacts":
+        return "Finalize Review Artifacts"
+    return display_name
 
 
 def _finalize_manifest_payload(

@@ -22,6 +22,7 @@ def test_run_analyze_and_prep_command__should_require_pdf_path__when_new_run_req
             status=False,
             yes=False,
             skip_callout_refinement=False,
+            log_output=False,
         )
 
     captured = capsys.readouterr()
@@ -48,6 +49,7 @@ def test_run_analyze_and_prep_command__should_route_to_new_prep__when_pdf_path_p
                 status=False,
                 yes=True,
                 skip_callout_refinement=True,
+                log_output=True,
             )
 
     assert excinfo.value.exit_code == ExitCode.SUCCESS
@@ -56,6 +58,7 @@ def test_run_analyze_and_prep_command__should_route_to_new_prep__when_pdf_path_p
         output_dir=workspace_path,
         auto_proceed=True,
         skip_callout_refinement=True,
+        log_output=True,
     )
 
 
@@ -70,6 +73,7 @@ def test_run_analyze_and_prep_command__should_reject_combined_status_and_resume_
             status=True,
             yes=False,
             skip_callout_refinement=False,
+            log_output=False,
         )
 
     captured = capsys.readouterr()
@@ -94,6 +98,7 @@ def test_run_analyze_and_prep_command__should_route_to_show_status__when_status_
                 status=True,
                 yes=False,
                 skip_callout_refinement=False,
+                log_output=False,
             )
 
     assert excinfo.value.exit_code == ExitCode.STATE_ERROR
@@ -116,12 +121,14 @@ def test_run_analyze_and_prep_command__should_route_to_resume_prep__when_resume_
                 status=False,
                 yes=True,
                 skip_callout_refinement=False,
+                log_output=True,
             )
 
     assert excinfo.value.exit_code == ExitCode.FILE_ERROR
     mock_cls.return_value.resume_prep.assert_called_once_with(
         workspace_path,
         auto_proceed=True,
+        log_output=True,
     )
 
 
@@ -136,6 +143,7 @@ def test_run_analyze_and_prep_command__should_require_target_path__when_status_r
             status=True,
             yes=False,
             skip_callout_refinement=False,
+            log_output=False,
         )
 
     captured = capsys.readouterr()
@@ -155,6 +163,7 @@ def test_run_analyze_and_prep_command__should_require_target_path__when_resume_r
             status=False,
             yes=False,
             skip_callout_refinement=False,
+            log_output=False,
         )
 
     captured = capsys.readouterr()
@@ -177,6 +186,7 @@ def test_run_analyze_and_prep_command__should_reject_ambiguous_target__when_stat
             status=True,
             yes=False,
             skip_callout_refinement=False,
+            log_output=False,
         )
 
     captured = capsys.readouterr()
@@ -200,6 +210,7 @@ def test_run_analyze_and_prep_command__should_reject_ambiguous_target__when_resu
             status=False,
             yes=False,
             skip_callout_refinement=False,
+            log_output=False,
         )
 
     captured = capsys.readouterr()

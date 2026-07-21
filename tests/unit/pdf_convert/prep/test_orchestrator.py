@@ -125,6 +125,14 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         {"name": "annotation-refinement-hints.json", "status": "ready"},
         {"name": "annotation-refinement/annotation-refinement-request.json", "status": "ready"},
         {"name": "annotation-refinement/annotation-refinement-inputs.json", "status": "ready"},
+        {
+            "name": "annotation-refinement/annotation-table-refinement-request.json",
+            "status": "ready",
+        },
+        {
+            "name": "annotation-refinement/annotation-table-refinement-inputs.json",
+            "status": "ready",
+        },
         {"name": "annotation-review.edits.json", "status": "ready"},
         {"name": "prep-guidance.resolved.json", "status": "ready"},
         {"name": "annotated-prep.pdf", "status": "ready"},
@@ -140,6 +148,8 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     assert (prep_root / "annotation-proposals.json").exists()
     assert (prep_root / "annotation-refinement-hints.json").exists()
     assert (prep_root / "annotation-refinement" / "annotation-refinement-inputs.json").exists()
+    assert (prep_root / "annotation-refinement" / "annotation-table-refinement-inputs.json").exists()
+    assert (prep_root / "annotation-refinement" / "annotation-table-refinement-request.json").exists()
     assert (prep_root / "prep-guidance.resolved.json").exists()
 
     state = load_prep_state(prep_root / "prep-state.json")
@@ -149,13 +159,13 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     assert state.completed_steps == manifest_payload["step_keys"]
     log_output = (prep_root / "logs" / "prep.log").read_text(encoding="utf-8")
     assert "Phase 100: Initialize Workspace (prep.initialize-workspace) started" in log_output
-    assert "Phase 200: Analyze Document (prep.analyze-document) started" in log_output
+    assert "Phase 200: Analyze PDF Document (prep.analyze-document) started" in log_output
     assert "Phase 500: Plan Chunks (prep.plan-chunks) started" in log_output
-    assert "Phase 600: Prepare Guidance (prep.prepare-guidance) started" in log_output
-    assert "Phase 700: Propose Annotations (prep.propose-annotations) started" in log_output
-    assert "Phase 800: Review Annotations (prep.review-annotations) started" in log_output
+    assert "Phase 600: Prepare Guidance For Convert Command (prep.prepare-guidance) started" in log_output
+    assert "Phase 700: Create Annotation Candidates (prep.propose-annotations) started" in log_output
+    assert "Phase 800: Prepare Review Artifacts (prep.review-annotations) started" in log_output
     assert (
-        "Step 200.100: Extract Metadata And Preflight (prep.analyze-document.extract-metadata) started"
+        "Step 200.100: Extract PDF Metadata And Preflight (prep.analyze-document.extract-metadata) started"
         in log_output
     )
     assert (
@@ -164,21 +174,21 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
     )
     assert "Step 500.100: Build Chunk Plan (prep.plan-chunks.build-chunk-plan) completed" in log_output
     assert (
-        "Step 600.100: Write Guidance Defaults (prep.prepare-guidance.write-guidance-defaults) completed"
+        "Step 600.100: Write Guidance Defaults For Convert Command (prep.prepare-guidance.write-guidance-defaults) completed"
         in log_output
     )
     assert (
-        "Step 700.100: Generate Annotation Proposals "
+        "Step 700.100: Create Annotation Candidates "
         "(prep.propose-annotations.generate-annotation-proposals) completed"
         in log_output
     )
     assert (
-        "Step 800.100: Seed Annotation Review "
+        "Step 800.100: Seed Review Artifacts "
         "(prep.review-annotations.seed-review-artifacts) completed"
         in log_output
     )
     assert (
-        "Step 800.200: Render Annotated Prep PDF "
+        "Step 800.200: Render Reviewable Annotation PDF "
         "(prep.review-annotations.render-annotated-pdf) completed"
         in log_output
     )
@@ -193,9 +203,7 @@ def test_run_new_prep__should_finalize_manifest_after_completion_artifacts__when
         (prep_root / "prep-guidance.resolved.json").read_text(encoding="utf-8")
     )
 
-    assert guidance_defaults_payload == PrepGuidanceInput(
-        prefer_detect_tables=False,
-    ).to_dict()
+    assert guidance_defaults_payload == PrepGuidanceInput().to_dict()
     assert isinstance(annotation_proposals_payload, list)
     assert annotation_proposals_payload == []
     assert guidance_resolved_payload == PrepGuidanceResolved(
@@ -248,14 +256,17 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
         "chapter",
         "chapter",
     ]
-    assert manifest_payload["artifacts"][-6:] == [
-        {"name": "annotation-refinement-hints.json", "status": "ready"},
-        {"name": "annotation-refinement/annotation-refinement-request.json", "status": "ready"},
-        {"name": "annotation-refinement/annotation-refinement-inputs.json", "status": "ready"},
-        {"name": "annotation-review.edits.json", "status": "ready"},
-        {"name": "prep-guidance.resolved.json", "status": "ready"},
-        {"name": "annotated-prep.pdf", "status": "ready"},
-    ]
+    artifact_names = {artifact["name"] for artifact in manifest_payload["artifacts"]}
+    assert {
+        "annotation-refinement-hints.json",
+        "annotation-refinement/annotation-refinement-request.json",
+        "annotation-refinement/annotation-refinement-inputs.json",
+        "annotation-refinement/annotation-table-refinement-request.json",
+        "annotation-refinement/annotation-table-refinement-inputs.json",
+        "annotation-review.edits.json",
+        "prep-guidance.resolved.json",
+        "annotated-prep.pdf",
+    }.issubset(artifact_names)
     assert manifest_payload["artifacts"][8:15] == [
         {"name": "toc-extracted.txt", "status": "ready"},
         {"name": "chapter-index.json", "status": "ready"},
@@ -271,18 +282,18 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
         in log_output
     )
     assert (
-        "Step 700.100: Generate Annotation Proposals "
+        "Step 700.100: Create Annotation Candidates "
         "(prep.propose-annotations.generate-annotation-proposals) completed"
         in log_output
     )
-    assert "Phase 800: Review Annotations (prep.review-annotations) started" in log_output
+    assert "Phase 800: Prepare Review Artifacts (prep.review-annotations) started" in log_output
     assert (
-        "Step 800.100: Seed Annotation Review "
+        "Step 800.100: Seed Review Artifacts "
         "(prep.review-annotations.seed-review-artifacts) completed"
         in log_output
     )
     assert (
-        "Step 800.200: Render Annotated Prep PDF "
+        "Step 800.200: Render Reviewable Annotation PDF "
         "(prep.review-annotations.render-annotated-pdf) completed"
         in log_output
     )
@@ -300,10 +311,15 @@ def test_run_new_prep__should_emit_chunk_planning_artifacts__when_document_excee
             page_count=12,
             images_total_count=0,
             chunk_plan=chunk_plan_payload,
-            guidance_input=PrepGuidanceInput(prefer_detect_tables=False),
+            guidance_input=PrepGuidanceInput(),
         )
     ]
-    expected_resolved = build_resolved_guidance([]).to_dict()
+    expected_resolved = build_resolved_guidance(
+        [
+            AnnotationProposal.from_dict(proposal)
+            for proposal in expected_proposals
+        ]
+    ).to_dict()
 
     assert annotation_proposals_payload == expected_proposals
     assert guidance_resolved_payload == expected_resolved
@@ -629,9 +645,9 @@ def test_run_new_prep__should_record_failure_details_in_manifest__when_step_rais
     assert manifest_payload["failure_step_key"] == "prep.analyze-document.extract-metadata"
     assert "credential=[REDACTED] [REDACTED_PATH]" in manifest_payload["failure_message"]
     assert "Phase 100: Initialize Workspace (prep.initialize-workspace) started" in log_output
-    assert "Phase 200: Analyze Document (prep.analyze-document) started" in log_output
+    assert "Phase 200: Analyze PDF Document (prep.analyze-document) started" in log_output
     assert (
-        "Step 200.100: Extract Metadata And Preflight (prep.analyze-document.extract-metadata) started"
+        "Step 200.100: Extract PDF Metadata And Preflight (prep.analyze-document.extract-metadata) started"
         in log_output
     )
     assert "ERROR: prep.analyze-document.extract-metadata failed" in log_output

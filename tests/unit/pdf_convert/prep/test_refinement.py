@@ -12,6 +12,7 @@ from gm_kit.pdf_convert.prep.refinement import (
     MockCalloutRefinementAgent,
     build_callout_refinement_agent,
     build_callout_refinement_inputs,
+    build_table_refinement_inputs,
     refine_callout_proposals,
 )
 
@@ -28,6 +29,18 @@ def _write_callout_pdf(path: Path) -> None:
     page.insert_text((55, 65), "GM Note", fontsize=12)
     page.insert_text((55, 90), "Line one of the note.", fontsize=11)
     page.insert_text((55, 112), "Line two of the note.", fontsize=11)
+    document.save(path)
+    document.close()
+
+
+def _write_table_pdf(path: Path) -> None:
+    document = fitz.open()
+    page = document.new_page(width=320, height=260)
+    page.insert_text((40, 48), "Weapons Table", fontsize=12)
+    page.insert_text((40, 76), "Name", fontsize=10)
+    page.insert_text((150, 76), "Damage", fontsize=10)
+    page.insert_text((40, 102), "Sword", fontsize=10)
+    page.insert_text((150, 102), "1d8", fontsize=10)
     document.save(path)
     document.close()
 
@@ -71,7 +84,7 @@ def test_build_callout_refinement_inputs__should_render_source_pdf_crop__when_hi
     )
 
     manifest = json.loads((tmp_path / "annotation-refinement-inputs.json").read_text(encoding="utf-8"))
-    crop_path = tmp_path / "annotation-refinement-crops" / "ap-test-refine_p001.png"
+    crop_path = tmp_path / "annotation-refinement-crops" / "callout-ap-test-refine_p001.png"
     with Image.open(crop_path) as image:
         sampled_pixel = image.getpixel((20, 20))
 
@@ -121,6 +134,48 @@ def test_build_callout_refinement_inputs__should_write_empty_manifest__when_no_h
     assert manifest["candidate_count"] == 0
     assert manifest["items"] == []
     assert list(crops_dir.glob("*.png")) == []
+
+
+def test_build_table_refinement_inputs__should_render_source_pdf_crop__when_table_proposal_exists(
+    tmp_path: Path,
+) -> None:
+    pdf_path = tmp_path / "source.pdf"
+    _write_table_pdf(pdf_path)
+
+    proposal = AnnotationProposal(
+        proposal_id="ap-table-refine",
+        label="table",
+        page=1,
+        bbox=[40.0, 40.0, 200.0, 120.0],
+        confidence=0.75,
+        metadata={
+            "source": "code",
+            "trigger": "text-pattern",
+            "table_title": "Weapons Table",
+            "table_text": "Weapons Table Name Damage Sword 1d8",
+        },
+    )
+
+    entries = build_table_refinement_inputs(
+        pdf_path=pdf_path,
+        proposals=[proposal],
+        guidance_input=PrepGuidanceInput(),
+        manifest_path=tmp_path / "annotation-table-refinement-inputs.json",
+        crops_dir=tmp_path / "annotation-refinement-crops",
+    )
+
+    manifest = json.loads(
+        (tmp_path / "annotation-table-refinement-inputs.json").read_text(encoding="utf-8")
+    )
+    crop_path = tmp_path / "annotation-refinement-crops" / "table-ap-table-refine_p001.png"
+
+    assert len(entries) == 1
+    assert manifest["candidate_count"] == 1
+    assert manifest["items"][0]["proposal_id"] == "ap-table-refine"
+    assert Path(manifest["items"][0]["image_path"]) == crop_path
+    assert manifest["items"][0]["crop_rect"][2] - manifest["items"][0]["crop_rect"][0] >= 160.0
+    assert manifest["items"][0]["crop_rect"][3] - manifest["items"][0]["crop_rect"][1] >= 120.0
+    assert crop_path.exists()
 
 
 def test_refine_callout_proposals__should_tighten_bbox__when_source_crop_has_visible_content(

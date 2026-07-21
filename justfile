@@ -31,6 +31,20 @@ test-unit:
 test-integration:
     uv run --python "3.13.7" --extra dev -- pytest tests/integration
 
+# Run the Homebrewery prep analysis with the CLI mock flow, then resume automatically.
+analyze-homebrewery-with-cli-mock fixture="tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" output="tmp/homebrewery-prep-mock":
+    rm -rf {{output}}
+    echo "Analyze prep (CLI mock) flow:"
+    echo "  gmkit analyze-and-prep-pdf -> mock crop review -> auto-resume -> exit"
+    GMKIT_CALL_OUT_REFINEMENT_MODE=mock uv run --python "3.13.7" --extra dev --editable -- gmkit analyze-and-prep-pdf "{{fixture}}" --output "{{output}}" --yes --log-output
+
+# Run the Homebrewery prep analysis through the mock-agent handoff harness.
+analyze-homebrewery-with-mock-agent-handoff fixture="tests/fixtures/pdf_convert/The Homebrewery - NaturalCrit.pdf" output="tmp/homebrewery-prep-handoff":
+    rm -rf {{output}}
+    echo "Analyze prep (mock-agent handoff) flow:"
+    echo "  gmkit analyze-and-prep-pdf -> pause for refinement -> mock refine -> resume -> exit"
+    uv run --python "3.13.7" --extra dev --editable -- python devtools/scripts/prep_mock_agent_handoff.py --pdf "{{fixture}}" --output-dir "{{output}}"
+
 # Download required PDF fixtures that are not committed (licensing constraints).
 download-test-fixtures:
     bash tests/fixtures/pdf_convert/download_b2_fixture.sh

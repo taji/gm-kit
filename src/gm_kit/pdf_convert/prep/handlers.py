@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -16,6 +17,8 @@ from gm_kit.pdf_convert.metadata import PDFMetadata, extract_metadata
 from gm_kit.pdf_convert.preflight import PreflightReport, analyze_pdf
 from gm_kit.pdf_convert.prep.analysis_artifacts import PrepAnalysisArtifactPaths
 from gm_kit.pdf_convert.prep.callout_detection import (
+    _pad_rect,
+    _same_text_column,
     detect_callout_proposals_with_warnings,
 )
 from gm_kit.pdf_convert.prep.chunking import CHUNK_PAGE_BUDGET, build_chunk_plan, load_toc_sections
@@ -33,6 +36,7 @@ from gm_kit.pdf_convert.prep.refinement import (
     PrepRefinementPause,
     build_callout_refinement_agent,
     build_callout_refinement_inputs,
+    build_table_refinement_inputs,
     refine_callout_proposals,
 )
 
@@ -40,6 +44,22 @@ TABLE_PLACEHOLDER_BBOX = [72.0, 240.0, 520.0, 610.0]
 FULL_PAGE_PLACEHOLDER_BBOX = [0.0, 0.0, 612.0, 792.0]
 DEFAULT_CALLOUT_REGION_LABEL = "callout_gm"
 TRAILING_APPENDIX_MIN_CHUNKS = 2
+TABLE_MIN_X0_CLUSTERS = 3
+TABLE_MIN_ROW_FRAGMENTS = 2
+TABLE_MAX_STRONG_AVG_LINE_LENGTH = 25.0
+TABLE_MAX_NUMERIC_AVG_LINE_LENGTH = 45.0
+TABLE_MAX_CLEAR_PROSE_AVG_LINE_LENGTH = 45.0
+TABLE_MAX_TITLE_WORDS = 4
+TABLE_MAX_TITLE_LABEL_LENGTH = 24
+TABLE_MAX_TITLELESS_FIRST_LINE_WORDS = 4
+TABLE_TITLE_PADDING_TOP = 28.0
+TABLE_REGION_GAP = 26.0
+TABLE_WEAK_REGION_GAP = 18.0
+TABLE_WEAK_TEXT_MAX_LENGTH = 40
+TABLE_BLOCK_LINE_GAP_TOLERANCE = 2.5
+TABLE_HEADING_FONT_DELTA = 1.5
+TABLE_HEADING_TEXT_MAX_LENGTH = 24
+TABLE_LIGHT_BLUE_FILL = (0.6000000238418579, 0.7568627595901489, 0.9450980424880981)
 
 
 class _ChunkEntry(TypedDict):
@@ -48,6 +68,48 @@ class _ChunkEntry(TypedDict):
     end_page: int
     chunk_kind: str
     ordinal: int
+
+
+@dataclass(frozen=True)
+class _TableBlockProfile:
+    block_index: int
+    block: object
+    line_count: int
+    x0_clusters: int
+    row_fragment_count: int
+    numeric_token_count: int
+    pipe_token_count: int
+    average_line_length: float
+    has_leading_label_colon: bool
+
+    @property
+    def is_strong(self) -> bool:
+        return (
+            self.x0_clusters >= TABLE_MIN_X0_CLUSTERS
+            and self.line_count >= TABLE_MIN_ROW_FRAGMENTS + 1
+            and self.row_fragment_count >= TABLE_MIN_ROW_FRAGMENTS
+            and self.average_line_length <= TABLE_MAX_STRONG_AVG_LINE_LENGTH
+        ) or (
+            self.x0_clusters >= TABLE_MIN_ROW_FRAGMENTS
+            and (self.numeric_token_count > 0 or self.pipe_token_count > 0)
+            and self.row_fragment_count >= TABLE_MIN_ROW_FRAGMENTS
+            and self.average_line_length <= TABLE_MAX_NUMERIC_AVG_LINE_LENGTH
+        )
+
+    @property
+    def is_clear_prose(self) -> bool:
+        return (
+            self.line_count >= TABLE_MIN_ROW_FRAGMENTS
+            and self.x0_clusters == 1
+            and self.numeric_token_count == 0
+            and self.pipe_token_count == 0
+            and self.average_line_length >= TABLE_MAX_CLEAR_PROSE_AVG_LINE_LENGTH
+            and not self.has_leading_label_colon
+        )
+
+    @property
+    def is_table_like(self) -> bool:
+        return self.is_strong
 
 
 def parse_skip_ranges_input(raw_input: str, *, page_count: int) -> list[int]:
@@ -157,7 +219,7 @@ def create_no_images_pdf(pdf_path: Path, output_pdf_path: Path) -> int:
                 for rect in page.get_image_rects(xref):
                     page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1))
                     images_removed += 1
-        doc.save(output_pdf_path)
+        doc.save(output_pdf_path, garbage=4, clean=True, deflate=True)
     finally:
         doc.close()
 
@@ -313,7 +375,7 @@ def handle_write_guidance_defaults(
     **_context: object,
 ) -> None:
     """Write the default prep guidance artifact."""
-    guidance_defaults = PrepGuidanceInput(prefer_detect_tables=False)
+    guidance_defaults = PrepGuidanceInput()
     analysis_paths.guidance_defaults.write_text(
         yaml.safe_dump(
             guidance_defaults.to_dict(),
@@ -336,14 +398,17 @@ def handle_generate_annotation_proposals(
     page_count = _load_page_count(analysis_paths.metadata)
     images_total_count = _load_images_total_count(analysis_paths.image_manifest)
     chunk_plan = _load_optional_json_mapping(analysis_paths.chunk_plan)
+    toc_sections = _load_toc_sections(analysis_paths.toc, page_count=page_count)
     callout_detection = detect_callout_proposals_with_warnings(pdf_path, guidance_input)
     for warning in callout_detection.warnings:
         typer.echo(f"WARNING: {warning}")
 
     proposals = build_annotation_proposals(
+        pdf_path=pdf_path,
         page_count=page_count,
         images_total_count=images_total_count,
         chunk_plan=chunk_plan,
+        toc_sections=toc_sections,
         callout_proposals=callout_detection.proposals,
         guidance_input=guidance_input,
     )
@@ -378,6 +443,13 @@ def handle_generate_annotation_proposals(
         manifest_path=analysis_paths.annotation_refinement_manifest,
         crops_dir=analysis_paths.annotation_refinement_crops_dir,
     )
+    table_refinement_entries = build_table_refinement_inputs(
+        pdf_path=pdf_path,
+        proposals=[proposal for proposal in proposals if proposal.label == "table"],
+        guidance_input=guidance_input,
+        manifest_path=analysis_paths.annotation_table_refinement_manifest,
+        crops_dir=analysis_paths.annotation_refinement_crops_dir,
+    )
     refinement_mode = str(_context.get("callout_refinement_mode") or "").strip().lower()
     analysis_paths.annotation_refinement_request.write_text(
         json.dumps(
@@ -407,6 +479,38 @@ def handle_generate_annotation_proposals(
                 "response_artifact": "annotation-refined-proposals.json",
                 "resume_command": "gmkit analyze-and-prep-pdf --resume <workspace>",
                 "items": [entry.to_dict() for entry in refinement_entries],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    analysis_paths.annotation_table_refinement_request.write_text(
+        json.dumps(
+            {
+                "source_pdf_path": str(pdf_path),
+                "proposal_count": len(table_refinement_entries),
+                "crops_dir": str(analysis_paths.annotation_refinement_crops_dir),
+                "request_status": (
+                    "ready_for_review" if table_refinement_entries else "not_requested"
+                ),
+                "refinement_mode": "table-review",
+                "instructions": [
+                    "Review the crop images for each listed table proposal.",
+                    (
+                        "Adjust table boundaries when the current crop is clearly too "
+                        "loose or too tight."
+                    ),
+                    (
+                        "Write the updated proposal list to "
+                        "annotation-refined-proposals.json in the prep root."
+                    ),
+                    "Leave proposals unchanged when the current geometry is already correct.",
+                ],
+                "response_artifact": "annotation-refined-proposals.json",
+                "resume_command": "gmkit analyze-and-prep-pdf --resume <workspace>",
+                "items": [entry.to_dict() for entry in table_refinement_entries],
             },
             indent=2,
             sort_keys=True,
@@ -530,11 +634,13 @@ def handle_finalize_reviewed_guidance(
     )
 
 
-def build_annotation_proposals(
+def build_annotation_proposals(  # noqa: PLR0913
     *,
+    pdf_path: Path | None = None,
     page_count: int,
     images_total_count: int,
     chunk_plan: Mapping[str, object] | None,
+    toc_sections: list[object] | None = None,
     callout_proposals: list[AnnotationProposal] | None = None,
     guidance_input: PrepGuidanceInput | None = None,
 ) -> list[AnnotationProposal]:
@@ -544,22 +650,16 @@ def build_annotation_proposals(
     detect_tables = guidance_input.prefer_detect_tables if guidance_input is not None else True
 
     if detect_tables:
-        for chunk_entry in chunk_entries:
-            metadata = {
-                "source": "code",
-                "source_section_id": chunk_entry["source_section_id"],
-                "chunk_kind": chunk_entry["chunk_kind"],
-                "ordinal": chunk_entry["ordinal"],
-            }
-            proposals.append(
-                _build_proposal(
-                    label="table",
-                    page=int(chunk_entry["start_page"]),
-                    bbox=TABLE_PLACEHOLDER_BBOX,
-                    confidence=0.5,
-                    metadata=metadata,
-                )
+        table_proposals: list[AnnotationProposal] = []
+        if pdf_path is not None:
+            table_proposals = _detect_table_proposals_from_pdf(
+                pdf_path=pdf_path,
+                page_count=page_count,
+                toc_sections=toc_sections,
             )
+            proposals.extend(table_proposals)
+        if not table_proposals:
+            proposals.extend(_build_chunk_seed_table_proposals(chunk_entries=chunk_entries))
 
     if callout_proposals:
         proposals.extend(callout_proposals)
@@ -580,6 +680,539 @@ def build_annotation_proposals(
         )
 
     return sorted(proposals, key=lambda proposal: proposal.proposal_id)
+
+
+def _build_chunk_seed_table_proposals(
+    *,
+    chunk_entries: list[_ChunkEntry],
+) -> list[AnnotationProposal]:
+    proposals: list[AnnotationProposal] = []
+    for chunk_entry in chunk_entries:
+        metadata = {
+            "source": "code",
+            "source_section_id": chunk_entry["source_section_id"],
+            "chunk_kind": chunk_entry["chunk_kind"],
+            "ordinal": chunk_entry["ordinal"],
+        }
+        proposals.append(
+            _build_proposal(
+                label="table",
+                page=int(chunk_entry["start_page"]),
+                bbox=TABLE_PLACEHOLDER_BBOX,
+                confidence=0.5,
+                metadata=metadata,
+            )
+        )
+    return proposals
+
+
+def _detect_table_proposals_from_pdf(
+    *,
+    pdf_path: Path,
+    page_count: int,
+    toc_sections: list[object] | None = None,
+) -> list[AnnotationProposal]:
+    proposals: list[AnnotationProposal] = []
+    doc = fitz.open(pdf_path)
+    try:
+        for page_number in range(1, min(page_count, len(doc)) + 1):
+            page = doc[page_number - 1]
+            page_toc_sections = _toc_sections_starting_on_page(toc_sections, page_number)
+            table_regions = _detect_table_regions_on_page(
+                page,
+                toc_sections=page_toc_sections,
+            )
+            for region_index, (
+                region_rect,
+                title_text,
+                data_text,
+            ) in enumerate(table_regions, start=1):
+                proposals.append(
+                    _build_proposal(
+                        label="table",
+                        page=page_number,
+                        bbox=_pad_rect(
+                            region_rect,
+                            {
+                                "left": 6.0,
+                                "top": 4.0,
+                                "right": 6.0,
+                                "bottom": 6.0,
+                            },
+                        ),
+                        confidence=0.75,
+                        metadata={
+                            "source": "code",
+                            "trigger": "text-pattern",
+                            "table_title": title_text,
+                            "table_text": data_text,
+                            "ordinal": region_index,
+                        },
+                    )
+                )
+    finally:
+        doc.close()
+    return proposals
+
+
+def _detect_table_regions_on_page(
+    page: fitz.Page,
+    *,
+    toc_sections: list[dict[str, object]] | None = None,
+) -> list[tuple[fitz.Rect, str, str]]:  # noqa: PLR0912
+    payload = page.get_text("dict")
+    blocks: list[dict[str, object]] = [
+        block
+        for block in cast(list[dict[str, object]], payload.get("blocks", []))
+        if block.get("type") == 0
+    ]
+    profiles = [
+        _build_table_block_profile(block_index=index, block=block)
+        for index, block in enumerate(blocks)
+    ]
+    regions: list[tuple[fitz.Rect, str, str]] = []
+    consumed_block_indexes: set[int] = set()
+
+    for profile in profiles:
+        if profile.block_index in consumed_block_indexes or not profile.is_strong:
+            continue
+
+        start_index = profile.block_index
+        end_index = start_index
+        region_rect = _block_rect(blocks[start_index])
+        title_text = ""
+
+        if start_index > 0:
+            previous = blocks[start_index - 1]
+            previous_rect = _block_rect(previous)
+            current_rect = _block_rect(blocks[start_index])
+            previous_text = _block_text(previous)
+            if (
+                _looks_like_table_title(previous_text)
+                and _same_text_column(previous_rect, current_rect)
+                and current_rect.y0 - previous_rect.y1 <= TABLE_TITLE_PADDING_TOP
+            ):
+                start_index -= 1
+                region_rect = previous_rect | region_rect
+                title_text = previous_text.strip()
+
+        while end_index + 1 < len(blocks):
+            next_index = end_index + 1
+            next_block = blocks[next_index]
+            next_profile = profiles[next_index]
+            next_rect = _block_rect(next_block)
+            if _should_stop_table_region(
+                page_number=page.number + 1,
+                start_block=blocks[start_index],
+                current_block=blocks[end_index],
+                next_block=next_block,
+                next_profile=next_profile,
+                toc_sections=toc_sections,
+            ):
+                break
+            region_rect = region_rect | next_rect
+            end_index = next_index
+
+        consumed_block_indexes.update(range(start_index, end_index + 1))
+        region_text_blocks = [
+            _block_text(blocks[index]).strip()
+            for index in range(start_index, end_index + 1)
+            if _block_text(blocks[index]).strip()
+        ]
+        if not region_text_blocks:
+            continue
+        if not title_text:
+            first_line_text = _block_first_line_text(blocks[start_index])
+            if (
+                not _looks_like_table_title(first_line_text)
+                or len(first_line_text.split()) < TABLE_MIN_ROW_FRAGMENTS
+            ):
+                continue
+            if any(char.isdigit() for char in first_line_text):
+                continue
+            if first_line_text.count(",") > 1:
+                continue
+        region_rect, region_text_blocks = _trim_table_region_at_heading_line(
+            blocks=blocks,
+            start_index=start_index,
+            end_index=end_index,
+            region_rect=region_rect,
+            title_text=title_text,
+            toc_sections=toc_sections,
+            page_number=page.number + 1,
+        )
+        if not region_text_blocks:
+            continue
+        regions.append((region_rect, title_text, " ".join(region_text_blocks)))
+    return _deduplicate_table_regions(regions)
+
+
+def _build_table_block_profile(*, block_index: int, block: object) -> _TableBlockProfile:
+    block_text = _block_text(block)
+    line_count = 0
+    x0_values: list[float] = []
+    y_values: list[float] = []
+    numeric_token_count = 0
+    pipe_token_count = 0
+    total_line_length = 0.0
+    leading_label_colon = False
+
+    for line in _block_lines(block):
+        line_text = _line_text(line).strip()
+        if not line_text:
+            continue
+        line_rect = _line_rect(line)
+        line_count += 1
+        x0_values.append(float(line_rect.x0))
+        y_values.append(float(line_rect.y0))
+        total_line_length += float(len(line_text))
+        numeric_token_count += sum(
+            1
+            for token in line_text.split()
+            if any(char.isdigit() for char in token) or "/" in token
+        )
+        pipe_token_count += line_text.count("|")
+        if (
+            line_text.endswith(":")
+            or line_text.upper().startswith("NOTE:")
+            or line_text.upper().startswith("KEEPER")
+        ):
+            leading_label_colon = True
+
+    return _TableBlockProfile(
+        block_index=block_index,
+        block=block,
+        line_count=line_count,
+        x0_clusters=_cluster_count(x0_values),
+        row_fragment_count=_max_cluster_size(y_values, tolerance=2.5),
+        numeric_token_count=numeric_token_count,
+        pipe_token_count=pipe_token_count,
+        average_line_length=(total_line_length / line_count) if line_count else 0.0,
+        has_leading_label_colon=leading_label_colon or _has_leading_label_colon(block_text),
+    )
+
+
+def _block_text(block: object) -> str:
+    text = cast(
+        str | None,
+        block.get("text") if isinstance(block, dict) else getattr(block, "text", None),
+    )
+    if text is not None:
+        return text
+    if isinstance(block, dict):
+        block_text_parts: list[str] = []
+        for line in cast(list[dict[str, object]], block.get("lines", [])):
+            block_text_parts.append(_line_text(line))
+        return " ".join(part for part in block_text_parts if part).strip()
+    return ""
+
+
+def _block_first_line_text(block: object) -> str:
+    lines = _block_lines(block)
+    if not lines:
+        return _block_text(block)
+    return _line_text(lines[0]).strip()
+
+
+def _block_rect(block: object) -> fitz.Rect:
+    bbox = cast(
+        list[float] | tuple[float, ...] | None,
+        block.get("bbox") if isinstance(block, dict) else getattr(block, "bbox", None),
+    )
+    if bbox is None:
+        return fitz.Rect(0, 0, 0, 0)
+    return fitz.Rect(*bbox)
+
+
+def _block_lines(block: object) -> list[dict[str, object]]:
+    if isinstance(block, dict):
+        return cast(list[dict[str, object]], block.get("lines", []))
+    return []
+
+
+def _line_text(line: object) -> str:
+    if isinstance(line, dict):
+        return "".join(
+            cast(str, span.get("text", ""))
+            for span in cast(list[dict[str, object]], line.get("spans", []))
+        )
+    return cast(str, getattr(line, "text", ""))
+
+
+def _line_rect(line: object) -> fitz.Rect:
+    if isinstance(line, dict):
+        bbox = cast(list[float] | tuple[float, ...] | None, line.get("bbox"))
+        if bbox is not None:
+            return fitz.Rect(*bbox)
+    bbox = cast(list[float] | tuple[float, ...] | None, getattr(line, "bbox", None))
+    if bbox is None:
+        return fitz.Rect(0, 0, 0, 0)
+    return fitz.Rect(*bbox)
+
+
+def _block_first_font_size(block: object) -> float:
+    lines = _block_lines(block)
+    if not lines:
+        return 0.0
+    first_line = lines[0]
+    spans = cast(list[dict[str, object]], first_line.get("spans", []))
+    if not spans:
+        return 0.0
+    sizes = [float(cast(float | int, span.get("size", 0.0))) for span in spans if span.get("size")]
+    return max(sizes) if sizes else 0.0
+
+
+def _trim_table_region_at_heading_line(  # noqa: PLR0913
+    *,
+    blocks: list[dict[str, object]],
+    start_index: int,
+    end_index: int,
+    region_rect: fitz.Rect,
+    title_text: str,
+    toc_sections: list[dict[str, object]] | None,
+    page_number: int,
+) -> tuple[fitz.Rect, list[str]]:
+    region_text_blocks: list[str] = []
+    trimmed_rect: fitz.Rect | None = None
+    for block_index in range(start_index, end_index + 1):
+        block = blocks[block_index]
+        block_lines = _block_lines(block)
+        if not block_lines:
+            continue
+        line_rects: list[fitz.Rect] = []
+        for line_index, line in enumerate(block_lines):
+            line_text = _line_text(line).strip()
+            if not line_text:
+                continue
+            if block_index != start_index or line_index > 0:
+                line_font_size = _line_font_size(line)
+                previous_font_size = (
+                    _line_font_size(block_lines[line_index - 1])
+                    if line_index > 0
+                    else _block_first_font_size(blocks[block_index - 1])
+                    if block_index > 0
+                    else 0.0
+                )
+                if _is_next_section_heading(
+                    next_text=line_text,
+                    next_font_size=line_font_size,
+                    current_font_size=previous_font_size,
+                    toc_sections=toc_sections,
+                    page_number=page_number,
+                ):
+                    if line_rects:
+                        trimmed_rect = _union_with_base(trimmed_rect, line_rects)
+                    return trimmed_rect or region_rect, region_text_blocks
+            region_text_blocks.append(line_text)
+            line_rects.append(_line_rect(line))
+        if line_rects:
+            trimmed_rect = _union_with_base(trimmed_rect, line_rects)
+    return trimmed_rect or region_rect, region_text_blocks
+
+
+def _line_font_size(line: object) -> float:
+    if isinstance(line, dict):
+        spans = cast(list[dict[str, object]], line.get("spans", []))
+        sizes = [
+            float(cast(float | int, span.get("size", 0.0)))
+            for span in spans
+            if span.get("size")
+        ]
+        return max(sizes) if sizes else 0.0
+    return 0.0
+
+
+def _rect_union(rects: list[fitz.Rect]) -> fitz.Rect:
+    combined = rects[0]
+    for rect in rects[1:]:
+        combined = combined | rect
+    return combined
+
+
+def _union_with_base(
+    base_rect: fitz.Rect | None,
+    rects: list[fitz.Rect],
+) -> fitz.Rect:
+    combined_rect = _rect_union(rects)
+    if base_rect is None:
+        return combined_rect
+    return base_rect | combined_rect
+
+
+def _should_stop_table_region(  # noqa: PLR0913,PLR0911
+    *,
+    page_number: int,
+    start_block: object,
+    current_block: object,
+    next_block: object,
+    next_profile: _TableBlockProfile,
+    toc_sections: list[dict[str, object]] | None,
+) -> bool:
+    current_rect = _block_rect(current_block)
+    next_rect = _block_rect(next_block)
+    same_column = _same_text_column(current_rect, next_rect)
+    if next_rect.y0 - current_rect.y1 > TABLE_REGION_GAP:
+        return True
+    if next_profile.is_clear_prose:
+        return True
+
+    next_text = _block_text(next_block).strip()
+    next_font_size = _block_first_font_size(next_block)
+    current_font_size = _block_first_font_size(current_block)
+    if _is_next_section_heading(
+        next_text=next_text,
+        next_font_size=next_font_size,
+        current_font_size=current_font_size,
+        toc_sections=toc_sections,
+        page_number=page_number,
+    ):
+        return True
+    if _block_looks_like_table_continuation(next_profile=next_profile, next_text=next_text):
+        return False
+    if not same_column:
+        return False
+    return (
+        not next_profile.is_table_like
+        and len(next_text) <= TABLE_WEAK_TEXT_MAX_LENGTH
+        and next_profile.line_count <= TABLE_MIN_ROW_FRAGMENTS
+    ) or (
+        not next_profile.is_table_like
+        and next_profile.line_count >= TABLE_MIN_ROW_FRAGMENTS
+        and next_rect.y0 - current_rect.y1 > TABLE_WEAK_REGION_GAP
+    )
+
+
+def _block_looks_like_table_continuation(
+    *,
+    next_profile: _TableBlockProfile,
+    next_text: str,
+) -> bool:
+    if next_profile.is_table_like:
+        return True
+    if next_profile.line_count < TABLE_MIN_ROW_FRAGMENTS:
+        return False
+    if next_profile.has_leading_label_colon:
+        return True
+    if next_profile.numeric_token_count > 0 or next_profile.pipe_token_count > 0:
+        return True
+    return (
+        next_profile.x0_clusters >= TABLE_MIN_ROW_FRAGMENTS
+        and len(next_text) <= TABLE_MAX_NUMERIC_AVG_LINE_LENGTH
+    )
+
+
+def _toc_sections_starting_on_page(
+    toc_sections: list[object] | None,
+    page_number: int,
+) -> list[dict[str, object]]:
+    if toc_sections is None:
+        return []
+    return [
+        cast(dict[str, object], section)
+        for section in toc_sections
+        if isinstance(section, dict) and section.get("start_page") == page_number
+    ]
+
+
+def _is_next_section_heading(
+    *,
+    next_text: str,
+    next_font_size: float,
+    current_font_size: float,
+    toc_sections: list[dict[str, object]] | None,
+    page_number: int,
+) -> bool:
+    if not next_text:
+        return False
+    stripped = " ".join(next_text.split())
+    if len(stripped) > TABLE_HEADING_TEXT_MAX_LENGTH:
+        return False
+    if len(stripped.split()) > TABLE_MIN_ROW_FRAGMENTS:
+        return False
+    if (
+        next_font_size
+        and current_font_size
+        and next_font_size - current_font_size >= TABLE_HEADING_FONT_DELTA
+    ):
+        return True
+    if toc_sections:
+        return any(
+            _section_matches_heading(section, stripped, page_number)
+            for section in toc_sections
+        )
+    return False
+
+
+def _section_matches_heading(
+    section: dict[str, object],
+    heading_text: str,
+    page_number: int,
+) -> bool:
+    if section.get("start_page") != page_number:
+        return False
+    title = str(section.get("title", "")).strip()
+    if not title:
+        return False
+    return heading_text.lower() == title.lower() or heading_text.lower().startswith(title.lower())
+
+
+def _cluster_count(values: list[float], *, tolerance: float = 8.0) -> int:
+    if not values:
+        return 0
+    clusters = 0
+    ordered = sorted(values)
+    current_anchor = ordered[0]
+    for value in ordered[1:]:
+        if abs(value - current_anchor) > tolerance:
+            clusters += 1
+            current_anchor = value
+    return clusters + 1
+
+
+def _max_cluster_size(values: list[float], *, tolerance: float = 8.0) -> int:
+    if not values:
+        return 0
+    ordered = sorted(values)
+    max_size = 1
+    current_size = 1
+    current_anchor = ordered[0]
+    for value in ordered[1:]:
+        if abs(value - current_anchor) <= tolerance:
+            current_size += 1
+            continue
+        max_size = max(max_size, current_size)
+        current_anchor = value
+        current_size = 1
+    return max(max_size, current_size)
+
+
+def _has_leading_label_colon(text: str) -> bool:
+    stripped = " ".join(text.split())
+    if not stripped:
+        return False
+    first_token = stripped.split(" ", 1)[0]
+    return first_token.endswith(":") and len(first_token) <= TABLE_MAX_TITLE_LABEL_LENGTH
+
+
+def _looks_like_table_title(text: str) -> bool:
+    stripped = " ".join(text.split())
+    if not stripped:
+        return False
+    if len(stripped.split()) > TABLE_MAX_TITLE_WORDS:
+        return False
+    return stripped[0].isupper() and any(char.isalpha() for char in stripped)
+
+
+def _deduplicate_table_regions(
+    regions: list[tuple[fitz.Rect, str, str]],
+) -> list[tuple[fitz.Rect, str, str]]:
+    deduplicated: list[tuple[fitz.Rect, str, str]] = []
+    for region in regions:
+        rect, title_text, data_text = region
+        if any(rect.intersects(existing_rect) for existing_rect, _, _ in deduplicated):
+            continue
+        deduplicated.append((rect, title_text, data_text))
+    return deduplicated
 
 
 def build_resolved_guidance(
@@ -740,13 +1373,14 @@ def render_annotated_prep_pdf(
             continue
         page = doc[proposal.page - 1]
         rect = fitz.Rect(*proposal.bbox)
+        fill_color = TABLE_LIGHT_BLUE_FILL if proposal.label == "table" else (1, 1, 0)
         annot = page.add_freetext_annot(
             rect,
             f"{proposal.proposal_id} {proposal.label}",
             fontsize=6,
             fontname="helv",
             text_color=(0, 0, 0),
-            fill_color=(1, 1, 0),
+            fill_color=fill_color,
             border_width=1,
             opacity=0.5,
             align=2,
@@ -892,6 +1526,13 @@ def _load_images_total_count(path: Path) -> int:
     if not isinstance(total_count, int) or isinstance(total_count, bool) or total_count < 0:
         raise ValueError("images/image-manifest.json must contain total_count as an integer >= 0")
     return total_count
+
+
+def _load_toc_sections(path: Path, *, page_count: int) -> list[dict[str, object]]:
+    if not path.exists():
+        return []
+    sections = load_toc_sections(path, page_count=page_count)
+    return [section.to_dict() for section in sections]
 
 
 def _load_required_json_mapping(path: Path) -> dict[str, object]:
