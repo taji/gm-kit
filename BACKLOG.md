@@ -1273,6 +1273,19 @@ Requirements:
 
 Success looks like: the analyze/prep workflow can be invoked through the expected command artifacts, and the repo has a documented path toward skills-based agent integration.
 
+### E7-19. Table Suspect Gating + Selective Agent Review **[FEATURE, PLANNED]**
+Feature description:
+Add a cheap code-first scoring pass for table proposals so only likely-bad table bboxes are sent to agent review during analyze.
+
+Requirements:
+- Score detected tables for geometry risk using lightweight code heuristics before any agent handoff.
+- Prefer reviewing truncated, drifting, cross-column, or prose-contaminated tables over obviously clean ones.
+- Reuse the table crop artifacts produced by the first-pass detector.
+- Keep the agent review path selective so table refinement remains bounded in token and runtime cost.
+- Make the heuristic explainable enough to debug against fixture PDFs such as B2, Homebrewery, and CoC.
+
+Success looks like: analyze can flag only suspect table proposals for optional agent review, keeping the refinement cost bounded while preserving the table review contract.
+
 ### E7-10. Sig Marker Replacement Discovery **[FEATURE, PLANNED]**
 Feature description:
 Investigate whether the `sigXXX` font-marker mechanism should remain in the pipeline or be replaced with a structured intermediate representation after prep-first conversion is stable.

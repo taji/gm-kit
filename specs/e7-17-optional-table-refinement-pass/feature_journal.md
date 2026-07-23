@@ -25,6 +25,30 @@ Next Steps:
 
 Recorded by: Codex
 
+Session: 2026-07-23 - Added suspect table gating story
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-23
+
+Work Completed:
+1. Added a new backlog story for table suspect gating and selective agent review.
+2. Captured the desire to keep table refinement bounded by scoring only likely-bad bboxes before any agent handoff.
+
+Key Decisions:
+- The table refinement umbrella should remain separate from the heuristic that decides which tables are worth agent review.
+- Suspect-gating should stay code-first and explainable so it can be debugged against real fixture PDFs.
+
+Current State:
+- `BACKLOG.md` now includes `E7-19. Table Suspect Gating + Selective Agent Review`.
+- The E7-17 journal still reflects the table refinement review modes and the broader plan.
+
+Next Steps:
+1. Implement the E7-19 gating heuristic after the table refinement flow is ready.
+2. Keep using fixture PDFs to validate which tables are flagged for review.
+3. Commit the backlog and journal updates with the rest of the table work when ready.
+
+Recorded by: Codex
+
 Session: 2026-07-21 - Table review mode clarified
 --------------------------------------------------
 Branch: e7-16-callout-refinement-pass
