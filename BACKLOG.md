@@ -1334,6 +1334,18 @@ Requirements:
 
 Success looks like: both analyze invocation modes are documented, testable, and stable.
 
+### E7-24. Analyze End-to-End Command Coverage **[FEATURE, PLANNED]**
+Feature description:
+Add a dedicated end-to-end analyze test target that exercises the actual `just` recipes and verifies the generated prep artifacts for the Homebrewery fixture.
+
+Requirements:
+- Run the `just` analyze entry points end to end rather than testing only the underlying Python helpers.
+- Verify the expected output artifacts for the Homebrewery prep run, including the key JSON and PDF outputs.
+- Keep the test target separate from the lower-level integration suite so recipe wiring failures are visible.
+- Include the new end-to-end target in the local CI aggregate if it proves stable and non-duplicative.
+
+Success looks like: the user-facing analyze recipes are covered by a dedicated end-to-end test target with assertions against the generated prep artifacts.
+
 ### E7-10. Sig Marker Replacement Discovery **[FEATURE, PLANNED]**
 Feature description:
 Investigate whether the `sigXXX` font-marker mechanism should remain in the pipeline or be replaced with a structured intermediate representation after prep-first conversion is stable.

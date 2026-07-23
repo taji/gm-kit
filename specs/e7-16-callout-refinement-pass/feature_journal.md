@@ -24,6 +24,53 @@ Next Steps:
 
 Recorded by: Codex
 
+Session: 2026-07-23 - Added analyze e2e coverage story
+------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-23
+
+Work Completed:
+1. Added a backlog story for dedicated end-to-end coverage of the analyze command entry points.
+2. Kept the lower-level integration suite separate from the user-facing `just` recipe coverage.
+
+Key Decisions:
+- The e2e analyze coverage should validate the actual `just` recipes and artifact outputs, not only the Python helpers.
+- Recipe-level coverage belongs in its own backlog item so it can be implemented and CI-gated deliberately.
+
+Current State:
+- `BACKLOG.md` now includes `E7-24. Analyze End-to-End Command Coverage`.
+- The remaining analyze work is now split between underlying integration coverage, entry-point coverage, and recipe-level e2e coverage.
+
+Next Steps:
+1. Implement the dedicated analyze e2e target when ready.
+2. Decide whether to add the new target to `all_ci_actions` after it proves stable.
+3. Keep the current branch scope focused on the already-promoted backlog items until the next feature is selected.
+
+Recorded by: Codex
+
+Session: 2026-07-23 - Backlog promotion complete
+--------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-23
+
+Work Completed:
+1. Promoted the remaining durable analyze-command todo items into explicit backlog stories.
+2. Kept the journal focused on the current feature work and short-lived implementation notes.
+
+Key Decisions:
+- Workflow contracts and behavior changes belong in `BACKLOG.md`, not as loose todo bullets in the journal.
+- The journal should remain a session handoff record rather than the long-term feature backlog.
+
+Current State:
+- `BACKLOG.md` now carries the analyze skip-page, reviewed guidance, chunking, and entry-point coverage stories.
+- The E7-16 work is stable and pushed; no additional code changes were made in this step.
+
+Next Steps:
+1. Exit cleanly and resume later from the backlog stories that matter next.
+2. Reopen the relevant feature journal when implementation work resumes.
+
+Recorded by: Codex
+
 Session: 2026-07-23 - Promoted remaining analyze todos
 --------------------------------------------------------
 Branch: e7-16-callout-refinement-pass
