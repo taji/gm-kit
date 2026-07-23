@@ -1286,6 +1286,54 @@ Requirements:
 
 Success looks like: analyze can flag only suspect table proposals for optional agent review, keeping the refinement cost bounded while preserving the table review contract.
 
+### E7-20. Analyze Skip-Page Validation **[FEATURE, PLANNED]**
+Feature description:
+Add explicit coverage for skip-page behavior in analyze/prep so page/range exclusions remain reliable as the prep workflow evolves.
+
+Requirements:
+- Verify explicit skip pages and page ranges are parsed and persisted correctly.
+- Confirm skipped pages are excluded from downstream analyze/prep outputs.
+- Ensure skip-page behavior remains compatible with the reviewed prep artifact flow.
+- Add regression coverage using representative fixture PDFs.
+
+Success looks like: skip-page handling is tested end to end and remains stable while prep artifacts evolve.
+
+### E7-21. Reviewed Prep Guidance Handoff **[FEATURE, PLANNED]**
+Feature description:
+Ensure user-revised prep output is captured in `prep-guidance.reviewed.json` and consumed by convert when present.
+
+Requirements:
+- Preserve the baseline resolved guidance artifact as the initial contract.
+- Add or verify the revise/update flow that produces `prep-guidance.reviewed.json`.
+- Teach conversion to prefer reviewed guidance when available.
+- Keep the handoff deterministic when no reviewed artifact exists.
+
+Success looks like: user-reviewed prep guidance survives analyze and is consumed by convert without manual intervention.
+
+### E7-22. Analyze Chunking Simplification Validation **[FEATURE, PLANNED]**
+Feature description:
+Evaluate whether analyze should always use the chunking pipeline, even for single-page PDFs, so the same unit-of-work model applies consistently.
+
+Requirements:
+- Confirm current chunking behavior on small and large fixtures.
+- Decide whether single-page PDFs should still be processed as one chunk.
+- Validate the revised chunk flow against a large fixture.
+- Keep the behavior consistent with downstream convert expectations.
+
+Success looks like: chunking behavior is documented, tested, and stable across both small and large documents.
+
+### E7-23. Analyze Entry-Point Coverage **[FEATURE, PLANNED]**
+Feature description:
+Keep the two analyze entry points explicitly tested: the CLI mock flow and the mock-agent handoff flow.
+
+Requirements:
+- Verify the CLI mock path runs through the inline mock refinement loop.
+- Verify the handoff path pauses, applies mock refinement, and resumes successfully.
+- Keep the just targets descriptive enough for terminal use.
+- Preserve the current shared prep behavior under both entry points.
+
+Success looks like: both analyze invocation modes are documented, testable, and stable.
+
 ### E7-10. Sig Marker Replacement Discovery **[FEATURE, PLANNED]**
 Feature description:
 Investigate whether the `sigXXX` font-marker mechanism should remain in the pipeline or be replaced with a structured intermediate representation after prep-first conversion is stable.

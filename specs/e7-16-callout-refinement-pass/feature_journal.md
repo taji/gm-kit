@@ -24,6 +24,30 @@ Next Steps:
 
 Recorded by: Codex
 
+Session: 2026-07-23 - Promoted remaining analyze todos
+--------------------------------------------------------
+Branch: e7-16-callout-refinement-pass
+Date: 2026-07-23
+
+Work Completed:
+1. Moved the durable analyze-command todo items into explicit backlog stories.
+2. Separated skip-page validation, reviewed guidance handoff, chunking simplification, and analyze entry-point coverage into their own tracked features.
+
+Key Decisions:
+- Durable workflow changes should live in `BACKLOG.md` instead of remaining as loose todo bullets in the journal.
+- Short-lived implementation chores can stay in the journal, but behavior and artifact contracts should be backlog items.
+
+Current State:
+- `BACKLOG.md` now includes explicit stories for skip-page validation, reviewed guidance handoff, chunking simplification, and analyze entry-point coverage.
+- The journal still reflects the current E7-16 work and the later table-related follow-ups.
+
+Next Steps:
+1. Review the updated backlog grouping with the user.
+2. Keep implementing only the active story until the next backlog item is selected.
+3. Commit and push these documentation updates when ready.
+
+Recorded by: Codex
+
 Session: 2026-07-20 - Prep-specific mock handoff
 --------------------------------------------------------
 Branch: e7-16-callout-refinement-pass
